@@ -1,0 +1,23 @@
+# Environment & Secrets
+.env
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+pip-log.txt
+
+# Node/React (untuk dashboard nanti)
+node_modules/
+dist/
+.next/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
