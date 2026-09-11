@@ -1,19 +1,33 @@
-from fastapi import FastAPI, Depends
+# apps/backend/app/main.py
+import os
+import secrets
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import threading  # <-- TAMBAHKAN INI
-
-# 1. Import Database & Models
-from .database import get_session, engine
-from .models import Note, Profile, TimeLog, Donation
-
-# 2. Import Telegram
+from sqlmodel import select
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from app.services.telegram_bot import start, echo_message, TOKEN
 
-app = FastAPI(title="Second Brain API", version="0.1.0")
+# PENTING: Gunakan titik (.) di depan untuk relative import
+from .bot import ptb_app
+from .database import engine, get_session
+from .models import Note
+
+TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Nyalakan bot saat server start, matikan dengan rapi saat server stop
+    async with ptb_app:
+        await ptb_app.start()
+        yield
+        await ptb_app.stop()
+    await engine.dispose()
+
+
+app = FastAPI(title="Second Brain API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +41,22 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "Second Brain API is running. Brain loaded."}
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(
+    request: Request,
+    x_telegram_bot_api_secret_token: str | None = Header(default=None),
+):
+    # Tolak request yang bukan dari Telegram
+    received = (x_telegram_bot_api_secret_token or "").encode()
+    if not secrets.compare_digest(received, TELEGRAM_WEBHOOK_SECRET.encode()):
+        raise HTTPException(status_code=403, detail="Invalid secret token")
+
+    update = Update.de_json(await request.json(), ptb_app.bot)
+    # Masukkan ke antrean lalu langsung balas 200, supaya Telegram tidak retry
+    await ptb_app.update_queue.put(update)
+    return {"ok": True}
 
 
 @app.get("/test-db")
@@ -43,24 +73,3 @@ async def test_db_connection(session: AsyncSession = Depends(get_session)):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-
-# Fungsi khusus untuk menjalankan bot di thread terpisah
-def run_bot_in_background():
-    tg_app = Application.builder().token(TOKEN).build()
-    tg_app.add_handler(CommandHandler("start", start))
-    tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_message))
-
-    # run_polling sekarang aman dijalankan di thread-nya sendiri
-    tg_app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-@app.on_event("startup")
-async def startup_event():
-    print(">>> Starting Telegram Bot in background thread...")
-
-    # Buat thread baru (daemon=True agar mati otomatis saat server utama mati)
-    bot_thread = threading.Thread(target=run_bot_in_background, daemon=True)
-    bot_thread.start()
-
-    print(">>> Telegram Bot is running safely in background! 🤖")

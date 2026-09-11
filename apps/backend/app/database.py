@@ -1,20 +1,21 @@
 # apps/backend/app/database.py
 import os
+
 from dotenv import load_dotenv
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-# Trik penting: Ganti postgresql:// jadi postgresql+asyncpg:// untuk support async
-ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+DATABASE_URL = os.environ["DATABASE_URL"]
+# Ganti skema ke asyncpg supaya SQLAlchemy jalan secara async
+ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
+engine = create_async_engine(ASYNC_DATABASE_URL, echo=False, pool_pre_ping=True)
+
+# Dibuat sekali di level modul, dipakai ulang oleh FastAPI dan bot Telegram
+SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def get_session() -> AsyncSession:
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
+async def get_session():
+    async with SessionLocal() as session:
         yield session
