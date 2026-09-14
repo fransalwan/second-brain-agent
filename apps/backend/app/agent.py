@@ -117,7 +117,9 @@ async def get_summary(period: str, tool_context: ToolContext) -> dict:
     user_id = _user_id(tool_context)
     now_local = datetime.now(LOCAL_TZ)
     start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    if period == "week":
+    period = (period or "").strip().lower()
+    is_week = period in {"week", "weekly", "minggu", "minggu ini", "this week"}
+    if is_week:
         start_local -= timedelta(days=start_local.weekday())
 
     async with SessionLocal() as session:
@@ -181,7 +183,7 @@ INSTRUCTION = """
             1. Jika pesan berisi ide/catatan: panggil save_note.
             2. Mulai fokus: start_timer.
             3. Selesai: stop_timer.
-            4. Rekap: get_summary.
+            4. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
             5. Cari: search_notes.
             Gaya balasan: singkat, teks polos tanpa markdown.
             """
