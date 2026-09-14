@@ -22,7 +22,9 @@ class ChatHistory(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="profiles.id")
     role: str  # 'user' atau 'assistant'
     content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
 
 
 class Profile(SQLModel, table=True):
