@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str
 
     # Variabel dengan Default Value (Aman kalau tidak ada di .env)
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     APP_TIMEZONE: str = "Asia/Jakarta"
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""
