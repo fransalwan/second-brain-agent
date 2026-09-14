@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_WEBHOOK_SECRET: str
-    GOOGLE_API_KEY: str
+    GEMINI_API_KEY: str
 
     # Variabel dengan Default Value (Aman kalau tidak ada di .env)
     GEMINI_MODEL: str = "gemini-3.6-flash"
