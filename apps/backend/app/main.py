@@ -1,7 +1,8 @@
 # apps/backend/app/main.py
-import os
 import secrets
+from .config import settings
 from contextlib import asynccontextmanager
+
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,7 @@ from .bot import ptb_app
 from .database import engine, get_session
 from .models import Note
 
-TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
+TELEGRAM_WEBHOOK_SECRET = settings.TELEGRAM_WEBHOOK_SECRET
 
 
 @asynccontextmanager

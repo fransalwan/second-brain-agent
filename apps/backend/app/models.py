@@ -6,10 +6,23 @@ from uuid import UUID
 from sqlalchemy import BigInteger, DateTime
 from sqlmodel import JSON, Column, Field, SQLModel
 
+from datetime import datetime, timezone
+import uuid
+
 
 def utcnow() -> datetime:
     """Waktu sekarang dalam UTC, timezone-aware."""
     return datetime.now(timezone.utc)
+
+
+class ChatHistory(SQLModel, table=True):
+    __tablename__ = "chat_histories"
+
+    id: Optional[UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id")
+    role: str  # 'user' atau 'assistant'
+    content: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Profile(SQLModel, table=True):

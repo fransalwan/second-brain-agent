@@ -1,8 +1,6 @@
-# apps/backend/app/bot.py
 import logging
-import os
+from .config import settings
 
-from dotenv import load_dotenv
 from sqlmodel import select
 from telegram import Update
 from telegram.constants import ChatAction
@@ -18,10 +16,10 @@ from .agent import run_agent
 from .database import SessionLocal
 from .models import Note, Profile
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
-TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+# Ambil token langsung dari Pydantic Settings
+TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
 TELEGRAM_MAX_LEN = 4096
 
 # updater(None) = tanpa polling. Update masuk lewat webhook FastAPI.
