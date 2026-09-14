@@ -1,117 +1,225 @@
-# Second Brain Agent
+# Second Brain & Time Management Agent
 
-Bot Telegram yang berfungsi sebagai "otak kedua" — kirim pesan biasa, agent AI akan mengklasifikasi dan menyimpannya sebagai catatan terstruktur di database.
+Sistem multi-user berbasis AI untuk menangkap ide tanpa hambatan (*frictionless capture*) dan melacak waktu *deep work*, langsung dari Telegram.
 
-Contoh: kirim `ide: bikin fitur export notes ke markdown`, bot akan menyimpannya sebagai note dengan tag yang relevan dan membalas konfirmasi.
+Dibuat sebagai utilitas pribadi dan untuk lingkaran terbatas. Tanpa gamifikasi, tanpa fitur sosial. Fokusnya efisiensi, kejernihan pikiran, dan pelacakan progres kerja.
 
-## Stack
+> **Status:** 🚧 Fase 2 — bot Telegram (webhook), AI agent, dan riwayat percakapan persisten sudah berjalan end-to-end di lingkungan lokal. Belum siap dipakai publik.
 
-| Komponen | Teknologi |
-|---|---|
-| Web framework | FastAPI + Uvicorn |
-| Bot | python-telegram-bot (mode webhook) |
-| Agent | Google ADK + Gemini |
-| Database | Supabase (PostgreSQL) via SQLModel + asyncpg |
-| Tunneling (dev) | ngrok |
+## Tujuan
+
+1. **Zero-friction capture** — rekam ide, tugas, atau catatan mentah kapan saja lewat Telegram.
+2. **Deep work tracking** — lacak durasi sesi fokus (coding, menulis, belajar) tanpa distraksi.
+3. **AI-driven synthesis** — AI agent memahami maksud pesan, merapikan catatan, adan membuat ringkasan.
+4. **Privasi & isolasi data** — data setiap pengguna terisolasi (lihat [Catatan Keamanan](#catatan-keamanan)).
+5. **Keberlanjutan** — mekanisme donasi sederhana untuk menutup biaya server.
+
+## Cara Pakai (Telegram)
+
+Cukup kirim pesan dengan bahasa sehari-hari. Agent yang menentukan aksinya.
+
+| Contoh pesan | Yang terjadi |
+| --- | --- |
+| `ide: bikin fitur export notes ke markdown` | Disimpan sebagai catatan + tag otomatis |
+| `mulai ngoding second brain` | Timer deep work dimulai |
+| `udahan dulu` | Timer dihentikan, durasi dicatat |
+| `rekap hari ini` / `rekap minggu ini` | Ringkasan waktu fokus per proyek + catatan terbaru |
+| `cari catatan soal vue` | Mencari catatan berdasarkan kata kunci |
+
+Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan mentah sehingga tidak ada ide yang hilang.
+
+## Tech Stack
+
+| Lapisan | Teknologi |
+| --- | --- |
+| Backend & API | Python 3.11+, FastAPI, SQLModel, SQLAlchemy (async) + asyncpg |
+| Database & Auth | Supabase (PostgreSQL, Auth, Row Level Security) |
+| AI Agent | Google ADK (Agent Development Kit) + Gemini (`gemini-3.6-flash`) |
+| Bot | Telegram Bot API via webhook (`python-telegram-bot`) |
+| Dashboard | Vue 3 (Composition API), Vite, Tailwind CSS v4, `shadcn-vue` |
+| Infrastruktur | ngrok (dev lokal), Railway/Render (backend), Vercel/Netlify (dashboard) |
 
 ## Arsitektur
 
-```
-Telegram  ──POST──>  ngrok  ──>  FastAPI /telegram/webhook
-                                        │
-                                        │ validasi secret token
-                                        ▼
-                                  PTB update_queue
-                                        │
-                                        ▼
-                                  bot.handle_message
-                                        │
-                                        ▼
-                                  agent.run_agent  ──> Gemini (ADK)
-                                        │                  │
-                                        │                  └─> tools: simpan note, dll
-                                        ▼
-                                  Supabase (notes, chat_histories)
-```
+```mermaid
+flowchart LR
+    U([User])
+    TG[Telegram]
+    VUE[Vue Dashboard]
+    AUTH[Supabase Auth]
+    DB[(Supabase PostgreSQL)]
 
-Webhook membalas `200 OK` secepatnya lalu memproses update di background, supaya Telegram tidak melakukan retry.
+    subgraph BE[FastAPI Backend]
+        WH[POST /telegram/webhook]
+        MAP[Cari user dari telegram_chat_id]
+        AG[Google ADK Agent<br/>+ Gemini]
+        API[REST API /api/*]
+    end
 
-## Struktur
-
-```
-apps/backend/
-├── app/
-│   ├── main.py        # FastAPI app + endpoint webhook
-│   ├── bot.py         # handler python-telegram-bot
-│   ├── agent.py       # definisi ADK agent + tools
-│   ├── models.py      # SQLModel: Profile, Note, ChatHistory, TimeLog, Donation
-│   ├── database.py    # engine & session async
-│   └── config.py      # settings dari .env (pydantic)
-└── .env
+    U -->|chat| TG
+    TG -->|webhook + secret token| WH
+    WH --> MAP
+    MAP --> AG
+    AG -->|"save_note, search_notes,<br/>start_timer, stop_timer, get_summary"| DB
+    U --> VUE
+    VUE -->|login| AUTH
+    VUE -->|request + JWT| API
+    API --> DB
 ```
 
-## Setup
+**Alur pesan Telegram:**
 
-### 1. Prasyarat
+1. Telegram mengirim update ke `POST /telegram/webhook`. Request tanpa secret token yang benar ditolak (403).
+2. Endpoint memasukkan update ke `update_queue` milik `python-telegram-bot` lalu langsung membalas `200 OK`, supaya Telegram tidak melakukan retry saat agent butuh waktu lama.
+3. Backend mencari profil berdasarkan `telegram_chat_id`. Chat yang belum terhubung tidak diproses.
+4. Pesan diteruskan ke ADK agent bersama `user_id` milik pengirim. `user_id` ini ditentukan server, bukan oleh LLM.
+5. Agent memanggil tool yang sesuai, balasannya dikirim ke Telegram, dan percakapan dicatat di `chat_histories`.
+
+Dashboard (Fase 3) belum dibuat.
+
+## Struktur Proyek
+
+```text
+second-brain-agent/
+├── apps/
+│   └── backend/
+│       ├── app/
+│       │   ├── main.py          # FastAPI app, lifespan bot, endpoint webhook
+│       │   ├── bot.py           # Handler Telegram (/start, pesan teks, fallback)
+│       │   ├── agent.py         # ADK agent, tools, dan runner
+│       │   ├── config.py        # Settings dari .env (pydantic-settings)
+│       │   ├── database.py      # Async engine & session
+│       │   └── models.py        # Tabel: profiles, notes, chat_histories, time_logs, donations
+│       ├── migrations/          # SQL yang dijalankan manual di Supabase
+│       ├── requirements.txt
+│       └── .env.example
+├── .gitignore
+└── README.md
+```
+
+## Roadmap MVP (v1.0)
+
+### Fase 1 — Fondasi & Isolasi Data
+- [x] Struktur monorepo (`apps/backend`)
+- [x] Project Supabase (Database & Auth)
+- [x] Koneksi FastAPI ↔ Supabase (SQLModel + asyncpg, session pooler)
+- [x] Tabel `profiles`, `notes`, `chat_histories`, `time_logs`
+- [x] Timestamp timezone-aware (`timestamptz`) di seluruh model
+- [ ] Kebijakan RLS untuk akses via Supabase API (dashboard)
+
+### Fase 2 — Telegram Bridge & AI Agent
+- [x] Bot Telegram via webhook FastAPI (dengan `secret_token`)
+- [x] Tunnel untuk dev lokal (ngrok)
+- [x] Integrasi Google ADK + Gemini
+- [x] Agent tools: `save_note`, `search_notes`, `start_timer`, `stop_timer`, `get_summary`
+- [x] Fallback: simpan pesan mentah saat agent gagal
+- [x] Riwayat percakapan persisten di tabel `chat_histories`
+- [ ] Uji end-to-end semua tool di Telegram (`save_note` sudah terverifikasi)
+- [ ] Fitur "Connect Account" otomatis (saat ini masih manual lewat SQL)
+
+### Fase 3 — Dashboard & Visualisasi
+- [ ] Setup Vue 3 + Vite + Tailwind v4 + `shadcn-vue`
+- [ ] Login dengan Supabase Auth
+- [ ] Halaman *time logs* (grafik) dan *notes* (list & search)
+
+### Fase 4 — Donasi & Deployment
+- [ ] Halaman donasi (QRIS statis / Saweria / Trakteer)
+- [ ] Deploy backend (Railway/Render) dan dashboard (Vercel/Netlify)
+- [ ] Set webhook Telegram ke URL production
+
+## Rencana Setelah v1.0
+
+- **Knowledge graph** — visualisasi hubungan antar catatan.
+- **Transkripsi voice note** — agent mentranskrip dan merangkum voice note dari Telegram.
+- **Laporan mingguan** — ringkasan otomatis pola *deep work* dan produktivitas.
+- **Integrasi payment gateway** (mis. Midtrans) jika donasi butuh pencatatan otomatis.
+
+## Menjalankan Secara Lokal
+
+### Prasyarat
 
 - Python 3.11+
-- Akun Supabase
-- Bot Telegram (buat lewat [@BotFather](https://t.me/BotFather))
-- Google AI Studio API key ([aistudio.google.com/apikey](https://aistudio.google.com/apikey))
-- ngrok (untuk development lokal)
+- Project [Supabase](https://supabase.com)
+- Token bot Telegram dari [@BotFather](https://t.me/BotFather)
+- Gemini API key dari [Google AI Studio](https://aistudio.google.com/apikey)
+- [ngrok](https://ngrok.com/download) — Windows: `winget install ngrok.ngrok`
 
-### 2. Install
+### 1. Clone & install
 
 ```bash
-cd apps/backend
+git clone https://github.com/fransalwan/second-brain-agent.git
+cd second-brain-agent/apps/backend
+
 python -m venv venv
-source venv/Scripts/activate   # Windows (Git Bash)
-# source venv/bin/activate     # macOS/Linux
+source venv/Scripts/activate     # Windows (Git Bash)
+# source venv/bin/activate       # macOS / Linux
+
 pip install -r requirements.txt
+cp .env.example .env             # lalu isi nilainya
 ```
 
-### 3. Konfigurasi
+### 2. Environment variables
 
-Salin `.env.example` menjadi `.env`, lalu isi:
+| Variabel | Keterangan |
+| --- | --- |
+| `DATABASE_URL` | Supabase → **Connect** → **Session pooler**. Format `postgresql://postgres.<project-ref>:<password>@<host>.pooler.supabase.com:5432/postgres` |
+| `TELEGRAM_BOT_TOKEN` | Token dari @BotFather. Formatnya `<bot_id>:<35 karakter>` — selalu mengandung titik dua |
+| `TELEGRAM_WEBHOOK_SECRET` | String acak buatan sendiri: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `GOOGLE_API_KEY` | Gemini API key dari Google AI Studio |
+| `GOOGLE_GENAI_USE_VERTEXAI` | `FALSE` |
+| `GEMINI_MODEL` | Default `gemini-3.6-flash` |
+| `APP_TIMEZONE` | Default `Asia/Jakarta` (untuk "hari ini" / "minggu ini") |
 
-```env
-# Supabase
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-DATABASE_URL=              # Project > Connect > Session pooler (port 5432)
+> Gunakan **Session pooler**, bukan Direct connection. Direct connection hanya lewat IPv6 dan akan timeout di kebanyakan jaringan rumah. Buat password database yang hanya berisi huruf dan angka supaya tidak merusak URL.
 
-# Telegram
-TELEGRAM_BOT_TOKEN=        # dari @BotFather, formatnya 123456:AAH...
-TELEGRAM_WEBHOOK_SECRET=   # generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
+> **Simpan `.env` dengan encoding UTF-8 tanpa BOM dan line ending LF.** BOM (tiga byte tak terlihat di awal file, sering ditanam Notepad atau VS Code dengan opsi *UTF-8 with BOM*) membuat key di baris pertama tidak terbaca oleh `python-dotenv`. Di VS Code, klik indikator encoding dan `CRLF` di status bar kanan bawah untuk menggantinya.
 
-# Google ADK / Gemini
-GOOGLE_API_KEY=
-GOOGLE_GENAI_USE_VERTEXAI=False
-GEMINI_MODEL=gemini-3.6-flash
-
-# Lain-lain
-APP_TIMEZONE=Asia/Jakarta
-```
-
-> **Penting:** simpan `.env` dengan encoding **UTF-8 tanpa BOM** dan line ending **LF**. BOM akan membuat key pertama tidak terbaca oleh `python-dotenv`.
-
-### 4. Jalankan
-
-Tiga terminal:
+Verifikasi semua nilai terbaca sebelum menjalankan apa pun:
 
 ```bash
-# Terminal 1 — server
-uvicorn app.main:app --reload --port 8000
+python -c "
+from app.config import settings
+for k in ('TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','GOOGLE_API_KEY','GEMINI_MODEL'):
+    v = getattr(settings, k, '') or ''
+    print(k, 'OK' if v else 'KOSONG', len(v))
+"
+```
 
-# Terminal 2 — tunnel
+Kalau ada yang `KOSONG`, cek apakah key-nya masih ter-comment (`#`) atau salah nama:
+
+```bash
+cut -d= -f1 .env
+```
+
+### 3. Migrasi database
+
+Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → SQL Editor**:
+
+1. `001_timer_and_timezones.sql`
+2. `002_bigint_telegram_chat_id.sql`
+3. `003_chat_histories_timestamptz.sql`
+
+Semua migrasi aman dijalankan ulang.
+
+### 4. Jalankan (butuh 3 terminal)
+
+**Terminal 1 — server**
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+Cek koneksi database: `curl -s http://localhost:8000/test-db` harus mengembalikan `"status":"success"`.
+
+**Terminal 2 — tunnel** (biarkan tetap terbuka; URL berganti setiap kali restart)
+```bash
 ngrok http 8000
 ```
 
+**Terminal 3 — daftarkan webhook**
 ```bash
-# Terminal 3 — daftarkan webhook
 TOKEN=$(python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
 SECRET=$(python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
-NGROK=$(curl -s http://127.0.0.1:4040/api/tunnels | python -c "import sys,json; print([t['public_url'] for t in json.load(sys.stdin)['tunnels'] if t['public_url'].startswith('https')][0])")
+NGROK=$(curl -s http://127.0.0.1:4040/api/tunnels \
+  | python -c "import sys,json; print([t['public_url'] for t in json.load(sys.stdin)['tunnels'] if t['public_url'].startswith('https')][0])")
 
 curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
   -d "url=$NGROK/telegram/webhook" \
@@ -119,7 +227,9 @@ curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
   -d "drop_pending_updates=true"
 ```
 
-> URL ngrok berubah setiap kali direstart. Ulangi blok terminal 3 setiap sesi baru.
+> Ambil URL dari baris **`Forwarding`** di terminal ngrok atau dari API di `127.0.0.1:4040` — **bukan** dari halaman dashboard ngrok. Mendaftarkan `app.ngrok.ai` membuat Telegram mengirim update ke server ngrok, bukan ke mesin kamu; gejalanya bot diam total tanpa satu pun log di uvicorn.
+
+> Membaca nilai lewat `app.config` (bukan `source .env`) memastikan shell dan server memakai sumber yang sama persis, sekaligus kebal terhadap BOM dan CRLF.
 
 Verifikasi:
 
@@ -127,46 +237,65 @@ Verifikasi:
 curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool
 ```
 
-Yang diharapkan: `url` menunjuk ke domain ngrok saat ini, `pending_update_count: 0`, dan tidak ada `last_error_message`.
+Yang diharapkan: `url` menunjuk ke domain ngrok yang aktif, `pending_update_count: 0`, dan tidak ada `last_error_message` sama sekali.
 
-## Endpoint
+### 5. Hubungkan akun Telegram
 
-| Method | Path | Keterangan |
-|---|---|---|
-| GET | `/` | Health check |
-| GET | `/test-db` | Cek koneksi Supabase |
-| POST | `/telegram/webhook` | Menerima update dari Telegram (butuh header secret) |
+1. Kirim `/start` ke bot, catat **Chat ID** yang dibalas.
+2. Buat user di **Supabase → Authentication → Users → Add user** (centang *Auto Confirm User*).
+3. Jalankan di SQL Editor:
+
+```sql
+insert into public.profiles (id, full_name, telegram_chat_id, created_at)
+select id, 'Nama Kamu', 123456789, now()
+from auth.users
+where email = 'email@contoh.com'
+on conflict (id) do update set telegram_chat_id = excluded.telegram_chat_id;
+```
+
+Kirim `/start` lagi. Bot akan membalas "Akun kamu sudah terhubung".
 
 ## Troubleshooting
 
-### Bot diam, tidak ada log di Uvicorn
+Cek status webhook: `curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool`
 
-Request belum sampai ke server lokal. Urutan pengecekan:
+### Bot diam total, tidak ada log apa pun di uvicorn
 
-1. Buka `http://127.0.0.1:4040` (ngrok inspector). Kosong berarti Telegram tidak pernah memanggil URL tunnel — lanjut ke langkah 2. Ada request tapi statusnya 4xx/5xx berarti masalahnya di sisi aplikasi.
-2. Cek `getWebhookInfo`. Pastikan `url` benar-benar domain ngrok aktif, bukan tunnel lama.
-3. Pastikan URL berasal dari baris `Forwarding` di terminal ngrok, bukan dari halaman dashboard ngrok.
+Request tidak sampai ke server lokal. Alat pemisah paling tajam adalah **ngrok inspector** di `http://127.0.0.1:4040`, dashboard lokal yang mencatat semua request yang masuk ke tunnel.
 
-### `403 Invalid secret token`
+- **Inspector kosong** saat pesan dikirim → Telegram tidak pernah memanggil URL tunnel. Masalahnya di konfigurasi webhook: cek `url` di `getWebhookInfo`, pastikan itu domain `.ngrok-free.app` yang aktif, bukan tunnel lama.
+- **Inspector berisi request** → traffic sampai. Lihat status code-nya lalu lanjut ke tabel di bawah.
 
-Nilai `TELEGRAM_WEBHOOK_SECRET` yang dipegang Uvicorn berbeda dengan yang didaftarkan ke Telegram. Perubahan `.env` **tidak** terbaca oleh `--reload` — restart Uvicorn secara manual.
+### Tabel gejala
 
-Bandingkan kedua nilai:
-
-```bash
-python -c "from app.config import settings; import hashlib; s=settings.TELEGRAM_WEBHOOK_SECRET; print(len(s), hashlib.sha256(s.encode()).hexdigest()[:12])"
-```
+| Gejala | Penyebab | Solusi |
+| --- | --- | --- |
+| `last_error_message: 404` + `ip_address` asing | Webhook menunjuk ke `app.ngrok.ai` (halaman dashboard ngrok), bukan ke tunnel | `setWebhook` ulang dengan URL dari baris `Forwarding` |
+| `last_error_message: 530` / `Connection refused` | Tunnel mati atau URL berganti | Jalankan ulang tunnel, lalu `setWebhook` dengan URL baru |
+| `403 Invalid secret token` | Nilai secret yang dipegang uvicorn ≠ yang didaftarkan ke Telegram | Restart uvicorn — `.env` **tidak** dibaca ulang oleh `--reload` |
+| `403` tetap muncul walau sudah restart | Ada proses uvicorn zombie memegang port 8000 | Lihat bagian *Port 8000* di bawah |
+| `{"ok":false,"error_code":404}` dari `getMe` | `$TOKEN` kosong, atau placeholder terketik apa adanya | `echo "${#TOKEN}"` — harus 45–46 |
+| `Read timeout expired` | Handler menunggu operasi lama sebelum membalas | Pastikan endpoint membalas 200 sebelum memproses agent |
+| Bot membalas "AI sedang bermasalah" | Model salah/pensiun, API key salah, atau kena limit (`429`) | Lihat bagian *Gemini 404* di bawah |
+| `can't subtract offset-naive and offset-aware datetimes` | Kolom datetime tidak timezone-aware | Lihat bagian *Timezone* di bawah |
+| `password authentication failed` | Kredensial `DATABASE_URL` salah, atau terminal memegang nilai lama | Salin ulang URI Session pooler; buka terminal baru |
+| `[Errno 10060] ... 2406:...` | Memakai Direct connection (IPv6) | Ganti ke Session pooler |
+| `value out of int32 range` | Kolom `telegram_chat_id` masih `integer` | Jalankan migrasi `002` |
 
 ### Port 8000 masih dipakai setelah Ctrl+C
 
+Proses uvicorn bisa tertinggal dan tetap memegang port. Yang menjawab request adalah instance lama dengan `.env` versi sebelumnya, sehingga perubahan konfigurasi seolah-olah tidak berpengaruh.
+
 ```bash
 netstat -ano | findstr LISTENING | findstr :8000
-taskkill //PID <pid> //F
+taskkill //PID <pid> //F     # ganti <pid> dengan angka di kolom terakhir
 ```
 
-### `404 NOT_FOUND` dari Gemini
+Normalnya hanya ada satu atau dua baris (parent + child dari `--reload`). Lebih dari itu, matikan semuanya lalu start ulang.
 
-Model sudah dipensiunkan Google. Lihat model yang tersedia untuk API key kamu:
+### Gemini `404 NOT_FOUND`
+
+Model sudah dipensiunkan. Lihat model yang tersedia untuk API key kamu:
 
 ```bash
 GKEY=$(python -c "from app.config import settings; print(settings.GOOGLE_API_KEY)" | tr -d '\r\n')
@@ -174,15 +303,29 @@ curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$GKEY" \
   | python -c "import sys,json; [print(m['name']) for m in json.load(sys.stdin)['models'] if 'generateContent' in m.get('supportedGenerationMethods',[])]"
 ```
 
-Catatan: model bisa muncul di daftar ini tapi tetap ditolak untuk akun baru. Pesan error dari Google biasanya sudah menyebutkan model penggantinya. Gunakan `gemini-flash-latest` bila ingin alias yang mengikuti rilis stabil terbaru.
+Daftar ini **tidak sepenuhnya akurat** — sebuah model bisa terdaftar tapi tetap ditolak untuk akun baru (`no longer available to new users`). Pesan error dari Google biasanya sudah menyebutkan model penggantinya; ikuti saja. Alternatifnya pakai alias `gemini-flash-latest` yang selalu menunjuk rilis flash stabil terbaru.
 
-### `can't subtract offset-naive and offset-aware datetimes`
+Tes model sebelum mengubah `.env`:
 
-Kolom datetime di model kehilangan `sa_type=DateTime(timezone=True)`, sehingga di-cast sebagai `TIMESTAMP WITHOUT TIME ZONE` padahal nilainya timezone-aware. Samakan dengan model lain:
+```bash
+curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GKEY" \
+  -H "Content-Type: application/json" \
+  -d '{"contents":[{"parts":[{"text":"halo"}]}]}' | head -c 300
+```
+
+### Timezone: `can't subtract offset-naive and offset-aware datetimes`
+
+Terjadi saat field datetime di SQLModel tidak diberi `sa_type`, sehingga di-cast sebagai `TIMESTAMP WITHOUT TIME ZONE` padahal nilainya membawa `tzinfo=utc`. Asyncpg menolaknya dan seluruh insert ke tabel itu gagal — sering kali tanpa mengganggu alur lain, sehingga baru ketahuan saat tabel terlihat kosong.
 
 ```python
+# Salah
+created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Benar
 created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))
 ```
+
+Jangan mengakalinya dengan `.replace(tzinfo=None)` — timestamp kehilangan informasi zona dan perhitungan "hari ini" / "minggu ini" berdasarkan `APP_TIMEZONE` menjadi salah.
 
 Pastikan juga kolom di Postgres bertipe `timestamptz`:
 
@@ -191,18 +334,22 @@ ALTER TABLE chat_histories
 ALTER COLUMN created_at TYPE timestamptz USING created_at AT TIME ZONE 'UTC';
 ```
 
-## Keamanan
+## Catatan Keamanan
 
-- `.env` tidak pernah di-commit. Pastikan tercantum di `.gitignore`.
-- Endpoint webhook memvalidasi header `X-Telegram-Bot-Api-Secret-Token` menggunakan `secrets.compare_digest`.
-- Bila bot token pernah terekspos, segera revoke lewat @BotFather → `/mybots` → API Token → Revoke current token.
+- **RLS tidak berlaku untuk query dari backend.** Backend terhubung dengan role `postgres`, yang mem-bypass RLS. Karena itu setiap query dan tool agent memfilter berdasarkan `user_id` yang ditentukan server (dari mapping `telegram_chat_id`), bukan dari input LLM.
+- **Webhook divalidasi** dengan header `X-Telegram-Bot-Api-Secret-Token` menggunakan `secrets.compare_digest` (perbandingan constant-time).
+- Bot hanya memproses **chat pribadi**; pesan grup dan pesan yang di-edit diabaikan.
+- Jangan pernah commit `.env`, dan jangan menaruh `service_role` key atau `DATABASE_URL` di kode frontend. Verifikasi dengan `git check-ignore -v .env` dan `git log --all --oneline -- "*.env"`.
+- Saat menempelkan output terminal ke mana pun (issue, chat, screenshot), **sensor token**. Untuk membandingkan dua nilai tanpa mengeksposnya, bandingkan hash-nya:
+  ```bash
+  python -c "import hashlib,sys; s=sys.argv[1]; print(len(s), hashlib.sha256(s.encode()).hexdigest()[:12])" "$SECRET"
+  ```
+- Jika sebuah secret sempat terekspos (log, screenshot, chat), segera rotasi: reset password database, buat API key baru, atau revoke token di @BotFather → `/mybots` → **API Token** → **Revoke current token**.
 
-## Status
+## Dukung Pengembangan
 
-Pipeline berjalan penuh: Telegram → ngrok → FastAPI → ADK/Gemini → Supabase.
+Jika alat ini bermanfaat dan kamu ingin membantu biaya server, silakan kunjungi halaman donasi di dashboard (setelah Fase 4) atau hubungi maintainer.
 
-Rencana berikutnya:
+## Lisensi
 
-- [ ] Deploy ke host permanen (menghilangkan ketergantungan ngrok)
-- [ ] Perintah pencarian & ringkasan catatan
-- [ ] Integrasi tabel `time_logs` dan `donations`
+Belum ditentukan.
