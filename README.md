@@ -4,13 +4,13 @@ Sistem multi-user berbasis AI untuk menangkap ide tanpa hambatan (*frictionless 
 
 Dibuat sebagai utilitas pribadi dan untuk lingkaran terbatas. Tanpa gamifikasi, tanpa fitur sosial. Fokusnya efisiensi, kejernihan pikiran, dan pelacakan progres kerja.
 
-> **Status:** 🚧 Fase 2 — bot Telegram (webhook), AI agent, dan riwayat percakapan persisten sudah berjalan end-to-end di lingkungan lokal. Belum siap dipakai publik.
+> **Status:** 🚧 Fase 2 selesai — seluruh agent tool sudah terverifikasi end-to-end lewat Telegram di lingkungan lokal. Berikutnya: `/connect` otomatis, lalu deployment. Belum siap dipakai publik.
 
 ## Tujuan
 
 1. **Zero-friction capture** — rekam ide, tugas, atau catatan mentah kapan saja lewat Telegram.
 2. **Deep work tracking** — lacak durasi sesi fokus (coding, menulis, belajar) tanpa distraksi.
-3. **AI-driven synthesis** — AI agent memahami maksud pesan, merapikan catatan, adan membuat ringkasan.
+3. **AI-driven synthesis** — AI agent memahami maksud pesan, merapikan catatan, dan membuat ringkasan.
 4. **Privasi & isolasi data** — data setiap pengguna terisolasi (lihat [Catatan Keamanan](#catatan-keamanan)).
 5. **Keberlanjutan** — mekanisme donasi sederhana untuk menutup biaya server.
 
@@ -28,6 +28,8 @@ Cukup kirim pesan dengan bahasa sehari-hari. Agent yang menentukan aksinya.
 
 Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan mentah sehingga tidak ada ide yang hilang.
 
+> Batas "hari ini" mengikuti tengah malam waktu `APP_TIMEZONE`. Sesi yang dimulai pukul 23:35 dan rekap yang diminta pukul 00:10 dihitung sebagai dua hari berbeda.
+
 ## Tech Stack
 
 | Lapisan | Teknologi |
@@ -38,6 +40,7 @@ Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan
 | Bot | Telegram Bot API via webhook (`python-telegram-bot`) |
 | Dashboard | Vue 3 (Composition API), Vite, Tailwind CSS v4, `shadcn-vue` |
 | Infrastruktur | ngrok (dev lokal), Railway/Render (backend), Vercel/Netlify (dashboard) |
+| Tooling development | Antigravity IDE (agent-first, membaca `.agents/`) |
 
 ## Arsitektur
 
@@ -75,27 +78,57 @@ flowchart LR
 4. Pesan diteruskan ke ADK agent bersama `user_id` milik pengirim. `user_id` ini ditentukan server, bukan oleh LLM.
 5. Agent memanggil tool yang sesuai, balasannya dikirim ke Telegram, dan percakapan dicatat di `chat_histories`.
 
+Seluruh timestamp disimpan dalam UTC (`timestamptz`) dan dikonversi ke `APP_TIMEZONE` hanya di lapisan tampilan. Artinya nilai di Supabase akan terlihat mundur 7 jam dari WIB — itu perilaku yang benar, bukan bug.
+
 Dashboard (Fase 3) belum dibuat.
 
 ## Struktur Proyek
 
 ```text
 second-brain-agent/
+├── .agents/
+│   ├── rules/               # Aturan project untuk AI coding agent
+│   └── skills/              # Panduan Google ADK
 ├── apps/
 │   └── backend/
 │       ├── app/
-│       │   ├── main.py          # FastAPI app, lifespan bot, endpoint webhook
-│       │   ├── bot.py           # Handler Telegram (/start, pesan teks, fallback)
-│       │   ├── agent.py         # ADK agent, tools, dan runner
-│       │   ├── config.py        # Settings dari .env (pydantic-settings)
-│       │   ├── database.py      # Async engine & session
-│       │   └── models.py        # Tabel: profiles, notes, chat_histories, time_logs, donations
-│       ├── migrations/          # SQL yang dijalankan manual di Supabase
+│       │   ├── main.py      # FastAPI app, lifespan bot, endpoint webhook
+│       │   ├── bot.py       # Handler Telegram (/start, pesan teks, fallback)
+│       │   ├── agent.py     # ADK agent, tools, dan runner
+│       │   ├── config.py    # Settings dari .env (pydantic-settings)
+│       │   ├── database.py  # Async engine & session
+│       │   └── models.py    # Tabel: profiles, notes, chat_histories, time_logs, donations
+│       ├── migrations/      # SQL yang dijalankan manual di Supabase
 │       ├── requirements.txt
 │       └── .env.example
 ├── .gitignore
 └── README.md
 ```
+
+## Development dengan AI Agent
+
+Project ini dikembangkan dengan bantuan [Antigravity](https://antigravity.google), IDE agent-first dari Google. Folder `.agents/` berisi konteks yang dibaca otomatis oleh AI coding agent:
+
+| Folder | Isi | Fungsi |
+| --- | --- | --- |
+| `.agents/skills/` | Dokumentasi Google ADK | Pengetahuan domain: cara membuat agent, tools, dan runner yang benar |
+| `.agents/rules/` | Aturan project | Standar yang wajib diikuti saat menulis kode di repo ini |
+
+Aturan di `.agents/rules/` **tidak berisi preferensi gaya**, melainkan invariant yang berasal dari bug yang sudah pernah terjadi:
+
+1. Field datetime wajib `sa_type=DateTime(timezone=True)`
+2. Secret hanya diakses lewat `app/config.py`, tidak pernah hardcode
+3. `user_id` ditentukan server dari `telegram_chat_id`, bukan dari output LLM
+4. Webhook membalas 200 sebelum memproses agent
+5. Migrasi database manual dan idempotent
+
+Setelah membuka project di Antigravity, verifikasi rules terbaca dengan bertanya di panel agent (`Ctrl+L`):
+
+> Apa aturan project ini soal field datetime di SQLModel, dan kenapa aturan itu ada?
+
+Jawaban yang benar menyebut `sa_type=DateTime(timezone=True)` beserta alasannya (penolakan asyncpg, insert gagal). Jawaban generik tentang timezone berarti rules belum aktif.
+
+Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitungan durasi selesai dalam hitungan detik, menggantikan trial-and-error lewat Telegram yang butuh berkali-kali percobaan.
 
 ## Roadmap MVP (v1.0)
 
@@ -107,15 +140,18 @@ second-brain-agent/
 - [x] Timestamp timezone-aware (`timestamptz`) di seluruh model
 - [ ] Kebijakan RLS untuk akses via Supabase API (dashboard)
 
-### Fase 2 — Telegram Bridge & AI Agent
+### Fase 2 — Telegram Bridge & AI Agent ✅
 - [x] Bot Telegram via webhook FastAPI (dengan `secret_token`)
 - [x] Tunnel untuk dev lokal (ngrok)
 - [x] Integrasi Google ADK + Gemini
 - [x] Agent tools: `save_note`, `search_notes`, `start_timer`, `stop_timer`, `get_summary`
 - [x] Fallback: simpan pesan mentah saat agent gagal
 - [x] Riwayat percakapan persisten di tabel `chat_histories`
-- [ ] Uji end-to-end semua tool di Telegram (`save_note` sudah terverifikasi)
-- [ ] Fitur "Connect Account" otomatis (saat ini masih manual lewat SQL)
+- [x] Uji end-to-end seluruh tool di Telegram
+- [x] Setup `.agents/` untuk AI-assisted development
+
+### Fase 2.5 — Onboarding
+- [ ] Perintah `/connect` otomatis, menggantikan pendaftaran manual lewat SQL
 
 ### Fase 3 — Dashboard & Visualisasi
 - [ ] Setup Vue 3 + Vite + Tailwind v4 + `shadcn-vue`
@@ -132,6 +168,7 @@ second-brain-agent/
 - **Knowledge graph** — visualisasi hubungan antar catatan.
 - **Transkripsi voice note** — agent mentranskrip dan merangkum voice note dari Telegram.
 - **Laporan mingguan** — ringkasan otomatis pola *deep work* dan produktivitas.
+- **Logical day start** — opsi `DAY_START_HOUR` supaya sesi dini hari dihitung sebagai hari sebelumnya.
 - **Integrasi payment gateway** (mis. Midtrans) jika donasi butuh pencatatan otomatis.
 
 ## Menjalankan Secara Lokal
@@ -143,6 +180,7 @@ second-brain-agent/
 - Token bot Telegram dari [@BotFather](https://t.me/BotFather)
 - Gemini API key dari [Google AI Studio](https://aistudio.google.com/apikey)
 - [ngrok](https://ngrok.com/download) — Windows: `winget install ngrok.ngrok`
+- Opsional: [Antigravity](https://antigravity.google) untuk development dengan AI agent
 
 ### 1. Clone & install
 
@@ -259,6 +297,12 @@ Kirim `/start` lagi. Bot akan membalas "Akun kamu sudah terhubung".
 
 Cek status webhook: `curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool`
 
+### Aturan pertama: restart uvicorn
+
+Sebelum menduga ada bug di kode, pastikan server yang berjalan memuat versi terbaru. `--reload` hanya memantau file `.py` — perubahan `.env` tidak terbaca, dan proses lama bisa tertinggal memegang port.
+
+Tiga bug yang tampak berbeda di project ini (`403 Invalid secret token`, konfigurasi yang seolah tidak berpengaruh, dan `get_summary` yang mengembalikan nol) semuanya berakar pada hal yang sama. Restart bersih lebih murah daripada debugging spekulatif.
+
 ### Bot diam total, tidak ada log apa pun di uvicorn
 
 Request tidak sampai ke server lokal. Alat pemisah paling tajam adalah **ngrok inspector** di `http://127.0.0.1:4040`, dashboard lokal yang mencatat semua request yang masuk ke tunnel.
@@ -278,6 +322,7 @@ Request tidak sampai ke server lokal. Alat pemisah paling tajam adalah **ngrok i
 | `Read timeout expired` | Handler menunggu operasi lama sebelum membalas | Pastikan endpoint membalas 200 sebelum memproses agent |
 | Bot membalas "AI sedang bermasalah" | Model salah/pensiun, API key salah, atau kena limit (`429`) | Lihat bagian *Gemini 404* di bawah |
 | `can't subtract offset-naive and offset-aware datetimes` | Kolom datetime tidak timezone-aware | Lihat bagian *Timezone* di bawah |
+| Rekap mengembalikan 0 padahal data ada | Server belum di-restart, atau batas hari sudah lewat tengah malam | Restart uvicorn; cek `mulai_wib` di `time_logs` |
 | `password authentication failed` | Kredensial `DATABASE_URL` salah, atau terminal memegang nilai lama | Salin ulang URI Session pooler; buka terminal baru |
 | `[Errno 10060] ... 2406:...` | Memakai Direct connection (IPv6) | Ganti ke Session pooler |
 | `value out of int32 range` | Kolom `telegram_chat_id` masih `integer` | Jalankan migrasi `002` |
@@ -315,7 +360,7 @@ curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-
 
 ### Timezone: `can't subtract offset-naive and offset-aware datetimes`
 
-Terjadi saat field datetime di SQLModel tidak diberi `sa_type`, sehingga di-cast sebagai `TIMESTAMP WITHOUT TIME ZONE` padahal nilainya membawa `tzinfo=utc`. Asyncpg menolaknya dan seluruh insert ke tabel itu gagal — sering kali tanpa mengganggu alur lain, sehingga baru ketahuan saat tabel terlihat kosong.
+Terjadi saat field datetime di SQLModel tidak diberi `sa_type`, sehingga di-cast sebagai `TIMESTAMP WITHOUT TIME ZONE` padahal nilainya membawa `tzinfo=utc`. Asyncpg menolaknya dengan `DataError` dan seluruh insert ke tabel itu gagal. Kegagalan ini mudah terlewat karena sering tertangkap error handling di lapisan atas — gejalanya tabel terlihat kosong sementara alur lain tetap berjalan normal.
 
 ```python
 # Salah
@@ -325,6 +370,8 @@ created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))
 ```
 
+Berlaku juga untuk field nullable seperti `TimeLog.ended_at`.
+
 Jangan mengakalinya dengan `.replace(tzinfo=None)` — timestamp kehilangan informasi zona dan perhitungan "hari ini" / "minggu ini" berdasarkan `APP_TIMEZONE` menjadi salah.
 
 Pastikan juga kolom di Postgres bertipe `timestamptz`:
@@ -333,6 +380,21 @@ Pastikan juga kolom di Postgres bertipe `timestamptz`:
 ALTER TABLE chat_histories
 ALTER COLUMN created_at TYPE timestamptz USING created_at AT TIME ZONE 'UTC';
 ```
+
+### Memeriksa data dalam waktu lokal
+
+Kolom `timestamptz` disimpan dalam UTC. Untuk melihatnya dalam WIB tanpa mengubah data:
+
+```sql
+select project_name,
+       duration_minutes,
+       started_at at time zone 'Asia/Jakarta' as mulai_wib,
+       ended_at   at time zone 'Asia/Jakarta' as selesai_wib
+from time_logs
+order by started_at desc;
+```
+
+Berguna saat rekap terasa tidak sesuai — sering kali penyebabnya batas tengah malam, bukan bug.
 
 ## Catatan Keamanan
 
