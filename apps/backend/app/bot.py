@@ -1,7 +1,6 @@
 import logging
-from .config import settings
 
-from sqlmodel import select
+from sqlmodel import col, select
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
@@ -13,8 +12,9 @@ from telegram.ext import (
 )
 
 from .agent import run_agent
+from .config import settings
 from .database import SessionLocal
-from .models import Note, Profile
+from .models import InviteCode, Note, Profile, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,9 @@ ptb_app = Application.builder().token(TELEGRAM_BOT_TOKEN).updater(None).build()
 
 NOT_LINKED_MSG = (
     "Akun Telegram ini belum terhubung ke Second Brain.\n\n"
-    "Chat ID kamu: {chat_id}\n"
-    "Kirim Chat ID ini ke admin untuk dihubungkan."
+    "Kalau kamu punya kode undangan, kirim:\n"
+    "/connect KODE-KAMU\n\n"
+    "Chat ID kamu: {chat_id}"
 )
 
 
@@ -72,6 +73,62 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    message = update.effective_message
+
+    existing = await get_profile_by_chat_id(chat_id)
+    if existing is not None:
+        await message.reply_text("Akun ini sudah terhubung.")
+        return
+
+    if not context.args:
+        await message.reply_text("Format: /connect KODE-KAMU")
+        return
+
+    code = context.args[0].strip().upper()
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(InviteCode)
+            .where(
+                InviteCode.code == code,
+                col(InviteCode.used_at).is_(None),
+                InviteCode.expires_at > utcnow(),
+            )
+            .with_for_update()
+        )
+        invite = result.scalars().first()
+
+        if invite is None:
+            await message.reply_text(
+                "Kode tidak valid, sudah dipakai, atau sudah kedaluwarsa."
+            )
+            return
+
+        # Disalin sebelum commit: setelah commit objek bisa expired dan
+        # akses atributnya memicu lazy-load yang tidak valid di konteks async.
+        full_name = invite.full_name
+
+        session.add(
+            Profile(
+                id=invite.auth_user_id,
+                full_name=full_name,
+                telegram_chat_id=chat_id,
+            )
+        )
+        invite.used_at = utcnow()
+        invite.used_by_chat_id = chat_id
+        await session.commit()
+
+    logger.info("Profil baru terhubung lewat invite code, chat_id=%s", chat_id)
+
+    name = f", {full_name}" if full_name else ""
+    await message.reply_text(
+        f"Berhasil terhubung{name}! Kirim /start untuk melihat contoh perintah."
+    )
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     chat_id = update.effective_chat.id
@@ -104,6 +161,7 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 private = filters.ChatType.PRIVATE
 ptb_app.add_handler(CommandHandler("start", start, filters=private))
+ptb_app.add_handler(CommandHandler("connect", connect, filters=private))
 # UpdateType.MESSAGE = abaikan pesan yang di-edit (supaya tidak diproses dua kali)
 ptb_app.add_handler(
     MessageHandler(

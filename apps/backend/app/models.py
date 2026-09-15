@@ -1,13 +1,11 @@
 # apps/backend/app/models.py
+import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import BigInteger, DateTime
 from sqlmodel import JSON, Column, Field, SQLModel
-
-from datetime import datetime, timezone
-import uuid
 
 
 def utcnow() -> datetime:
@@ -72,6 +70,21 @@ class Donation(SQLModel, table=True):
     amount: int
     message: Optional[str] = None
     payment_method: str
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class InviteCode(SQLModel, table=True):
+    __tablename__ = "invite_codes"
+
+    code: str = Field(primary_key=True)
+    auth_user_id: UUID
+    full_name: Optional[str] = None
+    used_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    # BigInteger: sama seperti Profile.telegram_chat_id
+    used_by_chat_id: Optional[int] = Field(default=None, sa_type=BigInteger)
+    expires_at: datetime = Field(sa_type=DateTime(timezone=True))
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
