@@ -187,13 +187,8 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 ```bash
 git clone https://github.com/fransalwan/second-brain-agent.git
 cd second-brain-agent/apps/backend
-
-python -m venv venv
-source venv/Scripts/activate     # Windows (Git Bash)
-# source venv/bin/activate       # macOS / Linux
-
-pip install -r requirements.txt
-cp .env.example .env             # lalu isi nilainya
+uv sync
+cp .env.example .env
 ```
 
 ### 2. Environment variables
@@ -243,7 +238,7 @@ Semua migrasi aman dijalankan ulang.
 
 **Terminal 1 — server**
 ```bash
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
 Cek koneksi database: `curl -s http://localhost:8000/test-db` harus mengembalikan `"status":"success"`.
 

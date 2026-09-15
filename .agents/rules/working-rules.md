@@ -1,134 +1,172 @@
-# Cara Kerja di Project Ini
+# Second Brain Agent — Project Rules
 
-Aturan ini mengatur **bagaimana** mengerjakan tugas, bukan aturan teknis kodenya. Untuk aturan teknis, lihat `project-rules.md`.
+Aturan ini berasal dari bug yang **sudah pernah terjadi** di project ini, bukan preferensi gaya. Melanggarnya akan mengulang kegagalan yang sama.
 
-Aturan ini lahir dari pola yang benar-benar terjadi saat pengembangan project ini, bukan prinsip abstrak.
+Untuk aturan tentang **cara bekerja** (scope, urutan, penanganan secret), lihat `working-rules.md`.
+
+## Stack
+
+Python 3.11 · FastAPI · SQLModel + SQLAlchemy async + asyncpg · Supabase PostgreSQL · `python-telegram-bot` (webhook) · Google ADK + Gemini · ngrok (dev)
+
+Dependensi dikelola **uv**. Dijalankan di Windows 11 / Git Bash. Working directory: `apps/backend`.
 
 ---
 
-## 1. Kerjakan yang diminta, tidak lebih
+## 1. Datetime wajib timezone-aware
 
-Ini aturan terpenting di dokumen ini.
-
-Kalau masalahnya bisa diselesaikan dengan mengubah satu baris teks, ubah satu baris teks. Jangan memperkenalkan mekanisme, abstraksi, atau pustaka baru untuk masalah yang tidak membutuhkannya.
-
-**Contoh nyata dari project ini.** Ada satu nama variabel yang salah di `.env.example`. Perbaikannya: ganti satu baris. Yang sempat diusulkan: memakai `AliasChoices` pydantic agar kedua nama diterima — menambah kerumitan di `config.py` dan membuat salah ketik nama variabel diterima diam-diam alih-alih menimbulkan error.
-
-Tanda kamu sedang melebar:
-- Kamu memperkenalkan konsep yang belum ada di codebase ini
-- Kamu menyentuh file yang tidak disebut dalam tugas
-- Kamu menyelesaikan masalah yang belum dikeluhkan siapa pun
-- Solusimu membuat kesalahan di masa depan lebih sulit terdeteksi
-
-Kalau kamu melihat masalah lain di luar tugas, **laporkan sebagai temuan**. Jangan perbaiki tanpa diminta.
-
-## 2. Jangan ubah perilaku yang sudah terverifikasi
-
-Kalau sebuah fungsi sudah diuji dan berjalan, jangan menyentuhnya untuk "memperkuat" atau "mengamankan" tanpa diminta.
-
-**Contoh nyata.** `/connect` sudah terverifikasi. Untuk mencegah dugaan error primary key, logikanya sempat diubah menjadi upsert. Akibatnya sebuah invite code bisa memindahkan profil yang sudah ada ke chat ID lain — jalur pembajakan akun. Error primary key yang hendak dihindari itu justru proteksinya.
-
-Kalau kamu melihat potensi masalah pada kode yang sudah berjalan, sampaikan sebagai pertanyaan, bukan sebagai perubahan.
-
-## 3. Rencana dulu, kode belakangan
-
-Untuk tugas apa pun yang menyentuh lebih dari satu file, laporkan rencananya dan tunggu persetujuan.
-
-Rencana yang baik memuat: file apa yang berubah, apa yang berubah di masing-masing, dan keputusan desain yang masih terbuka. Rencana yang buruk hanya mengulang permintaan dengan kalimat berbeda.
-
-## 4. Verifikasi arah sebelum menyeragamkan
-
-Saat menemukan ketidakkonsistenan — dua nama berbeda untuk hal yang sama, dua pola untuk kebutuhan yang sama — **jangan menebak mana yang benar.**
-
-Baca file yang benar-benar mengkonsumsinya. Kalau perlu, jalankan pengecekan.
-
-Menyeragamkan ke arah yang salah lebih merusak daripada membiarkan tidak konsisten. Di project ini, menyeragamkan `GOOGLE_API_KEY` ke `GEMINI_API_KEY` akan mematikan agent sepenuhnya.
-
-Jangan pula menyimpulkan dari gejala. Fakta bahwa sebuah nilai terbaca saat runtime tidak membuktikan nilai itu dideklarasikan di `Settings` — `extra = "ignore"` membuat variabel tak terdeklarasi lolos diam-diam.
-
-## 5. Jangan tampilkan nilai secret
-
-Jangan pernah mencetak isi `.env`, token, API key, atau connection string ke output — termasuk saat melaporkan hasil audit, termasuk saat debugging.
-
-Kalau perlu memastikan sebuah nilai ada, cetak keberadaannya atau panjangnya:
+Setiap field datetime di SQLModel **harus** pakai `sa_type=DateTime(timezone=True)`, termasuk field nullable.
 
 ```python
-hasattr(settings, 'GOOGLE_API_KEY')
-len(settings.GOOGLE_API_KEY)
+# BENAR
+created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))
+ended_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+
+# SALAH — kolom di-cast TIMESTAMP WITHOUT TIME ZONE
+created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 ```
 
-Kalau perlu membandingkan dua nilai, bandingkan hash-nya:
+Tanpa `sa_type`, asyncpg melempar `DataError: can't subtract offset-naive and offset-aware datetimes` dan **seluruh insert ke tabel itu gagal**. Kegagalannya sering tidak terlihat karena tertangkap try/except di lapisan atas — gejalanya tabel terlihat kosong tanpa error yang jelas.
 
-```bash
-python -c "import hashlib,sys; s=sys.argv[1]; print(len(s), hashlib.sha256(s.encode()).hexdigest()[:12])" "$VAR"
+Jangan pernah mengakalinya dengan `.replace(tzinfo=None)`. Timestamp kehilangan informasi zona dan perhitungan "hari ini" / "minggu ini" berdasarkan `APP_TIMEZONE` menjadi salah.
+
+Kolom di Postgres harus `timestamptz`, bukan `timestamp`.
+
+Seluruh timestamp disimpan dalam UTC dan dikonversi ke `APP_TIMEZONE` hanya di lapisan tampilan. Nilai di Supabase akan terlihat mundur 7 jam dari WIB — itu benar, bukan bug.
+
+## 2. Secret hanya lewat `app/config.py`
+
+Semua konfigurasi dibaca dari objek `settings` di `app/config.py` (pydantic-settings).
+
+```python
+from app.config import settings
+
+model = settings.GEMINI_MODEL
 ```
 
-Bot token project ini pernah terekspos lewat output terminal yang tersalin. Aturan ini bukan formalitas.
+- Jangan `os.getenv()` langsung di modul lain.
+- Jangan hardcode token, API key, atau connection string.
+- Jangan tulis nilai secret ke log, pesan error, atau komentar.
 
-## 6. Diagnosis sebelum solusi
+Nama variabel API key adalah **`GOOGLE_API_KEY`**, mengikuti nama yang dibaca pustaka `google-genai` dari environment. Bukan `GEMINI_API_KEY`. Pernah tidak konsisten antara `config.py`, `.env`, dan `.env.example`; jangan diubah lagi tanpa alasan kuat.
 
-Kalau penyebab sebuah masalah belum pasti, jangan langsung mengusulkan perbaikan. Usulkan cara mengeceknya lebih dulu.
+`config.py` memakai `extra = "ignore"`, sehingga variabel di `.env` yang tidak dideklarasikan **tidak** menimbulkan error — dan juga tidak muncul di `settings`. Kalau sebuah nilai terbaca di runtime tapi tidak ada di `Settings`, kemungkinan dibaca langsung dari environment oleh pustaka lain.
 
-Perbaikan atas dugaan yang salah akan menambah perubahan yang tidak perlu, dan menutupi penyebab sebenarnya.
+Kalau butuh membandingkan dua nilai secret saat debugging, bandingkan panjang dan hash-nya, jangan nilainya.
 
-**Cek ini sebelum menduga ada bug di kode:** apakah uvicorn sudah di-restart? `--reload` hanya memantau file `.py`, bukan `.env`. Tiga bug yang tampak berbeda di project ini semuanya berakar pada server yang masih memuat konfigurasi lama.
+## 3. `user_id` ditentukan server, bukan LLM
 
-## 7. Satu perubahan, satu langkah
+Identitas pengguna selalu berasal dari mapping `telegram_chat_id` → `profiles.id` yang dilakukan server sebelum agent dipanggil.
 
-Kalau sebuah tugas punya beberapa bagian, kerjakan berurutan dan laporkan tiap bagian. Jangan mengerjakan semuanya sekaligus lalu menyerahkan hasil akhir.
+- Tool agent **tidak boleh** menerima `user_id` sebagai parameter yang diisi LLM.
+- Setiap query ke `notes`, `time_logs`, `chat_histories` wajib difilter `user_id`.
+- Backend connect sebagai role `postgres` sehingga **RLS ter-bypass** — isolasi data sepenuhnya tanggung jawab lapisan query.
 
-Alasannya: kalau lima hal diubah bersamaan dan hasilnya salah, tidak ada cara tahu mana yang bermasalah.
+## 4. Webhook membalas dulu, proses belakangan
 
-Ini juga berlaku saat memasang instrumentasi debug. Pasang satu, jalankan, lihat hasilnya, baru tentukan langkah berikutnya.
+Endpoint `POST /telegram/webhook`:
 
-## 8. Bertanya lebih murah daripada berasumsi
+1. Validasi header `X-Telegram-Bot-Api-Secret-Token` dengan `secrets.compare_digest`, tolak 403 kalau tidak cocok.
+2. Masukkan update ke `ptb_app.update_queue`.
+3. Langsung `return {"ok": True}`.
 
-Kalau ada yang ambigu, tanya. Jangan pilih tafsiran yang paling mungkin lalu lanjut.
+Jangan menunggu agent selesai sebelum membalas. Gemini bisa butuh puluhan detik dan Telegram akan timeout lalu retry, menghasilkan pesan ganda.
 
-Khususnya untuk hal-hal berikut, selalu tanya:
-- Keputusan yang punya konsekuensi keamanan
-- Keputusan yang sulit dibatalkan nanti (skema database, identitas pengguna)
-- Apa pun yang menghapus atau menulis ulang data
-- Apa pun yang mengubah perilaku yang sudah terverifikasi berjalan
+## 5. Onboarding: invite code terikat ke `auth.users`
 
-## 9. Perintah terminal
+Alur pendaftaran:
 
-Sebelum mengusulkan perintah, pastikan:
+1. Admin mengirim `/invite <nama> <email>` dari Telegram
+2. Backend membuat user di Supabase Auth lewat Admin API, mengambil UUID-nya
+3. UUID itu disimpan di `invite_codes.auth_user_id` bersama kode acak
+4. Pengguna mengirim `/connect <kode>`, `profiles` dibuat dengan `id = auth_user_id`
 
-- **Tidak ada placeholder yang harus diganti manual.** Jangan tulis `<TOKEN>` atau `<PID>` di perintah yang akan dijalankan — itu pernah diketik apa adanya. Kalau butuh nilai spesifik, minta set variabel dulu, lalu gunakan `$VAR`.
-- **Satu perintah per langkah** kalau outputnya dibutuhkan untuk langkah berikutnya.
-- **Perintah destruktif diberi peringatan eksplisit** — `rm`, `git reset --hard`, `DROP`, `DELETE`, `taskkill`. Sebutkan apa yang akan hilang.
+**`/connect` menolak invite code yang `auth_user_id`-nya sudah punya profil.** Ini mencegah sebuah kode memindahkan profil yang ada ke chat ID lain — jalur pembajakan akun. Jangan diubah menjadi upsert.
 
-Environment: Windows 11, Git Bash (MINGW64), venv di `apps/backend/venv`.
+`/invite` memakai otorisasi diam: chat non-admin tidak mendapat respons apa pun, seolah perintahnya tidak ada.
 
-Terminalmu **tidak mewarisi venv**. Untuk menjalankan Python, sebut interpreternya secara eksplisit:
+## 6. Migrasi database manual
 
-```
-venv/Scripts/python.exe -c "..."
-```
+Perubahan skema ditulis sebagai file SQL bernomor di `apps/backend/migrations/`, dijalankan manual di Supabase SQL Editor. Tidak pakai Alembic.
 
-Jangan pakai `python` polos — itu menunjuk ke Python sistem yang tidak punya dependensi project.
+Setiap migrasi harus aman dijalankan ulang (idempotent).
 
-Jangan menjalankan `uvicorn --reload`. Itu proses foreground yang akan menggantung terminalmu. Minta saya yang menjalankannya.
+## 7. Dependensi lewat uv
 
-## 10. Jangan minta menjalankan file yang isinya tidak terlihat
+`pyproject.toml` dan `uv.lock` adalah sumber kebenaran. **`requirements.txt` sudah dihapus** — jangan dibuat lagi.
 
-Kalau kamu membuat skrip di folder scratch lalu memintanya dijalankan, tampilkan isinya lebih dulu. Dialog izin hanya menampilkan path, bukan isi file, sehingga saya tidak bisa menilai apa yang akan dieksekusi.
+- Menambah paket: `uv add <nama>`
+- Menjalankan sesuatu: `uv run <perintah>`
+- Menyiapkan environment dari nol: `uv sync`
 
-Untuk pemeriksaan sederhana, lebih baik pakai kode inline, atau berikan SQL-nya agar saya jalankan sendiri di Supabase SQL Editor.
+`uv.lock` **wajib ke-commit**. File itu mengunci seluruh versi termasuk transitif. Tanpa itu, masalah lama terulang: `requirements.txt` ternyata tidak memuat `google-adk`, `google-genai`, dan belasan paket lain yang terpasang di venv — repo tidak bisa dijalankan dari clone bersih selama berbulan-bulan tanpa disadari.
 
-## 11. Hormati keputusan yang sudah diambil
+---
 
-Daftar keputusan mengikat ada di `project-rules.md`. Jangan usulkan membatalkannya kecuali ada informasi baru yang benar-benar mengubah perhitungan.
+## Konvensi yang Sudah Ada
 
-Boleh menyampaikan trade-off yang terlewat. Tidak boleh mengusulkan jalur yang sudah ditolak seolah pertimbangannya belum pernah terjadi.
+Ikuti pola di file yang sudah ada sebelum memperkenalkan pola baru:
 
-## 12. Gaya komunikasi
+- `app/main.py` — FastAPI app, lifespan PTB, endpoint
+- `app/bot.py` — handler Telegram: `/start`, `/connect`, `/invite`, `handle_message()`
+- `app/agent.py` — definisi ADK agent, tools, `run_agent()`
+- `app/config.py` — pydantic Settings, objeknya bernama `settings`
+- `app/models.py` — seluruh tabel SQLModel
+- `app/database.py` — engine & session async
+- `pyproject.toml` / `uv.lock` — dependensi
 
-Bahasa Indonesia santai, istilah teknis tetap bahasa Inggris.
+Tabel: `profiles`, `notes`, `chat_histories`, `time_logs`, `donations`, `invite_codes`.
 
-Jelaskan mekanismenya, bukan cuma perintahnya. Ini project belajar — memahami kenapa sesuatu bekerja lebih berharga daripada menyelesaikan tugasnya dengan cepat.
+Tool agent: `save_note`, `search_notes`, `start_timer`, `stop_timer`, `get_summary`.
 
-Kalau kamu tidak yakin, katakan tidak yakin. Jangan menyamarkan tebakan sebagai kesimpulan.
+---
 
-Kalau kamu membuat kesalahan, akui langsung dan jelaskan penyebabnya. Jangan membungkusnya dengan pembelaan panjang.
+## Jebakan Lingkungan Dev
+
+Jangan menyarankan hal-hal berikut — sudah terbukti bermasalah di setup ini:
+
+| Jangan | Alasan | Gantinya |
+|---|---|---|
+| `python` polos | Menunjuk ke Python sistem, tanpa dependensi project | `uv run python` |
+| `pip install`, `requirements.txt` | Sudah tidak dipakai sejak migrasi ke uv | `uv add` |
+| `source .env` | Tidak kebal BOM; variabel lama di shell tidak ditimpa | Baca lewat `app.config` |
+| Asumsi `--reload` membaca ulang `.env` | Uvicorn hanya memantau file `.py` | Restart manual setiap ubah `.env` |
+| Command berisi placeholder `<TOKEN>`, `<PID>` | Pernah diketik apa adanya | Set variabel dulu, lalu pakai `$VAR` |
+| Model Gemini dari ingatan | `gemini-1.5-flash` dan `gemini-2.5-flash` sudah tidak tersedia | Pakai `settings.GEMINI_MODEL` |
+| Supabase Direct connection | IPv6, timeout di jaringan rumah | Session pooler, port 5432 |
+| Kolom chat ID sebagai `integer` | Chat ID Telegram melebihi int32 | `bigint` / `sa_type=BigInteger` |
+| Menjalankan `uvicorn --reload` sendiri | Proses foreground, menggantung terminal agent | Minta saya yang menjalankan |
+
+`.env` harus UTF-8 **tanpa BOM**, line ending LF. BOM membuat key di baris pertama tidak terbaca `python-dotenv`.
+
+Perintah dijalankan dari `apps/backend`, bukan dari root repo. Modul `app` hanya terlihat dari sana.
+
+Catatan ngrok: URL berganti setiap restart, jadi `setWebhook` perlu diulang tiap sesi. Ambil URL dari `http://127.0.0.1:4040/api/tunnels`, bukan dari halaman dashboard ngrok — mendaftarkan `app.ngrok.ai` membuat bot diam total tanpa log.
+
+---
+
+## Keputusan yang Sudah Mengikat
+
+Jangan usulkan membatalkan ini tanpa informasi baru yang benar-benar mengubah perhitungan:
+
+- **`profiles.id` terikat ke `auth.users.id`** (Opsi A), bukan UUID mandiri. Dipilih sadar agar dashboard Fase 3 tidak butuh alur "tautkan akun" untuk data yang sudah tersebar di `notes`, `time_logs`, dan `chat_histories`.
+- **Webhook membalas 200 sebelum memproses agent.**
+- **Migrasi database manual dan bernomor**, bukan Alembic.
+- **`user_id` ditentukan server**, tidak pernah dari output LLM.
+- **`/connect` menolak, bukan upsert**, kalau profil sudah ada.
+- **`GOOGLE_API_KEY`**, bukan `GEMINI_API_KEY`.
+- **uv sebagai package manager**, bukan pip + venv.
+
+---
+
+## Status & Prioritas
+
+**Sudah jalan:** pipeline Telegram → ngrok → FastAPI → ADK/Gemini → Supabase, end-to-end. Seluruh agent tool terverifikasi. Onboarding penuh lewat Telegram — `/invite` membuat user Supabase Auth beserta invite code, `/connect` menautkan chat ke profil. Dependensi sudah pindah ke uv.
+
+**Belum diuji:** `/connect` dengan kode valid dari akun yang belum punya profil (butuh akun Telegram kedua).
+
+**Prioritas berikutnya, berurutan:**
+
+1. Dashboard Vue 3 (Fase 3)
+2. Kebijakan RLS, dikerjakan bareng dashboard karena konsumennya di sana
+3. Deploy backend ke Railway/Render, lepas dari ngrok
+4. Halaman donasi
