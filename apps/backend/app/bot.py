@@ -1,6 +1,11 @@
 import logging
+import secrets
+from datetime import timedelta
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from sqlmodel import col, select
+import httpx
+from sqlmodel import col, select, text
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
@@ -110,6 +115,13 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # akses atributnya memicu lazy-load yang tidak valid di konteks async.
         full_name = invite.full_name
 
+        existing_profile = await session.get(Profile, invite.auth_user_id)
+        if existing_profile is not None:
+            await message.reply_text(
+                "Profil untuk akun ini sudah terdaftar atau sudah terhubung ke Telegram."
+            )
+            return
+
         session.add(
             Profile(
                 id=invite.auth_user_id,
@@ -126,6 +138,135 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = f", {full_name}" if full_name else ""
     await message.reply_text(
         f"Berhasil terhubung{name}! Kirim /start untuk melihat contoh perintah."
+    )
+
+
+def generate_invite_code() -> str:
+    """Format: SB-XXXX-XXXX menggunakan hex uppercase acak."""
+    part1 = secrets.token_hex(2).upper()
+    part2 = secrets.token_hex(2).upper()
+    return f"SB-{part1}-{part2}"
+
+
+async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    message = update.effective_message
+
+    # Chat non-admin yang memanggil /invite diperlakukan seolah perintah tidak ada
+    if settings.ADMIN_CHAT_ID is None or chat_id != settings.ADMIN_CHAT_ID:
+        return
+
+    if not context.args or len(context.args) < 2:
+        await message.reply_text("Format: /invite <nama> <email>")
+        return
+
+    email = context.args[-1].strip().lower()
+    full_name = " ".join(context.args[:-1]).strip()
+
+    if "@" not in email or "." not in email:
+        await message.reply_text("Email tidak valid. Format: /invite <nama> <email>")
+        return
+
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        await message.reply_text(
+            "SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi di backend."
+        )
+        return
+
+    admin_url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/admin/users"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    user_id: UUID | None = None
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                admin_url,
+                headers=headers,
+                json={
+                    "email": email,
+                    "email_confirm": True,
+                    "user_metadata": {"full_name": full_name},
+                },
+            )
+
+            if resp.status_code in (200, 201):
+                user_id = UUID(resp.json()["id"])
+            elif resp.status_code == 422:
+                logger.info(
+                    "User %s sudah terdaftar di Supabase Auth (422), mengambil UUID eksisting",
+                    email,
+                )
+                get_resp = await client.get(admin_url, headers=headers)
+                if get_resp.status_code == 200:
+                    data = get_resp.json()
+                    users_list = (
+                        data.get("users", data) if isinstance(data, dict) else data
+                    )
+                    for u in users_list:
+                        if u.get("email", "").lower() == email:
+                            user_id = UUID(u["id"])
+                            break
+
+                # Fallback: jika pagination API tidak memuat user, query langsung ke auth.users
+                if user_id is None:
+                    async with SessionLocal() as session:
+                        result = await session.execute(
+                            text(
+                                "SELECT id FROM auth.users WHERE lower(email) = lower(:email) LIMIT 1"
+                            ),
+                            {"email": email},
+                        )
+                        row = result.first()
+                        if row:
+                            user_id = (
+                                row[0]
+                                if isinstance(row[0], UUID)
+                                else UUID(str(row[0]))
+                            )
+
+                if user_id is None:
+                    await message.reply_text(
+                        f"User {email} sudah terdaftar di auth.users, tetapi gagal mengambil UUID-nya."
+                    )
+                    return
+            else:
+                logger.error(
+                    "Supabase Admin API error (%s): %s", resp.status_code, resp.text
+                )
+                await message.reply_text(
+                    f"Gagal memproses user di Supabase Auth ({resp.status_code}): {resp.text[:200]}"
+                )
+                return
+    except Exception as e:
+        logger.exception("Gagal menghubungi Supabase Auth Admin API")
+        await message.reply_text(f"Terjadi kesalahan saat memproses Supabase Auth: {e}")
+        return
+
+    code = generate_invite_code()
+    expires_at = utcnow() + timedelta(days=7)
+
+    async with SessionLocal() as session:
+        invite_entry = InviteCode(
+            code=code,
+            auth_user_id=user_id,
+            full_name=full_name,
+            expires_at=expires_at,
+        )
+        session.add(invite_entry)
+        await session.commit()
+
+    local_tz = ZoneInfo(settings.APP_TIMEZONE)
+    exp_str = expires_at.astimezone(local_tz).strftime("%d %b %Y %H:%M")
+
+    await message.reply_text(
+        f"Kode undangan untuk {full_name} ({email}):\n\n"
+        f"/connect {code}\n\n"
+        f"Berlaku hingga {exp_str}."
     )
 
 
@@ -162,6 +303,7 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 private = filters.ChatType.PRIVATE
 ptb_app.add_handler(CommandHandler("start", start, filters=private))
 ptb_app.add_handler(CommandHandler("connect", connect, filters=private))
+ptb_app.add_handler(CommandHandler("invite", invite, filters=private))
 # UpdateType.MESSAGE = abaikan pesan yang di-edit (supaya tidak diproses dua kali)
 ptb_app.add_handler(
     MessageHandler(
