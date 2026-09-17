@@ -155,3 +155,6 @@ Jangan usulkan membatalkan ini tanpa informasi baru yang benar-benar mengubah pe
 2. Dashboard Vue 3 (Fase 3)
 3. Kebijakan RLS, dikerjakan bareng dashboard karena konsumennya di sana
 4. Deploy backend ke Railway/Render, lepas dari ngrok
+
+
+| Menjalankan ngrok tanpa memastikan portnya | `ngrok http 8080` menghasilkan 502 dalam ~2ms di inspector, terlihat seperti server mati | Verifikasi `"addr"` di `127.0.0.1:4040/api/tunnels` cocok dengan port uvicorn |
