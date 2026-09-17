@@ -4,7 +4,7 @@ Sistem multi-user berbasis AI untuk menangkap ide tanpa hambatan (*frictionless 
 
 Dibuat sebagai utilitas pribadi dan untuk lingkaran terbatas. Tanpa gamifikasi, tanpa fitur sosial. Fokusnya efisiensi, kejernihan pikiran, dan pelacakan progres kerja.
 
-> **Status:** 🚧 Fase 2 selesai — seluruh agent tool sudah terverifikasi end-to-end lewat Telegram di lingkungan lokal. Berikutnya: `/connect` otomatis, lalu deployment. Belum siap dipakai publik.
+> **Status:** 🚀 Fase 3 selesai (Agent ADK, Onboarding Auth /invite & /connect, RLS 005, Dashboard Vue 3). Sedang berlangsung: Fase 4 (Deployment ke Render). Belum siap dipakai publik.
 
 ## Tujuan
 
@@ -34,12 +34,12 @@ Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan
 
 | Lapisan | Teknologi |
 | --- | --- |
-| Backend & API | Python 3.11+, FastAPI, SQLModel, SQLAlchemy (async) + asyncpg |
+| Backend & API | Python 3.11, FastAPI, SQLModel, SQLAlchemy (async) + asyncpg, uv |
 | Database & Auth | Supabase (PostgreSQL, Auth, Row Level Security) |
 | AI Agent | Google ADK (Agent Development Kit) + Gemini (`gemini-3.6-flash`) |
 | Bot | Telegram Bot API via webhook (`python-telegram-bot`) |
-| Dashboard | Vue 3 (Composition API), Vite, Tailwind CSS v4, `shadcn-vue` |
-| Infrastruktur | ngrok (dev lokal), Railway/Render (backend), Vercel/Netlify (dashboard) |
+| Dashboard | Vue 3 (Composition API), Vite, TypeScript, Tailwind CSS v4, vue-router |
+| Infrastruktur | ngrok (dev lokal), Render (Web Service backend + Static Site dashboard) |
 | Tooling development | Antigravity IDE (agent-first, membaca `.agents/`) |
 
 ## Arsitektur
@@ -80,7 +80,7 @@ flowchart LR
 
 Seluruh timestamp disimpan dalam UTC (`timestamptz`) dan dikonversi ke `APP_TIMEZONE` hanya di lapisan tampilan. Artinya nilai di Supabase akan terlihat mundur 7 jam dari WIB — itu perilaku yang benar, bukan bug.
 
-Dashboard (Fase 3) belum dibuat.
+Dashboard (Fase 3) berada di `apps/dashboard`, dibangun dengan Vue 3, Vite, TypeScript, dan Tailwind CSS v4. Dashboard mengakses Supabase secara langsung menggunakan Supabase Client dengan RLS (Row Level Security) yang membatasi hak baca pengguna terautentikasi (SELECT-only).
 
 ## Struktur Proyek
 
@@ -90,17 +90,23 @@ second-brain-agent/
 │   ├── rules/               # Aturan project untuk AI coding agent
 │   └── skills/              # Panduan Google ADK
 ├── apps/
-│   └── backend/
-│       ├── app/
-│       │   ├── main.py      # FastAPI app, lifespan bot, endpoint webhook
-│       │   ├── bot.py       # Handler Telegram (/start, pesan teks, fallback)
-│       │   ├── agent.py     # ADK agent, tools, dan runner
-│       │   ├── config.py    # Settings dari .env (pydantic-settings)
-│       │   ├── database.py  # Async engine & session
-│       │   └── models.py    # Tabel: profiles, notes, chat_histories, time_logs, donations
-│       ├── migrations/      # SQL yang dijalankan manual di Supabase
-│       ├── requirements.txt
-│       └── .env.example
+│   ├── backend/
+│   │   ├── app/
+│   │   │   ├── main.py      # FastAPI app, lifespan bot, endpoint webhook
+│   │   │   ├── bot.py       # Handler Telegram (/start, /invite, /connect, fallback)
+│   │   │   ├── agent.py     # ADK agent, tools, dan runner
+│   │   │   ├── config.py    # Settings dari .env (pydantic-settings)
+│   │   │   ├── database.py  # Async engine & session
+│   │   │   └── models.py    # Tabel: profiles, notes, chat_histories, time_logs, donations, invite_codes
+│   │   ├── migrations/      # SQL manual di Supabase (001 s.d. 005)
+│   │   ├── pyproject.toml   # Dependensi backend (uv)
+│   │   ├── uv.lock          # Kunci dependensi transitif
+│   │   └── .env.example     # Template env development
+│   └── dashboard/
+│       ├── src/             # Vue 3 SPA (Login OTP/Magic link, HomeView notes & timers)
+│       ├── package.json
+│       ├── vite.config.ts
+│       └── .env.example     # VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY
 ├── .gitignore
 └── README.md
 ```
@@ -132,13 +138,13 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 
 ## Roadmap MVP (v1.0)
 
-### Fase 1 — Fondasi & Isolasi Data
+### Fase 1 — Fondasi & Isolasi Data ✅
 - [x] Struktur monorepo (`apps/backend`)
 - [x] Project Supabase (Database & Auth)
 - [x] Koneksi FastAPI ↔ Supabase (SQLModel + asyncpg, session pooler)
 - [x] Tabel `profiles`, `notes`, `chat_histories`, `time_logs`
 - [x] Timestamp timezone-aware (`timestamptz`) di seluruh model
-- [ ] Kebijakan RLS untuk akses via Supabase API (dashboard)
+- [x] Kebijakan RLS untuk akses via Supabase API (migrasi 005)
 
 ### Fase 2 — Telegram Bridge & AI Agent ✅
 - [x] Bot Telegram via webhook FastAPI (dengan `secret_token`)
@@ -150,18 +156,21 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 - [x] Uji end-to-end seluruh tool di Telegram
 - [x] Setup `.agents/` untuk AI-assisted development
 
-### Fase 2.5 — Onboarding
-- [ ] Perintah `/connect` otomatis, menggantikan pendaftaran manual lewat SQL
+### Fase 2.5 — Onboarding ✅
+- [x] Perintah `/invite <nama> <email>` khusus admin untuk mendaftarkan user ke Supabase Auth
+- [x] Perintah `/connect <kode>` aman dari pembajakan akun (menolak kode yang sudah bertaut)
 
-### Fase 3 — Dashboard & Visualisasi
-- [ ] Setup Vue 3 + Vite + Tailwind v4 + `shadcn-vue`
-- [ ] Login dengan Supabase Auth
-- [ ] Halaman *time logs* (grafik) dan *notes* (list & search)
+### Fase 3 — Dashboard & Visualisasi ✅
+- [x] Setup Vue 3 + Vite + TypeScript + Tailwind CSS v4 + vue-router
+- [x] Login via Magic Link / OTP Supabase Auth (bebas kebocoran password di chat)
+- [x] Navigation guard & pembersihan token hash dari URL browser
+- [x] Halaman dashboard: daftar notes, active timer, rekap time logs dengan waktu lokal
 
-### Fase 4 — Donasi & Deployment
+### Fase 4 — Deployment & Donasi (Sedang Berjalan)
+- [ ] Deploy backend FastAPI ke Render Web Service
+- [ ] Deploy dashboard ke Render Static Site
+- [ ] Set webhook Telegram bot produksi ke Render
 - [ ] Halaman donasi (QRIS statis / Saweria / Trakteer)
-- [ ] Deploy backend (Railway/Render) dan dashboard (Vercel/Netlify)
-- [ ] Set webhook Telegram ke URL production
 
 ## Rencana Setelah v1.0
 
@@ -171,19 +180,41 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 - **Logical day start** — opsi `DAY_START_HOUR` supaya sesi dini hari dihitung sebagai hari sebelumnya.
 - **Integrasi payment gateway** (mis. Midtrans) jika donasi butuh pencatatan otomatis.
 
+## Arsitektur Dual Bot & Alur Kerja Harian
+
+Telegram Bot API hanya mengizinkan **satu URL webhook aktif per bot token**. Jika lingkungan lokal dan produksi memakai token bot yang sama, mendaftarkan webhook ngrok lokal saat coding akan langsung menimpa webhook produksi di Render — akibatnya seluruh pesan pengguna di Telegram akan dialihkan ke laptop Anda (atau gagal total jika laptop mati).
+
+Oleh karena itu, sistem ini memisahkan dua bot Telegram di [@BotFather](https://t.me/BotFather):
+1. **Bot Produksi (`@SecondBrainBot`)**:
+   - Token & secret disetel di **Environment Variables Render**.
+   - Webhook terdaftar permanen ke `https://<backend-render>.onrender.com/telegram/webhook`.
+   - Melayani pengguna sehari-hari tanpa pernah disentuh oleh skrip lokal.
+2. **Bot Development (`@SecondBrainDevBot`)**:
+   - Token & secret disetel di `apps/backend/.env` lokal.
+   - Webhook didaftarkan ke URL ngrok saat sesi pengujian lokal.
+
+**Alur Kerja Harian:**
+1. Saat menambah atau menguji fitur: jalankan backend lokal dan ngrok, lalu daftarkan webhook `@SecondBrainDevBot` ke URL ngrok.
+2. Uji alur pesan di Telegram lewat bot development. Bot produksi tetap aktif melayani pengguna.
+3. Setelah perubahan stabil dan lolos verifikasi: `git commit` dan `git push` ke branch `main`. Render akan otomatis men-deploy versi baru ke bot produksi.
+
+---
+
 ## Menjalankan Secara Lokal
 
 ### Prasyarat
 
-- Python 3.11+
+- Python 3.11 (dikelola lewat `uv`)
+- Node.js 20+ & npm (untuk dashboard)
 - Project [Supabase](https://supabase.com)
-- Token bot Telegram dari [@BotFather](https://t.me/BotFather)
+- Token **Bot Development** dari [@BotFather](https://t.me/BotFather) (terpisah dari bot produksi)
 - Gemini API key dari [Google AI Studio](https://aistudio.google.com/apikey)
 - [ngrok](https://ngrok.com/download) — Windows: `winget install ngrok.ngrok`
 - Opsional: [Antigravity](https://antigravity.google) untuk development dengan AI agent
 
 ### 1. Clone & install
 
+**Backend:**
 ```bash
 git clone https://github.com/fransalwan/second-brain-agent.git
 cd second-brain-agent/apps/backend
@@ -191,37 +222,41 @@ uv sync
 cp .env.example .env
 ```
 
-### 2. Environment variables
+**Dashboard:**
+```bash
+cd ../dashboard
+npm install
+cp .env.example .env
+```
+
+### 2. Environment variables backend (`apps/backend/.env`)
 
 | Variabel | Keterangan |
 | --- | --- |
-| `DATABASE_URL` | Supabase → **Connect** → **Session pooler**. Format `postgresql://postgres.<project-ref>:<password>@<host>.pooler.supabase.com:5432/postgres` |
-| `TELEGRAM_BOT_TOKEN` | Token dari @BotFather. Formatnya `<bot_id>:<35 karakter>` — selalu mengandung titik dua |
+| `DATABASE_URL` | Supabase → **Connect** → **Session pooler**. Format `postgresql://postgres.<project-ref>:<password>@<host>.pooler.supabase.com:5432/postgres` (port 5432) |
+| `TELEGRAM_BOT_TOKEN` | Token **Bot Development** dari @BotFather. Jangan pakai token produksi agar webhook Render tidak tertimpa |
 | `TELEGRAM_WEBHOOK_SECRET` | String acak buatan sendiri: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `ADMIN_CHAT_ID` | Telegram Chat ID admin untuk otorisasi perintah `/invite` |
 | `GOOGLE_API_KEY` | Gemini API key dari Google AI Studio |
 | `GOOGLE_GENAI_USE_VERTEXAI` | `FALSE` |
 | `GEMINI_MODEL` | Default `gemini-3.6-flash` |
 | `APP_TIMEZONE` | Default `Asia/Jakarta` (untuk "hari ini" / "minggu ini") |
+| `SUPABASE_URL` | URL project Supabase (`https://<project-ref>.supabase.co`) |
+| `SUPABASE_ANON_KEY` | Anon key Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key Supabase (khusus backend untuk pembuatan user auth via `/invite`) |
 
 > Gunakan **Session pooler**, bukan Direct connection. Direct connection hanya lewat IPv6 dan akan timeout di kebanyakan jaringan rumah. Buat password database yang hanya berisi huruf dan angka supaya tidak merusak URL.
 
-> **Simpan `.env` dengan encoding UTF-8 tanpa BOM dan line ending LF.** BOM (tiga byte tak terlihat di awal file, sering ditanam Notepad atau VS Code dengan opsi *UTF-8 with BOM*) membuat key di baris pertama tidak terbaca oleh `python-dotenv`. Di VS Code, klik indikator encoding dan `CRLF` di status bar kanan bawah untuk menggantinya.
+> **Simpan `.env` dengan encoding UTF-8 tanpa BOM dan line ending LF.** BOM membuat key di baris pertama tidak terbaca oleh `python-dotenv`.
 
-Verifikasi semua nilai terbaca sebelum menjalankan apa pun:
-
+Verifikasi konfigurasi backend:
 ```bash
-python -c "
+uv run python -c "
 from app.config import settings
-for k in ('TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','GOOGLE_API_KEY','GEMINI_MODEL'):
+for k in ('TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','GOOGLE_API_KEY','GEMINI_MODEL','DATABASE_URL'):
     v = getattr(settings, k, '') or ''
     print(k, 'OK' if v else 'KOSONG', len(v))
 "
-```
-
-Kalau ada yang `KOSONG`, cek apakah key-nya masih ter-comment (`#`) atau salah nama:
-
-```bash
-cut -d= -f1 .env
 ```
 
 ### 3. Migrasi database
@@ -231,26 +266,30 @@ Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → S
 1. `001_timer_and_timezones.sql`
 2. `002_bigint_telegram_chat_id.sql`
 3. `003_chat_histories_timestamptz.sql`
+4. `004_invite_codes.sql`
+5. `005_rls_policies.sql`
 
-Semua migrasi aman dijalankan ulang.
+Semua migrasi aman dijalankan ulang (idempotent).
 
-### 4. Jalankan (butuh 3 terminal)
+### 4. Menjalankan Backend & Bot Dev (3 terminal)
 
-**Terminal 1 — server**
+**Terminal 1 — server backend**
 ```bash
+cd apps/backend
 uv run uvicorn app.main:app --reload --port 8000
 ```
 Cek koneksi database: `curl -s http://localhost:8000/test-db` harus mengembalikan `"status":"success"`.
 
-**Terminal 2 — tunnel** (biarkan tetap terbuka; URL berganti setiap kali restart)
+**Terminal 2 — tunnel ngrok** (biarkan tetap terbuka; URL berganti setiap restart)
 ```bash
 ngrok http 8000
 ```
 
-**Terminal 3 — daftarkan webhook**
+**Terminal 3 — daftarkan webhook bot dev**
 ```bash
-TOKEN=$(python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
-SECRET=$(python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
+cd apps/backend
+TOKEN=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
+SECRET=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
 NGROK=$(curl -s http://127.0.0.1:4040/api/tunnels \
   | python -c "import sys,json; print([t['public_url'] for t in json.load(sys.stdin)['tunnels'] if t['public_url'].startswith('https')][0])")
 
@@ -260,33 +299,109 @@ curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
   -d "drop_pending_updates=true"
 ```
 
-> Ambil URL dari baris **`Forwarding`** di terminal ngrok atau dari API di `127.0.0.1:4040` — **bukan** dari halaman dashboard ngrok. Mendaftarkan `app.ngrok.ai` membuat Telegram mengirim update ke server ngrok, bukan ke mesin kamu; gejalanya bot diam total tanpa satu pun log di uvicorn.
-
-> Membaca nilai lewat `app.config` (bukan `source .env`) memastikan shell dan server memakai sumber yang sama persis, sekaligus kebal terhadap BOM dan CRLF.
-
-Verifikasi:
-
+Verifikasi webhook aktif:
 ```bash
 curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool
 ```
 
-Yang diharapkan: `url` menunjuk ke domain ngrok yang aktif, `pending_update_count: 0`, dan tidak ada `last_error_message` sama sekali.
+Yang diharapkan: `url` menunjuk ke domain ngrok yang aktif, `pending_update_count: 0`, dan tidak ada `last_error_message`.
 
-### 5. Hubungkan akun Telegram
+### 5. Menjalankan Dashboard Lokal
 
-1. Kirim `/start` ke bot, catat **Chat ID** yang dibalas.
-2. Buat user di **Supabase → Authentication → Users → Add user** (centang *Auto Confirm User*).
-3. Jalankan di SQL Editor:
+```bash
+cd apps/dashboard
+npm run dev
+```
+Dashboard berjalan di `http://localhost:5173`.
 
-```sql
-insert into public.profiles (id, full_name, telegram_chat_id, created_at)
-select id, 'Nama Kamu', 123456789, now()
-from auth.users
-where email = 'email@contoh.com'
-on conflict (id) do update set telegram_chat_id = excluded.telegram_chat_id;
+### 6. Onboarding Pengguna
+
+1. Dari chat Telegram admin (sesuai `ADMIN_CHAT_ID`), kirim ke bot:
+   ```text
+   /invite Nama Pengguna email@contoh.com
+   ```
+   Backend akan membuat akun di Supabase Auth dan membalas dengan **kode invite 8 karakter**.
+2. Pengguna mengirimkan perintah tautan ke bot:
+   ```text
+   /connect <KODE_INVITE>
+   ```
+   Bot akan menautkan Telegram Chat ID pengguna ke profil akun Supabase Auth tersebut.
+3. Pengguna dapat membuka dashboard (`/login`), memasukkan email yang sama, lalu mengklik Magic Link yang dikirim ke email untuk masuk ke dashboard.
+
+---
+
+## Panduan Deployment ke Render
+
+Deployment menggunakan Render Free Tier untuk backend dan static site dashboard.
+
+### 1. Backend (Render Web Service)
+
+1. Buat service baru di [Render Dashboard](https://dashboard.render.com): **New +** → **Web Service**.
+2. Hubungkan repository GitHub dan konfigurasikan:
+   - **Name**: `second-brain-backend` (atau sesuaikan)
+   - **Root Directory**: `apps/backend`
+   - **Runtime**: `Python`
+   - **Instance Type**: `Free`
+   - **Build Command**: `uv sync --frozen` *(Render mendukung uv secara native jika terdapat `uv.lock` di root service)*
+   - **Start Command**: `.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+3. Tambahkan **Environment Variables** di Render:
+   - `PYTHON_VERSION`: `3.11.11` *(Wajib disetel! Default Render saat ini adalah Python 3.14 yang tidak kompatibel dengan `requires-python = ">=3.11,<3.13"`)*
+   - `DATABASE_URL`: URI Supabase Session pooler (port 5432)
+   - `TELEGRAM_BOT_TOKEN`: Token **Bot Produksi** (@SecondBrainBot)
+   - `TELEGRAM_WEBHOOK_SECRET`: String acak secret produksi (buat baru lewat `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
+   - `ADMIN_CHAT_ID`: Chat ID Telegram admin
+   - `GOOGLE_API_KEY`: API key Google Gemini
+   - `GOOGLE_GENAI_USE_VERTEXAI`: `FALSE`
+   - `GEMINI_MODEL`: `gemini-3.6-flash`
+   - `APP_TIMEZONE`: `Asia/Jakarta`
+   - `SUPABASE_URL`: `https://<project-ref>.supabase.co`
+   - `SUPABASE_ANON_KEY`: Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
+4. Simpan dan tunggu deploy selesai hingga log menunjukkan `Application startup complete`.
+
+### 2. Daftarkan Webhook Bot Produksi
+
+Setelah backend aktif dan memiliki URL Render (misal `https://second-brain-backend.onrender.com`), daftarkan webhook bot produksi sekali saja via terminal:
+
+```bash
+PROD_TOKEN="<TOKEN_BOT_PRODUKSI>"
+PROD_SECRET="<SECRET_TOKEN_PRODUKSI>"
+RENDER_URL="https://second-brain-backend.onrender.com"
+
+curl -s -X POST "https://api.telegram.org/bot$PROD_TOKEN/setWebhook" \
+  -d "url=$RENDER_URL/telegram/webhook" \
+  -d "secret_token=$PROD_SECRET" \
+  -d "drop_pending_updates=true"
 ```
 
-Kirim `/start` lagi. Bot akan membalas "Akun kamu sudah terhubung".
+Verifikasi:
+```bash
+curl -s "https://api.telegram.org/bot$PROD_TOKEN/getWebhookInfo" | python -m json.tool
+```
+
+### 3. Dashboard (Render Static Site)
+
+1. Buat service baru di Render: **New +** → **Static Site**.
+2. Hubungkan repository GitHub dan konfigurasikan:
+   - **Name**: `second-brain-dashboard`
+   - **Root Directory**: `apps/dashboard`
+   - **Build Command**: `npm run build`
+   - **Publish Directory**: `dist`
+3. Tambahkan **Environment Variables**:
+   - `VITE_SUPABASE_URL`: `https://<project-ref>.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY`: Supabase anon key
+4. Tambahkan **Redirect / Rewrite Rules** di menu pengaturan static site Render:
+   - **Source**: `/*`
+   - **Destination**: `/index.html`
+   - **Action**: `Rewrite` *(Bukan Redirect — ini wajib agar Vue Router History Mode tidak menghasilkan 404 saat halaman di-refresh)*.
+
+### 4. Whitelist Supabase Auth Redirect URLs
+
+Buka **Supabase Dashboard** → **Authentication** → **URL Configuration**:
+- **Site URL**: Isi dengan domain dashboard produksi (misal `https://second-brain-dashboard.onrender.com`).
+- **Redirect URLs**: Tambahkan entri berikut agar login Magic Link bekerja di lokal maupun produksi:
+  - `http://localhost:5173/**`
+  - `https://second-brain-dashboard.onrender.com/**`
 
 ## Troubleshooting
 
@@ -315,6 +430,7 @@ Request tidak sampai ke server lokal. Alat pemisah paling tajam adalah **ngrok i
 | `403` tetap muncul walau sudah restart | Ada proses uvicorn zombie memegang port 8000 | Lihat bagian *Port 8000* di bawah |
 | `{"ok":false,"error_code":404}` dari `getMe` | `$TOKEN` kosong, atau placeholder terketik apa adanya | `echo "${#TOKEN}"` — harus 45–46 |
 | `Read timeout expired` | Handler menunggu operasi lama sebelum membalas | Pastikan endpoint membalas 200 sebelum memproses agent |
+| Bot lambat merespons setelah lama tidak dipakai (1–5 menit) | Cold start Render Free Tier setelah 15 menit idle | Perilaku normal Render, bukan bug. Lihat bagian *Cold start Render* di bawah |
 | Bot membalas "AI sedang bermasalah" | Model salah/pensiun, API key salah, atau kena limit (`429`) | Lihat bagian *Gemini 404* di bawah |
 | `can't subtract offset-naive and offset-aware datetimes` | Kolom datetime tidak timezone-aware | Lihat bagian *Timezone* di bawah |
 | Rekap mengembalikan 0 padahal data ada | Server belum di-restart, atau batas hari sudah lewat tengah malam | Restart uvicorn; cek `mulai_wib` di `time_logs` |
@@ -390,6 +506,18 @@ order by started_at desc;
 ```
 
 Berguna saat rekap terasa tidak sesuai — sering kali penyebabnya batas tengah malam, bukan bug.
+
+### Cold start Render (Bot lambat merespons setelah lama tidak dipakai)
+
+Jika bot tidak menerima request selama **15 menit**, Render Free Tier akan otomatis mematikan (*spin-down*) instance kontainer untuk menghemat kuota komputasi.
+
+Ketika pesan pertama dikirim setelah masa idle tersebut:
+1. Permintaan webhook memicu Render melakukan *spin-up*. Proses booting container, inisialisasi FastAPI, database pooler, dan bot membutuhkan waktu **30–60 detik**.
+2. Karena batas *connection timeout* pengiriman webhook dari Telegram cukup ketat (sekitar 5–10 detik), percobaan pertama Telegram akan gagal / timeout.
+3. Telegram Bot API otomatis menjadwalkan pengiriman ulang (*retry*) dengan mekanisme *exponential backoff*. Percobaan retry pertama biasanya tiba dalam **1–5 menit**.
+4. Begitu service backend Render selesai aktif, Telegram berhasil mengirimkan retry tersebut, backend membalas `200 OK`, dan pesan diproses.
+
+> **Penting:** Ini adalah perilaku bawaan platform gratis Render, **bukan bug dan pesan tidak pernah hilang**. Telegram terus menyimpan dan mencoba mengirim antrean pesan hingga 24 jam. Pesan-pesan berikutnya yang dikirim selama service masih terjaga (dalam jendela 15 menit) akan direspons secara instan.
 
 ## Catatan Keamanan
 
