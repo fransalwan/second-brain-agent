@@ -123,10 +123,11 @@ Jangan menyarankan hal-hal berikut — sudah terbukti bermasalah di setup ini:
 | Supabase Direct connection | IPv6, timeout di jaringan rumah | Session pooler, port 5432 |
 | Kolom chat ID sebagai `integer` | Chat ID Telegram melebihi int32 | `bigint` / `sa_type=BigInteger` |
 | Menjalankan `uvicorn --reload` sendiri | Proses foreground, menggantung terminal agent | Minta saya yang menjalankan |
+| Menjalankan ngrok tanpa memastikan portnya | `ngrok http 8080` menghasilkan 502 dalam ~2ms di inspector, terlihat seperti server mati | Verifikasi `"addr"` di `127.0.0.1:4040/api/tunnels` cocok dengan port uvicorn (8000) |
 
 `.env` harus UTF-8 **tanpa BOM**, line ending LF. BOM membuat key di baris pertama tidak terbaca `python-dotenv`.
 
-Catatan ngrok: URL berganti setiap restart, jadi `setWebhook` perlu diulang tiap sesi. Ambil URL dari `http://127.0.0.1:4040/api/tunnels`, bukan dari halaman dashboard ngrok — mendaftarkan `app.ngrok.ai` membuat bot diam total tanpa log.
+Catatan ngrok: Gunakan domain statis gratis dari dashboard ngrok (`ngrok http 8000 --url=<domain-statis>`), sehingga `setWebhook` hanya perlu dijalankan sekali saat setup awal dan tidak perlu diulang setiap sesi. Jangan mendaftarkan domain dashboard seperti `app.ngrok.ai` ke webhook — itu membuat bot diam total tanpa log.
 
 ---
 
@@ -155,6 +156,3 @@ Jangan usulkan membatalkan ini tanpa informasi baru yang benar-benar mengubah pe
 2. Dashboard Vue 3 (Fase 3)
 3. Kebijakan RLS, dikerjakan bareng dashboard karena konsumennya di sana
 4. Deploy backend ke Railway/Render, lepas dari ngrok
-
-
-| Menjalankan ngrok tanpa memastikan portnya | `ngrok http 8080` menghasilkan 502 dalam ~2ms di inspector, terlihat seperti server mati | Verifikasi `"addr"` di `127.0.0.1:4040/api/tunnels` cocok dengan port uvicorn |

@@ -4,7 +4,7 @@ Sistem multi-user berbasis AI untuk menangkap ide tanpa hambatan (*frictionless 
 
 Dibuat sebagai utilitas pribadi dan untuk lingkaran terbatas. Tanpa gamifikasi, tanpa fitur sosial. Fokusnya efisiensi, kejernihan pikiran, dan pelacakan progres kerja.
 
-> **Status:** 🚀 Fase 3 selesai (Agent ADK, Onboarding Auth /invite & /connect, RLS 005, Dashboard Vue 3). Sedang berlangsung: Fase 4 (Deployment ke Render). Belum siap dipakai publik.
+> **Status:** 🚀 Fase 3 selesai (Agent ADK, Onboarding Auth /invite & /connect, RLS 005, Dashboard Vue 3). Fase 4 (Deployment ke cloud) ditunda sementara karena kendala verifikasi kartu di Render; backend tetap berjalan lokal via tunnel domain statis ngrok.
 
 ## Tujuan
 
@@ -39,7 +39,7 @@ Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan
 | AI Agent | Google ADK (Agent Development Kit) + Gemini (`gemini-3.6-flash`) |
 | Bot | Telegram Bot API via webhook (`python-telegram-bot`) |
 | Dashboard | Vue 3 (Composition API), Vite, TypeScript, Tailwind CSS v4, vue-router |
-| Infrastruktur | ngrok (dev lokal), Render (Web Service backend + Static Site dashboard) |
+| Infrastruktur | ngrok domain statis (backend lokal), Render (rencana deployment cloud) |
 | Tooling development | Antigravity IDE (agent-first, membaca `.agents/`) |
 
 ## Arsitektur
@@ -166,10 +166,9 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 - [x] Navigation guard & pembersihan token hash dari URL browser
 - [x] Halaman dashboard: daftar notes, active timer, rekap time logs dengan waktu lokal
 
-### Fase 4 — Deployment & Donasi (Sedang Berjalan)
-- [ ] Deploy backend FastAPI ke Render Web Service
-- [ ] Deploy dashboard ke Render Static Site
-- [ ] Set webhook Telegram bot produksi ke Render
+### Fase 4 — Deployment & Donasi (Ditunda Sementara)
+- [ ] Deploy backend FastAPI ke cloud (ditunda: verifikasi kartu Render)
+- [ ] Deploy dashboard ke cloud
 - [ ] Halaman donasi (QRIS statis / Saweria / Trakteer)
 
 ## Rencana Setelah v1.0
@@ -180,23 +179,18 @@ Manfaat konkret di project ini: audit statis seluruh field datetime dan perhitun
 - **Logical day start** — opsi `DAY_START_HOUR` supaya sesi dini hari dihitung sebagai hari sebelumnya.
 - **Integrasi payment gateway** (mis. Midtrans) jika donasi butuh pencatatan otomatis.
 
-## Arsitektur Dual Bot & Alur Kerja Harian
+## Arsitektur Dual Bot (Rencana Deployment Masa Depan)
 
-Telegram Bot API hanya mengizinkan **satu URL webhook aktif per bot token**. Jika lingkungan lokal dan produksi memakai token bot yang sama, mendaftarkan webhook ngrok lokal saat coding akan langsung menimpa webhook produksi di Render — akibatnya seluruh pesan pengguna di Telegram akan dialihkan ke laptop Anda (atau gagal total jika laptop mati).
+Saat ini di lingkungan lokal, sistem berjalan dengan satu bot Telegram. Namun saat backend dideploy ke cloud nanti, Telegram Bot API hanya mengizinkan **satu URL webhook aktif per bot token**. Jika lingkungan lokal dan produksi memakai token bot yang sama, mendaftarkan webhook ngrok lokal saat coding akan langsung menimpa webhook produksi di server — akibatnya seluruh pesan pengguna di Telegram akan dialihkan ke laptop Anda (atau gagal total jika laptop mati).
 
-Oleh karena itu, sistem ini memisahkan dua bot Telegram di [@BotFather](https://t.me/BotFather):
+Oleh karena itu, ketika siap deploy ke cloud, sistem akan memisahkan dua bot Telegram di [@BotFather](https://t.me/BotFather):
 1. **Bot Produksi (`@SecondBrainBot`)**:
-   - Token & secret disetel di **Environment Variables Render**.
-   - Webhook terdaftar permanen ke `https://<backend-render>.onrender.com/telegram/webhook`.
-   - Melayani pengguna sehari-hari tanpa pernah disentuh oleh skrip lokal.
+   - Token & secret disetel di Environment Variables server cloud.
+   - Webhook terdaftar permanen ke URL server cloud.
+   - Melayani pengguna sehari-hari tanpa pernah disentuh oleh sesi coding lokal.
 2. **Bot Development (`@SecondBrainDevBot`)**:
    - Token & secret disetel di `apps/backend/.env` lokal.
-   - Webhook didaftarkan ke URL ngrok saat sesi pengujian lokal.
-
-**Alur Kerja Harian:**
-1. Saat menambah atau menguji fitur: jalankan backend lokal dan ngrok, lalu daftarkan webhook `@SecondBrainDevBot` ke URL ngrok.
-2. Uji alur pesan di Telegram lewat bot development. Bot produksi tetap aktif melayani pengguna.
-3. Setelah perubahan stabil dan lolos verifikasi: `git commit` dan `git push` ke branch `main`. Render akan otomatis men-deploy versi baru ke bot produksi.
+   - Webhook didaftarkan ke tunnel ngrok saat sesi pengujian lokal.
 
 ---
 
@@ -207,9 +201,9 @@ Oleh karena itu, sistem ini memisahkan dua bot Telegram di [@BotFather](https://
 - Python 3.11 (dikelola lewat `uv`)
 - Node.js 20+ & npm (untuk dashboard)
 - Project [Supabase](https://supabase.com)
-- Token **Bot Development** dari [@BotFather](https://t.me/BotFather) (terpisah dari bot produksi)
+- Token bot Telegram dari [@BotFather](https://t.me/BotFather)
+- Akun [ngrok](https://ngrok.com) dengan **1 domain statis gratis** (klaim di Dashboard ngrok → menu **Domains** → **Create Domain**, misal `<domain-statis-kamu>.ngrok-free.app` atau `.ngrok-free.dev`)
 - Gemini API key dari [Google AI Studio](https://aistudio.google.com/apikey)
-- [ngrok](https://ngrok.com/download) — Windows: `winget install ngrok.ngrok`
 - Opsional: [Antigravity](https://antigravity.google) untuk development dengan AI agent
 
 ### 1. Clone & install
@@ -234,7 +228,7 @@ cp .env.example .env
 | Variabel | Keterangan |
 | --- | --- |
 | `DATABASE_URL` | Supabase → **Connect** → **Session pooler**. Format `postgresql://postgres.<project-ref>:<password>@<host>.pooler.supabase.com:5432/postgres` (port 5432) |
-| `TELEGRAM_BOT_TOKEN` | Token **Bot Development** dari @BotFather. Jangan pakai token produksi agar webhook Render tidak tertimpa |
+| `TELEGRAM_BOT_TOKEN` | Token bot Telegram dari @BotFather |
 | `TELEGRAM_WEBHOOK_SECRET` | String acak buatan sendiri: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `ADMIN_CHAT_ID` | Telegram Chat ID admin untuk otorisasi perintah `/invite` |
 | `GOOGLE_API_KEY` | Gemini API key dari Google AI Studio |
@@ -271,7 +265,11 @@ Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → S
 
 Semua migrasi aman dijalankan ulang (idempotent).
 
-### 4. Menjalankan Backend & Bot Dev (3 terminal)
+### 4. Menjalankan Backend & Bot
+
+Karena ngrok menggunakan domain statis gratis, URL tunnel **tidak berganti setiap restart**. Pendaftaran webhook (`setWebhook`) hanya perlu dijalankan **satu kali** saat setup awal.
+
+Untuk sesi kerja sehari-hari, Anda **hanya perlu menjalankan 2 terminal** (Terminal 1 dan Terminal 2):
 
 **Terminal 1 — server backend**
 ```bash
@@ -280,21 +278,19 @@ uv run uvicorn app.main:app --reload --port 8000
 ```
 Cek koneksi database: `curl -s http://localhost:8000/test-db` harus mengembalikan `"status":"success"`.
 
-**Terminal 2 — tunnel ngrok** (biarkan tetap terbuka; URL berganti setiap restart)
+**Terminal 2 — tunnel ngrok (domain statis)**
 ```bash
-ngrok http 8000
+ngrok http 8000 --url=<domain-statis-kamu>
 ```
 
-**Terminal 3 — daftarkan webhook bot dev**
+**Terminal 3 — daftarkan webhook [HANYA SETUP AWAL / SEKALI SAJA]**
 ```bash
 cd apps/backend
 TOKEN=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
 SECRET=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
-NGROK=$(curl -s http://127.0.0.1:4040/api/tunnels \
-  | python -c "import sys,json; print([t['public_url'] for t in json.load(sys.stdin)['tunnels'] if t['public_url'].startswith('https')][0])")
 
 curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
-  -d "url=$NGROK/telegram/webhook" \
+  -d "url=https://<domain-statis-kamu>/telegram/webhook" \
   -d "secret_token=$SECRET" \
   -d "drop_pending_updates=true"
 ```
@@ -304,7 +300,7 @@ Verifikasi webhook aktif:
 curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool
 ```
 
-Yang diharapkan: `url` menunjuk ke domain ngrok yang aktif, `pending_update_count: 0`, dan tidak ada `last_error_message`.
+Yang diharapkan: `url` menunjuk ke domain statis kamu, `pending_update_count: 0`, dan tidak ada `last_error_message`.
 
 ### 5. Menjalankan Dashboard Lokal
 
@@ -330,9 +326,11 @@ Dashboard berjalan di `http://localhost:5173`.
 
 ---
 
-## Panduan Deployment ke Render
+## Panduan Deployment ke Render (Ditunda — Referensi Masa Depan)
 
-Deployment menggunakan Render Free Tier untuk backend dan static site dashboard.
+> **Catatan Status:** Deployment ke Render saat ini ditunda karena Free Tier Render mewajibkan verifikasi kartu kredit dan menolak kartu virtual. Backend dan bot tetap dijalankan secara lokal dengan domain statis ngrok. Panduan di bawah ini dipertahankan sebagai referensi teknis saat siap melakukan deployment ke cloud atau berpindah provider.
+
+Deployment menggunakan Render Free Tier untuk backend dan static site dashboard:
 
 ### 1. Backend (Render Web Service)
 
@@ -425,7 +423,7 @@ Request tidak sampai ke server lokal. Alat pemisah paling tajam adalah **ngrok i
 | Gejala | Penyebab | Solusi |
 | --- | --- | --- |
 | `last_error_message: 404` + `ip_address` asing | Webhook menunjuk ke `app.ngrok.ai` (halaman dashboard ngrok), bukan ke tunnel | `setWebhook` ulang dengan URL dari baris `Forwarding` |
-| `last_error_message: 530` / `Connection refused` | Tunnel mati atau URL berganti | Jalankan ulang tunnel, lalu `setWebhook` dengan URL baru |
+| `last_error_message: 530` / `Connection refused` | Tunnel ngrok belum berjalan di lokal | Jalankan Terminal 2: `ngrok http 8000 --url=<domain-statis-kamu>` |
 | `403 Invalid secret token` | Nilai secret yang dipegang uvicorn ≠ yang didaftarkan ke Telegram | Restart uvicorn — `.env` **tidak** dibaca ulang oleh `--reload` |
 | `403` tetap muncul walau sudah restart | Ada proses uvicorn zombie memegang port 8000 | Lihat bagian *Port 8000* di bawah |
 | `{"ok":false,"error_code":404}` dari `getMe` | `$TOKEN` kosong, atau placeholder terketik apa adanya | `echo "${#TOKEN}"` — harus 45–46 |
@@ -508,6 +506,8 @@ order by started_at desc;
 Berguna saat rekap terasa tidak sesuai — sering kali penyebabnya batas tengah malam, bukan bug.
 
 ### Cold start Render (Bot lambat merespons setelah lama tidak dipakai)
+
+> *Catatan: Bagian ini merupakan referensi perilaku saat backend dideploy ke cloud platform gratis seperti Render yang memiliki mekanisme idle spin-down.*
 
 Jika bot tidak menerima request selama **15 menit**, Render Free Tier akan otomatis mematikan (*spin-down*) instance kontainer untuk menghemat kuota komputasi.
 
