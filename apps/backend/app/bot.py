@@ -19,7 +19,7 @@ from telegram.ext import (
 from .agent import run_agent
 from .config import settings
 from .database import SessionLocal
-from .models import InviteCode, Note, Profile, utcnow
+from .models import Area, InviteCode, Note, Profile, Task, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = f", {profile.full_name}" if profile.full_name else ""
     await update.effective_message.reply_text(
         f"Halo{name}! Akun kamu sudah terhubung.\n\n"
-        "Contoh yang bisa kamu kirim:\n"
+        "Perintah langsung (tanpa LLM):\n"
+        "• /areas — lihat daftar area hidup\n"
+        "• /tasks — lihat daftar tugas pending\n"
+        "• /done <id> — tandai tugas selesai\n\n"
+        "Contoh pesan chat (diproses AI):\n"
+        "• area saya: Kuliah, Usaha, Pribadi\n"
         "• ide: bikin fitur export notes ke markdown\n"
         "• mulai ngoding second brain\n"
         "• udahan dulu\n"
@@ -296,6 +301,124 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await message.reply_text(reply[:TELEGRAM_MAX_LEN])
 
 
+async def areas_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Area).where(Area.user_id == profile.id).order_by(Area.position.asc())
+        )
+        areas = result.scalars().all()
+
+    if not areas:
+        await update.effective_message.reply_text(
+            "Kamu belum memiliki area hidup.\n\n"
+            "Contoh untuk mengatur area: kirim\n"
+            "area saya: Kuliah, Usaha, Pribadi"
+        )
+        return
+
+    lines = ["Daftar Area:"]
+    for a in areas:
+        lines.append(f"{a.position}. {a.name}")
+    await update.effective_message.reply_text("\n".join(lines))
+
+
+async def tasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Task, Area.name)
+            .outerjoin(Area, Task.area_id == Area.id)
+            .where(Task.user_id == profile.id, Task.status == "pending")
+            .order_by(
+                Task.is_urgent.desc(),
+                col(Task.deadline).asc().nulls_last(),
+                col(Task.created_at).asc(),
+            )
+        )
+        tasks = result.all()
+
+    if not tasks:
+        await update.effective_message.reply_text("Tidak ada tugas pending.")
+        return
+
+    lines = ["Daftar Tugas Pending:"]
+    for task, area_name in tasks:
+        area_tag = f"[{area_name}] " if area_name else ""
+        urgent_tag = "[MENDESAK] " if task.is_urgent else ""
+        if task.deadline:
+            dl_str = task.deadline.strftime("%d %b %Y")
+            dl_tag = f" (deadline: {dl_str})"
+        else:
+            dl_tag = ""
+        lines.append(f"#{task.id} {area_tag}{urgent_tag}{task.title}{dl_tag}")
+
+    lines.append("\nGunakan /done <id> untuk menandai selesai.")
+    await update.effective_message.reply_text("\n".join(lines))
+
+
+async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    if not context.args:
+        await update.effective_message.reply_text("Format: /done <id>\nContoh: /done 1")
+        return
+
+    raw_id = context.args[0].lstrip("#").strip()
+    if not raw_id.isdigit():
+        await update.effective_message.reply_text(
+            "ID tugas harus berupa angka. Contoh: /done 1"
+        )
+        return
+
+    task_id = int(raw_id)
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Task).where(Task.id == task_id, Task.user_id == profile.id)
+        )
+        task = result.scalars().first()
+        if task is None:
+            await update.effective_message.reply_text(
+                f"Tugas #{task_id} tidak ditemukan."
+            )
+            return
+
+        if task.status == "completed":
+            await update.effective_message.reply_text(
+                f"Tugas #{task_id} ('{task.title}') sudah selesai."
+            )
+            return
+
+        # PENTING: status dan completed_at WAJIB diisi dalam satu operasi (constraint tasks_completed_consistent)
+        task.status = "completed"
+        task.completed_at = utcnow()
+        session.add(task)
+        await session.commit()
+        title = task.title
+
+    await update.effective_message.reply_text(f"✅ Selesai: #{task_id} - {title}")
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -308,6 +431,9 @@ private = filters.ChatType.PRIVATE
 ptb_app.add_handler(CommandHandler("start", start, filters=private))
 ptb_app.add_handler(CommandHandler("connect", connect, filters=private))
 ptb_app.add_handler(CommandHandler("invite", invite, filters=private))
+ptb_app.add_handler(CommandHandler(["areas", "area"], areas_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["tasks", "tugas"], tasks_cmd, filters=private))
+ptb_app.add_handler(CommandHandler("done", done_cmd, filters=private))
 # UpdateType.MESSAGE = abaikan pesan yang di-edit (supaya tidak diproses dua kali)
 ptb_app.add_handler(
     MessageHandler(

@@ -170,3 +170,11 @@ Jangan usulkan membatalkan ini tanpa informasi baru yang benar-benar mengubah pe
 2. Kebijakan RLS, dikerjakan bareng dashboard karena konsumennya di sana
 3. Deploy backend ke Railway/Render, lepas dari ngrok
 4. Halaman donasi
+
+## 13. Tes tidak boleh menyentuh database asli
+
+Tes otomatis memakai SQLite di memori (`sqlite+aiosqlite:///:memory:`),
+bukan `SessionLocal` yang terhubung ke Supabase. Database asli berisi
+data sungguhan pemilik instance.
+
+Kalau sebuah tes benar-benar butuh Postgres, tanya dulu.

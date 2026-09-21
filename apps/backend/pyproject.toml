@@ -14,3 +14,8 @@ dependencies = [
     "tzdata>=2026.4",
     "uvicorn>=0.53.0",
 ]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.22.1",
+]

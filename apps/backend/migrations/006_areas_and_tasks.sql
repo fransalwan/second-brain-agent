@@ -64,3 +64,13 @@ create policy "Users can view own tasks"
     to authenticated
     using (auth.uid() = user_id);
 
+-- ---------------------------------------------------------------------------
+-- 4. KONSISTENSI STATUS
+-- ---------------------------------------------------------------------------
+alter table public.tasks
+    drop constraint if exists tasks_completed_consistent;
+
+alter table public.tasks
+    add constraint tasks_completed_consistent
+    check ((status = 'completed') = (completed_at is not null));
+

@@ -160,6 +160,22 @@ Instance self-hosted sering berjalan di perangkat yang tidak selalu menyala. Set
 
 Jam pengiriman adalah preferensi pengguna, bukan konstanta di kode.
 
+## 11. Penolakan tool adalah final untuk giliran itu
+
+Ketika tool mengembalikan status error atau penolakan (misalnya `set_areas` ditolak karena area sudah ada, atau `delete_area` ditolak karena masih ada tugas pending):
+
+- Agen **dilarang keras** memanggil tool lain secara otomatis untuk "memperbaiki" atau menuruti saran di pesan error.
+- Agen wajib menyampaikan pesan penolakan langsung ke pengguna apa adanya, dan menunggu keputusan pengguna di pesan berikutnya.
+- Pesan penolakan dari tool harus ditulis dengan bahasa yang langsung ditujukan ke pengguna (bukan instruksi internal untuk LLM).
+
+## 12. Fitur inti tidak bergantung pada kuota LLM
+
+Free tier Gemini dibatasi per hari per model, dan satu pesan chat bisa memakai dua sampai tiga request (memilih tool, lalu merangkai balasan). Kuota bisa habis di tengah hari.
+
+- Brief harian dan pengingat terjadwal disusun dari template, bukan dirangkai LLM. Urutan tugas sudah dihitung kode (aturan 4).
+- Operasi terstruktur (mengelola area, melihat daftar tugas) punya perintah langsung yang tidak memanggil LLM.
+- LLM dipakai untuk memahami bahasa bebas, bukan untuk hal yang bisa dikerjakan kode.
+
 ---
 
 ## Konvensi yang Sudah Ada

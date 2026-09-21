@@ -9,7 +9,7 @@ from google.genai import types
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, func, select
 from .database import SessionLocal
-from .models import ChatHistory, Note, TimeLog, utcnow
+from .models import Area, ChatHistory, Note, Task, TimeLog, utcnow
 from .config import settings
 
 APP_NAME = "second_brain"
@@ -175,17 +175,235 @@ async def get_summary(period: str, tool_context: ToolContext) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Area Tools
+# ---------------------------------------------------------------------------
+async def set_areas(names: list[str], tool_context: ToolContext) -> dict:
+    user_id = _user_id(tool_context)
+    cleaned = [n.strip() for n in names if n.strip()]
+    if not cleaned:
+        return {
+            "status": "error",
+            "reason": "empty_names",
+            "message": "Daftar nama area tidak boleh kosong.",
+        }
+
+    async with SessionLocal() as session:
+        existing = await session.execute(select(Area).where(Area.user_id == user_id))
+        if existing.scalars().first() is not None:
+            return {
+                "status": "error",
+                "reason": "already_configured",
+                "message": "Kamu sudah memiliki area terdaftar. Area hanya dapat diatur sekaligus saat akun belum memiliki area sama sekali. Jika ingin menambah area baru, kirim 'tambah area <nama>'. Jika ingin mengubah urutan, kirim 'ubah urutan area: <daftar area>'.",
+            }
+
+        areas = []
+        for idx, name in enumerate(cleaned, start=1):
+            area = Area(user_id=user_id, name=name, position=idx)
+            session.add(area)
+            areas.append(area)
+        await session.commit()
+        for a in areas:
+            await session.refresh(a)
+
+    return {
+        "status": "success",
+        "count": len(areas),
+        "areas": [{"id": a.id, "name": a.name, "position": a.position} for a in areas],
+    }
+
+
+async def list_areas(tool_context: ToolContext) -> dict:
+    user_id = _user_id(tool_context)
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Area).where(Area.user_id == user_id).order_by(Area.position.asc())
+        )
+        areas = result.scalars().all()
+
+    return {
+        "status": "success",
+        "count": len(areas),
+        "areas": [{"id": a.id, "name": a.name, "position": a.position} for a in areas],
+    }
+
+
+async def add_area(name: str, tool_context: ToolContext) -> dict:
+    user_id = _user_id(tool_context)
+    name = name.strip()
+    if not name:
+        return {
+            "status": "error",
+            "reason": "empty_name",
+            "message": "Nama area tidak boleh kosong.",
+        }
+
+    async with SessionLocal() as session:
+        existing = await session.execute(
+            select(Area).where(
+                Area.user_id == user_id,
+                func.lower(Area.name) == name.lower(),
+            )
+        )
+        if existing.scalars().first() is not None:
+            return {
+                "status": "error",
+                "reason": "already_exists",
+                "message": f"Area '{name}' sudah ada.",
+            }
+
+        result = await session.execute(
+            select(func.coalesce(func.max(Area.position), 0)).where(
+                Area.user_id == user_id
+            )
+        )
+        max_pos = result.scalar_one()
+
+        area = Area(user_id=user_id, name=name, position=max_pos + 1)
+        session.add(area)
+        await session.commit()
+        await session.refresh(area)
+
+    return {
+        "status": "success",
+        "area": {"id": area.id, "name": area.name, "position": area.position},
+    }
+
+
+async def reorder_areas(ordered_names: list[str], tool_context: ToolContext) -> dict:
+    user_id = _user_id(tool_context)
+    cleaned_input = [n.strip() for n in ordered_names if n.strip()]
+    if not cleaned_input:
+        return {
+            "status": "error",
+            "reason": "empty_names",
+            "message": "Daftar nama area baru tidak boleh kosong.",
+        }
+
+    async with SessionLocal() as session:
+        result = await session.execute(select(Area).where(Area.user_id == user_id))
+        existing_areas = result.scalars().all()
+        if not existing_areas:
+            return {
+                "status": "error",
+                "reason": "no_areas",
+                "message": "Kamu belum memiliki area terdaftar. Gunakan set_areas terlebih dahulu.",
+            }
+
+        name_to_area = {a.name.lower(): a for a in existing_areas}
+        reordered = []
+        seen_ids = set()
+
+        for name in cleaned_input:
+            key = name.lower()
+            if key in name_to_area and name_to_area[key].id not in seen_ids:
+                area = name_to_area[key]
+                reordered.append(area)
+                seen_ids.add(area.id)
+
+        # Pertahankan area yang tidak tercantum dalam input di urutan belakang
+        for area in sorted(existing_areas, key=lambda a: a.position):
+            if area.id not in seen_ids:
+                reordered.append(area)
+                seen_ids.add(area.id)
+
+        for idx, area in enumerate(reordered, start=1):
+            area.position = idx
+            session.add(area)
+
+        await session.commit()
+        for a in reordered:
+            await session.refresh(a)
+
+    return {
+        "status": "success",
+        "count": len(reordered),
+        "areas": [
+            {"id": a.id, "name": a.name, "position": a.position} for a in reordered
+        ],
+    }
+
+
+async def delete_area(name: str, tool_context: ToolContext) -> dict:
+    user_id = _user_id(tool_context)
+    name = name.strip()
+    if not name:
+        return {
+            "status": "error",
+            "reason": "empty_name",
+            "message": "Nama area tidak boleh kosong.",
+        }
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Area).where(
+                Area.user_id == user_id,
+                func.lower(Area.name) == name.lower(),
+            )
+        )
+        area = result.scalars().first()
+        if area is None:
+            return {
+                "status": "error",
+                "reason": "not_found",
+                "message": f"Area '{name}' tidak ditemukan.",
+            }
+
+        # Jangan hapus area kalau masih punya tugas pending
+        pending_result = await session.execute(
+            select(func.count(Task.id)).where(
+                Task.user_id == user_id,
+                Task.area_id == area.id,
+                Task.status == "pending",
+            )
+        )
+        pending_count = pending_result.scalar_one()
+        if pending_count > 0:
+            return {
+                "status": "error",
+                "reason": "has_pending_tasks",
+                "message": f"Area '{area.name}' tidak dapat dihapus karena masih memiliki {pending_count} tugas pending. Selesaikan atau pindahkan tugas tersebut terlebih dahulu.",
+            }
+
+        await session.delete(area)
+
+        # Rapatkan kembali urutan area yang tersisa
+        remaining = await session.execute(
+            select(Area).where(Area.user_id == user_id).order_by(Area.position.asc())
+        )
+        for idx, a in enumerate(remaining.scalars().all(), start=1):
+            a.position = idx
+            session.add(a)
+
+        await session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Area '{area.name}' berhasil dihapus.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Agent & Runner
 # ---------------------------------------------------------------------------
 INSTRUCTION = """
-            Kamu adalah asisten "second brain" pribadi di Telegram. Tugasmu menangkap ide tanpa hambatan dan melacak waktu deep work.
+            Kamu adalah asisten "second brain" pribadi di Telegram. Tugasmu mengelola area hidup, menangkap ide tanpa hambatan, dan melacak waktu deep work.
             Aturan:
-            1. Jika pesan berisi ide/catatan: panggil save_note.
-            2. Mulai fokus: start_timer.
-            3. Selesai: stop_timer.
-            4. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
-            5. Cari: search_notes.
-            Gaya balasan: singkat, teks polos tanpa markdown.
+            1. Penolakan tool adalah final (PENTING):
+               Jika pemanggilan tool menghasilkan error atau penolakan (misal status='error' pada set_areas atau delete_area):
+               - JANGAN PERNAH mencoba memanggil tool lain secara otomatis di giliran yang sama.
+               - Langsung sampaikan isi pesan penolakan tersebut kepada pengguna apa adanya dan tunggu keputusan pengguna di pesan berikutnya.
+            2. Area hidup:
+               - Pengguna menentukan daftar area pertama kali: panggil set_areas(names=[...]). Ingat: set_areas hanya untuk setup awal saat belum punya area.
+               - Melihat daftar area: panggil list_areas().
+               - Menambah area baru: panggil add_area(name=...).
+               - Mengubah urutan prioritas area: panggil reorder_areas(ordered_names=[...]).
+               - Menghapus area: panggil delete_area(name=...). Jangan hapus jika masih punya tugas pending.
+            3. Jika pesan berisi ide/catatan: panggil save_note.
+            4. Mulai fokus: start_timer.
+            5. Selesai: stop_timer.
+            6. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
+            7. Cari catatan: search_notes.
+            Gaya balasan: singkat, teks polos tanpa markdown. Sebutkan urutan nomor saat menampilkan area.
             """
 
 root_agent = Agent(
@@ -193,7 +411,18 @@ root_agent = Agent(
     model=GEMINI_MODEL,
     description="Asisten second brain.",
     instruction=INSTRUCTION,
-    tools=[save_note, search_notes, start_timer, stop_timer, get_summary],
+    tools=[
+        save_note,
+        search_notes,
+        start_timer,
+        stop_timer,
+        get_summary,
+        set_areas,
+        list_areas,
+        add_area,
+        reorder_areas,
+        delete_area,
+    ],
 )
 
 session_service = InMemorySessionService()
