@@ -5,6 +5,7 @@ import html
 import logging
 from datetime import datetime, time, timezone
 from typing import Any, Optional
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlmodel import col, select
@@ -12,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.constants import ParseMode
 
 from .config import settings
-from .models import Area, Profile, TimeLog, utcnow
+from .habits import check_habit_for_today, get_user_habits_status
+from .models import Area, Habit, HabitLog, Profile, TimeLog, utcnow
 from .scheduler import is_past_night_cutoff
 
 logger = logging.getLogger(__name__)
@@ -42,9 +44,7 @@ def _diff_seconds(t1: datetime, t2: datetime) -> float:
 async def get_profile_by_email(session: AsyncSession, email: str) -> Optional[Profile]:
     """Cari profil user berdasarkan email (case-insensitive)."""
     clean_email = email.strip().lower()
-    res = await session.execute(
-        select(Profile).where(Profile.email == clean_email)
-    )
+    res = await session.execute(select(Profile).where(Profile.email == clean_email))
     return res.scalars().first()
 
 
@@ -60,7 +60,10 @@ async def start_ambient_timer(
     """Memulai timer fokus secara otomatis dari ambient watcher."""
     profile = await get_profile_by_email(session, email)
     if not profile:
-        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
 
     clean_project = project_name.strip()
     if not clean_project:
@@ -101,7 +104,9 @@ async def start_ambient_timer(
         await session.commit()
 
     # 3. Cek Night Cutoff (Bedtime Guardian)
-    night_cutoff = profile.night_cutoff_time if profile.night_cutoff_time else time(23, 0)
+    night_cutoff = (
+        profile.night_cutoff_time if profile.night_cutoff_time else time(23, 0)
+    )
     now_local = datetime.now(LOCAL_TZ)
     is_late_night = is_past_night_cutoff(now_local.time(), night_cutoff)
 
@@ -158,7 +163,10 @@ async def stop_ambient_timer(
     """Menghentikan timer fokus secara otomatis saat window ditutup atau idle."""
     profile = await get_profile_by_email(session, email)
     if not profile:
-        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
 
     res = await session.execute(
         select(TimeLog).where(
@@ -169,7 +177,10 @@ async def stop_ambient_timer(
     running = res.scalars().first()
 
     if not running:
-        return {"status": "no_active_timer", "message": "Tidak ada timer yang sedang berjalan"}
+        return {
+            "status": "no_active_timer",
+            "message": "Tidak ada timer yang sedang berjalan",
+        }
 
     if project_name and running.project_name.lower() != project_name.strip().lower():
         return {
@@ -200,16 +211,31 @@ async def stop_ambient_timer(
     session.add(running)
     await session.commit()
 
+    # Otomatis centang habit kerja/ngoding jika durasi memenuhi syarat (>= 15 menit)
+    auto_habits = await auto_check_habits_on_focus(
+        session=session,
+        user_id=profile.id,
+        project_name=project,
+        duration_minutes=duration_min,
+        min_minutes=15,
+    )
+
     # Notifikasi ringkasan pasif jika durasi cukup berarti (>= 2 menit)
     if notify_telegram and profile.telegram_chat_id and bot and duration_min >= 2:
         try:
             dur_text = _fmt_duration(duration_min)
-            reason_label = "VS Code ditutup" if reason == "window_closed" else "Waktu idle / jeda"
+            reason_label = (
+                "VS Code ditutup" if reason == "window_closed" else "Waktu idle / jeda"
+            )
             msg = (
                 f"⏱️ <b>[Auto-Timer]</b> Sesi fokus selesai: <b>{html.escape(project)}</b>\n"
                 f"⏳ Durasi: <b>{dur_text}</b> ({reason_label})\n"
-                f"Data berhasil disinkronkan ke dashboard! 🎯"
             )
+            if auto_habits:
+                msg += "🔥 <b>Habit Harian Otomatis Dicentang:</b>\n"
+                for ah in auto_habits:
+                    msg += f"• <b>{html.escape(ah['name'])}</b> (Streak: {ah['streak']} hari 🔥)\n"
+            msg += "Data berhasil disinkronkan ke dashboard! 🎯"
             await bot.send_message(
                 chat_id=profile.telegram_chat_id,
                 text=msg,
@@ -223,6 +249,118 @@ async def stop_ambient_timer(
         "project": project,
         "duration_minutes": duration_min,
         "reason": reason,
+        "auto_checked_habits": auto_habits,
+    }
+
+
+DEFAULT_WORK_HABIT_KEYWORDS = {
+    "ngoding",
+    "coding",
+    "code",
+    "fokus",
+    "deep work",
+    "kerja",
+    "work",
+    "project",
+    "belajar",
+    "riset",
+    "program",
+    "build",
+}
+
+
+async def auto_check_habits_on_focus(
+    session: AsyncSession,
+    user_id: UUID,
+    project_name: str,
+    duration_minutes: int,
+    min_minutes: int = 15,
+) -> list[dict]:
+    """Mencari dan mencentang habit kerja/ngoding yang cocok jika durasi fokus memenuhi syarat."""
+    if duration_minutes < min_minutes:
+        return []
+
+    today = datetime.now(LOCAL_TZ).date()
+    statuses = await get_user_habits_status(session, user_id, today)
+
+    project_words = {w.lower() for w in project_name.split() if len(w) > 2}
+
+    checked = []
+    for s in statuses:
+        if s.is_completed_today:
+            continue
+        h_name_lower = s.habit.name.lower()
+        is_match = any(kw in h_name_lower for kw in DEFAULT_WORK_HABIT_KEYWORDS) or any(
+            pw in h_name_lower for pw in project_words
+        )
+        if is_match and s.habit.id is not None:
+            habit, already_done, streak = await check_habit_for_today(
+                session, user_id, s.habit.id, today
+            )
+            if habit and not already_done:
+                checked.append({
+                    "id": habit.id,
+                    "name": habit.name,
+                    "streak": streak,
+                })
+    return checked
+
+
+async def check_habit_by_keyword(
+    session: AsyncSession,
+    email: str,
+    habit_keyword: str,
+    notify_telegram: bool = True,
+    bot: Optional[Any] = None,
+) -> dict:
+    """Mencentang habit berdasarkan nama atau kata kunci (untuk trigger ambient mandiri)."""
+    profile = await get_profile_by_email(session, email)
+    if not profile:
+        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+
+    today = datetime.now(LOCAL_TZ).date()
+    statuses = await get_user_habits_status(session, profile.id, today)
+
+    kw_lower = habit_keyword.strip().lower()
+    target_status = None
+    for s in statuses:
+        if kw_lower in s.habit.name.lower():
+            target_status = s
+            break
+
+    if not target_status or target_status.habit.id is None:
+        return {
+            "status": "not_found",
+            "message": f"Tidak ditemukan habit aktif yang mengandung kata '{habit_keyword}'",
+        }
+
+    habit, already_done, streak = await check_habit_for_today(
+        session, profile.id, target_status.habit.id, today
+    )
+    if not habit:
+        return {"status": "error", "message": "Gagal memproses habit"}
+
+    if notify_telegram and profile.telegram_chat_id and bot and not already_done:
+        try:
+            msg = (
+                f"🔥 <b>[Auto-Habit]</b> Habit harian berhasil dicentang!\n"
+                f"🎯 <b>{html.escape(habit.name)}</b>\n"
+                f"⚡ Streak saat ini: <b>{streak} hari berturut-turut!</b>"
+            )
+            await bot.send_message(
+                chat_id=profile.telegram_chat_id,
+                text=msg,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.warning(f"Gagal mengirim notif Telegram auto habit: {e}")
+
+    return {
+        "status": "success",
+        "habit_id": habit.id,
+        "habit_name": habit.name,
+        "already_completed": already_done,
+        "streak": streak,
     }
 
 
@@ -230,7 +368,10 @@ async def get_ambient_status(session: AsyncSession, email: str) -> dict:
     """Mendapatkan status terkini untuk daemon ambient: timer aktif, area hidup, dll."""
     profile = await get_profile_by_email(session, email)
     if not profile:
-        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
 
     # Timer aktif
     res_timer = await session.execute(
@@ -254,7 +395,10 @@ async def get_ambient_status(session: AsyncSession, email: str) -> dict:
     res_areas = await session.execute(
         select(Area).where(Area.user_id == profile.id).order_by(Area.position.asc())
     )
-    areas = [{"id": a.id, "name": a.name, "position": a.position} for a in res_areas.scalars().all()]
+    areas = [
+        {"id": a.id, "name": a.name, "position": a.position}
+        for a in res_areas.scalars().all()
+    ]
 
     return {
         "status": "ok",

@@ -85,7 +85,9 @@ def get_all_open_vscode_window_titles() -> list[str]:
                         titles.append(title)
             return True
 
-        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+        WNDENUMPROC = ctypes.WINFUNCTYPE(
+            ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
+        )
         user32.EnumWindows(WNDENUMPROC(enum_proc), 0)
     except Exception:
         pass
@@ -113,7 +115,9 @@ class AmbientWatcher:
 
     def send_api_request(self, endpoint: str, payload: dict) -> dict | None:
         """Kirim HTTP POST request ke backend Second Brain."""
-        backend_url = self.config.get("backend_url", "http://localhost:8000").rstrip("/")
+        backend_url = self.config.get("backend_url", "http://localhost:8000").rstrip(
+            "/"
+        )
         url = f"{backend_url}{endpoint}"
         headers = {
             "Content-Type": "application/json",
@@ -155,7 +159,7 @@ class AmbientWatcher:
 
     def detect_active_vscode_project(self) -> str | None:
         """Deteksi project VS Code yang sedang dikerjakan.
-        
+
         Prioritas 1: Foreground Window (sedang aktif diketik).
         Prioritas 2: Jika user sedang buka browser/terminal tapi VS Code tetap terbuka di latar,
                      pertahankan project yang sedang aktif agar timer tidak terputus-putus.
@@ -198,7 +202,9 @@ class AmbientWatcher:
         if res and res.get("status") in ("started", "already_running"):
             self.current_project = project_name
             self.is_idle = False
-            logger.info(f"[TIMER START] Fokus dimulai: '{project_name}' (Status: {res.get('status')})")
+            logger.info(
+                f"[TIMER START] Fokus dimulai: '{project_name}' (Status: {res.get('status')})"
+            )
 
     def stop_timer(self, reason: str = "window_closed"):
         if not self.current_project:
@@ -215,6 +221,11 @@ class AmbientWatcher:
                 f"[TIMER STOP] Fokus dihentikan: '{self.current_project}' "
                 f"(Durasi: {res.get('duration_minutes', 0)} menit, Alasan: {reason})"
             )
+            auto_habits = res.get("auto_checked_habits", [])
+            for ah in auto_habits:
+                logger.info(
+                    f"[HABIT COMPLETED] Habit '{ah.get('name')}' otomatis dicentang! (Streak: {ah.get('streak')} hari)"
+                )
         self.current_project = None
 
     def run(self):
@@ -224,7 +235,9 @@ class AmbientWatcher:
         logger.info("=" * 60)
         logger.info("Second Brain Ambient Watcher aktif!")
         logger.info(f"Target User: {self.config.get('user_email')}")
-        logger.info(f"Interval Pemantauan: {poll_interval}s | Batas Idle: {idle_threshold}s")
+        logger.info(
+            f"Interval Pemantauan: {poll_interval}s | Batas Idle: {idle_threshold}s"
+        )
         logger.info("Tekan Ctrl+C untuk berhenti.")
         logger.info("=" * 60)
 
@@ -235,7 +248,9 @@ class AmbientWatcher:
                 # 1. Cek Apakah Pengguna Sedang Idle
                 if idle_sec >= idle_threshold:
                     if self.current_project and not self.is_idle:
-                        logger.info(f"[IDLE DETECTED] Pengguna tidak aktif selama {int(idle_sec)}s. Menghentikan timer.")
+                        logger.info(
+                            f"[IDLE DETECTED] Pengguna tidak aktif selama {int(idle_sec)}s. Menghentikan timer."
+                        )
                         self.stop_timer(reason="idle_timeout")
                         self.is_idle = True
                     time.sleep(poll_interval)
@@ -252,12 +267,16 @@ class AmbientWatcher:
                         self.start_timer(detected_project)
                     elif self.current_project != detected_project:
                         # Beralih ke project lain di VS Code (Context Switching)
-                        logger.info(f"[CONTEXT SWITCH] Beralih dari '{self.current_project}' ke '{detected_project}'")
+                        logger.info(
+                            f"[CONTEXT SWITCH] Beralih dari '{self.current_project}' ke '{detected_project}'"
+                        )
                         self.start_timer(detected_project)
                 else:
                     # VS Code ditutup
                     if self.current_project is not None:
-                        logger.info("[VSCODE CLOSED] VS Code tidak terdeteksi terbuka. Menghentikan sesi fokus.")
+                        logger.info(
+                            "[VSCODE CLOSED] VS Code tidak terdeteksi terbuka. Menghentikan sesi fokus."
+                        )
                         self.stop_timer(reason="window_closed")
 
                 time.sleep(poll_interval)

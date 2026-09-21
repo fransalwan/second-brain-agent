@@ -91,7 +91,12 @@ async def test_db_connection(session: AsyncSession = Depends(get_session)):
 # AMBIENT TRACKING ENDPOINTS (OS / VS Code)
 # ==========================================
 from pydantic import BaseModel
-from .ambient import get_ambient_status, start_ambient_timer, stop_ambient_timer
+from .ambient import (
+    check_habit_by_keyword,
+    get_ambient_status,
+    start_ambient_timer,
+    stop_ambient_timer,
+)
 
 
 class AmbientStartRequest(BaseModel):
@@ -113,8 +118,15 @@ def verify_ambient_key(
     x_ambient_key: str | None = Header(default=None, alias="X-Ambient-Key"),
 ):
     expected = settings.AMBIENT_API_KEY
-    if not expected or not x_ambient_key or not secrets.compare_digest(x_ambient_key, expected):
-        raise HTTPException(status_code=403, detail="Header X-Ambient-Key tidak valid atau tidak disertakan")
+    if (
+        not expected
+        or not x_ambient_key
+        or not secrets.compare_digest(x_ambient_key, expected)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Header X-Ambient-Key tidak valid atau tidak disertakan",
+        )
     return True
 
 
@@ -170,6 +182,34 @@ async def api_ambient_status(
     """Cek status timer aktif dan konfigurasi user untuk ambient daemon."""
     result = await get_ambient_status(session=session, email=email)
     if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
+class AmbientHabitCheckRequest(BaseModel):
+    email: str
+    habit_keyword: str
+    notify_telegram: bool = True
+
+
+@app.post("/api/v1/ambient/habit/check")
+async def api_ambient_habit_check(
+    payload: AmbientHabitCheckRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Mencentang habit secara otomatis berdasarkan kata kunci nama habit."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await check_habit_by_keyword(
+        session=session,
+        email=payload.email,
+        habit_keyword=payload.habit_keyword,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    elif result.get("status") == "not_found":
         raise HTTPException(status_code=404, detail=result.get("message"))
     return result
 

@@ -19,7 +19,7 @@ from app.ambient import get_ambient_status, start_ambient_timer, stop_ambient_ti
 from app.config import settings
 from app.database import get_session
 from app.main import app
-from app.models import Area, Profile, TimeLog, utcnow
+from app.models import Area, Habit, Profile, TimeLog, utcnow
 
 
 @pytest.fixture
@@ -150,7 +150,9 @@ async def test_ambient_stop_discard_micro_session(async_session: AsyncSession):
     assert res_stop["reason"] == "duration_too_short"
 
     # Verifikasi record dihapus agar tidak mengotori DB
-    res_db = await async_session.execute(select(TimeLog).where(TimeLog.user_id == user_id))
+    res_db = await async_session.execute(
+        select(TimeLog).where(TimeLog.user_id == user_id)
+    )
     assert res_db.scalars().first() is None
 
 
@@ -258,3 +260,104 @@ async def test_ambient_api_endpoints():
 
     app.dependency_overrides.clear()
     await test_engine.dispose()
+
+
+async def test_ambient_focus_session_auto_checks_habit(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="habit_user@example.com",
+        full_name="Habit User",
+        telegram_chat_id=999888,
+    )
+    habit_coding = Habit(
+        user_id=user_id,
+        name="Ngoding / Deep Work",
+        is_active=True,
+    )
+    habit_water = Habit(
+        user_id=user_id,
+        name="Minum Air Putih",
+        is_active=True,
+    )
+    async_session.add(profile)
+    async_session.add(habit_coding)
+    async_session.add(habit_water)
+    await async_session.commit()
+
+    # Buat timer fokus yang sudah berjalan 25 menit (memenuhi syarat >= 15m)
+    timer = TimeLog(
+        user_id=user_id,
+        project_name="Second Brain Agent",
+        started_at=utcnow() - timedelta(minutes=25),
+    )
+    async_session.add(timer)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+    res_stop = await stop_ambient_timer(
+        session=async_session,
+        email="habit_user@example.com",
+        reason="window_closed",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+
+    assert res_stop["status"] == "stopped"
+    assert len(res_stop["auto_checked_habits"]) == 1
+    assert res_stop["auto_checked_habits"][0]["name"] == "Ngoding / Deep Work"
+    assert res_stop["auto_checked_habits"][0]["streak"] == 1
+
+
+async def test_ambient_direct_habit_check_api():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        profile = Profile(
+            id=user_id,
+            email="direct_habit@example.com",
+            full_name="Direct Habit Tester",
+        )
+        habit = Habit(
+            user_id=user_id,
+            name="Membaca Buku 15 Menit",
+            is_active=True,
+        )
+        session.add(profile)
+        session.add(habit)
+        await session.commit()
+
+    async def override_get_session():
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = {"X-Ambient-Key": settings.AMBIENT_API_KEY}
+        resp = await client.post(
+            "/api/v1/ambient/habit/check",
+            headers=headers,
+            json={
+                "email": "direct_habit@example.com",
+                "habit_keyword": "membaca",
+                "notify_telegram": False,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["habit_name"] == "Membaca Buku 15 Menit"
+        assert data["streak"] == 1
+        assert data["already_completed"] is False
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()
+

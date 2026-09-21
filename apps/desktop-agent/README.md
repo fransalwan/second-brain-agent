@@ -8,10 +8,11 @@ Daemon pemantau latar belakang (*ambient watcher*) untuk Windows yang secara oto
 
 1. **Auto-Start Timer:** Saat membuka folder project di VS Code (misal `second-brain-agent` atau `CV PELANGI EFRATA`), timer fokus langsung berjalan.
 2. **Auto-Stop Timer:** Saat VS Code ditutup atau laptop dimatikan, timer otomatis dihentikan dan durasi tersimpan ke database Supabase.
-3. **Cerdas (Graceful Context):** Kamu bebas berpindah ke browser (membaca dokumentasi, mencari di Google/StackOverflow) atau terminal tanpa memutus sesi timer, selama jendela VS Code masih berjalan.
-4. **Deteksi Idle (Anti-False Tracking):** Jika kamu meninggalkan laptop lebih dari 10 menit (tidak ada ketikan/mouse), timer otomatis berhenti sementara dengan alasan `idle_timeout`.
-5. **Context Switching:** Jika kamu berganti folder kerja di VS Code, timer sesi sebelumnya otomatis dihitung dan sesi project baru langsung dimulai.
-6. **Zero External Dependencies:** Berjalan langsung dengan Python bawaan Windows tanpa perlu install library compiler C++ tambahan (`pip install` 0 MB).
+3. **Auto-Check Habit Harian:** Jika durasi fokus mencapai $\ge 15$ menit, habit harian terkait coding/kerja (seperti *"Ngoding / Build Project"*, *"Fokus"* atau sesuai nama project) otomatis dicentang dan streak harian bertambah tanpa perlu manual `/check`!
+4. **Cerdas (Graceful Context):** Kamu bebas berpindah ke browser (membaca dokumentasi, mencari di Google/StackOverflow) atau terminal tanpa memutus sesi timer, selama jendela VS Code masih berjalan.
+5. **Deteksi Idle (Anti-False Tracking):** Jika kamu meninggalkan laptop lebih dari 10 menit (tidak ada ketikan/mouse), timer otomatis berhenti sementara dengan alasan `idle_timeout`.
+6. **Context Switching:** Jika kamu berganti folder kerja di VS Code, timer sesi sebelumnya otomatis dihitung dan sesi project baru langsung dimulai.
+7. **Zero External Dependencies:** Berjalan langsung dengan Python bawaan Windows tanpa perlu install library compiler C++ tambahan (`pip install` 0 MB).
 
 ---
 
@@ -64,3 +65,4 @@ Output log akan muncul di terminal:
 ```
 
 Untuk menghentikan pemantauan, tekan `Ctrl + C`. Timer yang sedang berjalan akan disimpan dan dihentikan dengan aman.
+
