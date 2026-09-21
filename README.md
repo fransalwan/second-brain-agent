@@ -1,10 +1,17 @@
 # Second Brain Agent
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com)
+[![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D.svg)](https://vuejs.org)
+[![Telegram](https://img.shields.io/badge/Interface-Telegram%20Bot-24A1DE.svg)](https://t.me/BotFather)
+[![Feedback Form](https://img.shields.io/badge/Community-Beri%20Masukan-orange.svg)](https://docs.google.com/forms/d/e/1FAIpQLSchtkcU2s55nVvISOAwxW_fRpRDkfip4DHsaxi5mplTXlqxmQ/viewform)
+
 Asisten pribadi di Telegram yang membantu menjawab satu pertanyaan setiap hari: **"apa yang harus saya kerjakan sekarang?"**
 
 Tangkap ide, catat tugas beserta deadline-nya, lacak sesi fokus, dan atur prioritas di antara beberapa area hidup — kuliah, pekerjaan, project pribadi — cukup lewat chat biasa.
 
-> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, bedtime guardian, voice note, weekly report, dan auth) telah terimplementasi dan teruji.
+> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, bedtime guardian, voice note, weekly report, knowledge graph, dan self-serve auth) telah terimplementasi dan teruji 100%.
 
 ---
 
@@ -18,24 +25,24 @@ flowchart LR
 ```
 
 ### Langkah 1: Buat Akun di Dashboard Web
-1. Buka dashboard web Second Brain di browsermu.
+1. Buka dashboard web Second Brain di browsermu (`http://localhost:5173`).
 2. Pilih tab **Daftar Baru (Sign Up)**, isi Nama Lengkap, Email, dan Password (minimal 6 karakter).
 3. Klik **Buat Akun Sekarang** — kamu akan langsung diarahkan masuk ke dashboard.
 
 ### Langkah 2: Tautkan Akun ke Bot Telegram
 Pilih salah satu cara termudah:
-- **Opsi A (Rekomendasi):** Buka bot Second Brain di Telegram, lalu kirim perintah:  
+- **Opsi A (Rekomendasi - Instan):** Buka bot Second Brain di Telegram, lalu kirim perintah:  
   `/connect email@kamu.com`  
-  *(ganti dengan email yang kamu daftarkan tadi di web)*.
-- **Opsi B:** Kirim `/start` di bot Telegram untuk melihat Chat ID kamu, lalu masukkan Chat ID tersebut pada form di dashboard web dan klik **Hubungkan**.
+  *(ganti dengan email yang kamu daftarkan di dashboard web)*.
+- **Opsi B (Form Dashboard):** Kirim `/start` di bot Telegram untuk melihat Chat ID kamu, lalu salin dan masukkan Chat ID tersebut pada kartu penghubung di dashboard web, lalu klik **Hubungkan**.
 
 ### Langkah 3: Mulai Gunakan!
-Akunmu sekarang aktif dan sinkron real-time! Kamu bisa langsung:
+Akunmu sekarang aktif dan tersinkronisasi secara real-time! Kamu bisa langsung:
 - Kirim pesan biasa: `tugas kerja: kirim invoice deadline jumat`
-- Rekam **Voice Note**: Diktekan ide atau tugas saat sedang di jalan tanpa perlu mengetik.
+- Rekam **Voice Note**: Diktekan ide atau tugas saat sedang di jalan/mobile tanpa perlu mengetik.
 - Mulai sesi fokus: `mulai ngoding backend`
 - Cek prioritas: `/tasks`
-- Saat jenuh: `/chill` untuk memutar YouTube Music santai atau memesan kopi di ShopeeFood.
+- Saat jenuh: `/chill` untuk memutar YouTube Music santai atau `/kopi` untuk memesan kopi di ShopeeFood.
 
 ---
 
@@ -45,10 +52,10 @@ Daftar tugas biasa punya masalah yang sama: semakin panjang daftarnya, semakin b
 
 Prinsip yang dipegang:
 
-- **Tanpa hambatan.** Kirim pesan seperti ngobrol biasa. Tidak ada form, tidak ada aplikasi yang harus dibuka.
-- **Keputusan penting dihitung kode, bukan AI.** Urutan prioritas ditentukan fungsi yang bisa diuji. AI hanya membantu memahami bahasa sehari-hari.
-- **Tetap jalan saat AI tidak tersedia.** Fitur inti tidak bergantung pada kuota API.
-- **Data milikmu sendiri.** Kamu menjalankan instance-mu sendiri. Tidak ada server pusat.
+- **Tanpa hambatan.** Kirim pesan seperti ngobrol biasa. Tidak ada form ribet, tidak ada aplikasi yang harus dibuka terus-menerus.
+- **Keputusan penting dihitung kode, bukan AI.** Urutan prioritas ditentukan logika deterministik yang bisa diuji. AI hanya membantu memahami bahasa sehari-hari.
+- **Tetap jalan saat AI tidak tersedia.** Fitur inti tidak bergantung pada kuota API (Zero Data Loss).
+- **Data milikmu sendiri.** Kamu menjalankan instance-mu sendiri dengan Row Level Security (RLS). Tidak ada server pihak ketiga yang memata-matai datamu.
 
 ---
 
@@ -58,18 +65,18 @@ Prinsip yang dipegang:
 | --- | --- |
 | Tangkap ide dan catatan dari chat | ✅ |
 | Timer deep work per project, rekap harian dan mingguan | ✅ |
-| Area hidup yang bisa diatur dan diurutkan sendiri | ✅ |
+| Area hidup yang bisa diatur dan diurutkan sendiri (bobot prioritas) | ✅ |
 | Tugas dengan deadline dari bahasa sehari-hari ("deadline jumat") | ✅ |
-| Penanda tugas mendesak | ✅ |
+| Penanda tugas mendesak (Urgent flag) | ✅ |
 | Perintah cepat tanpa AI (`/areas`, `/tasks`, `/done`, `/habits`, `/timer`, `/night`, `/chill`, `/kopi`, `/weekly`) | ✅ |
-| Dashboard web read-only dengan login magic link | ✅ |
-| Undangan untuk pengguna lain di instance yang sama | ✅ |
+| Dashboard web modern dengan registrasi mandiri, login email/password & magic link | ✅ |
+| Penautan akun Telegram mandiri cukup via email (`/connect email@kamu.com`) | ✅ |
 | Fungsi prioritas: tiga tugas teratas beserta alasannya (3-tier deterministik) | ✅ |
 | Brief pagi otomatis (0 kuota LLM, susulan instan saat online) | ✅ |
 | Pelacakan kebiasaan harian (streak & integrasi ke brief pagi) | ✅ |
 | Pengingat istirahat saat fokus & batas jam kerja malam (*bedtime guardian*) | ✅ |
 | Mode Jeda & Recharge (YouTube Music, ShopeeFood kopi, film santai, ide hangout) | ✅ |
-| Transkripsi voice note multimodal via Gemini (terhubung langsung ke aksi agent) | ✅ |
+| Transkripsi voice note multimodal via Gemini Audio (terhubung langsung ke aksi agent) | ✅ |
 | Laporan mingguan pola kerja & refleksi cerdas (otomatis Minggu malam & on-demand `/weekly`) | ✅ |
 | Visualisasi hubungan antar catatan (Knowledge Graph interaktif di dashboard) | ✅ |
 
@@ -196,6 +203,8 @@ Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → S
 8. `008_habits.sql`
 9. `009_timer_break_reminder.sql`
 10. `010_night_cutoff.sql`
+11. `011_weekly_report.sql`
+12. `012_allow_user_profile_management.sql`
 
 Semua file migrasi dan file inisialisasi aman dijalankan ulang (*idempotent*).
 
@@ -207,17 +216,17 @@ Semua file migrasi dan file inisialisasi aman dijalankan ulang (*idempotent*).
 | `TELEGRAM_BOT_TOKEN` | Token dari @BotFather |
 | `GOOGLE_API_KEY` | Gemini API key dari Google AI Studio |
 | `SUPABASE_URL` | Supabase → Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → `service_role` (untuk `/invite`) |
-| `ADMIN_CHAT_ID` | Chat ID Telegram-mu — cara mendapatkannya ada di langkah 5 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → `service_role` (untuk kelola akun & invite) |
+| `ADMIN_CHAT_ID` | Chat ID Telegram-mu — didapat dari `/start` saat bot menyala |
 | `TELEGRAM_MODE` | `polling` (default) atau `webhook` |
-| `GEMINI_MODEL` | Nama model Gemini yang dipakai |
+| `GEMINI_MODEL` | Nama model Gemini yang dipakai (misal `gemini-2.5-flash`) |
 | `APP_TIMEZONE` | Zona waktumu, misalnya `Asia/Jakarta` |
 
 > Gunakan **Session pooler**, bukan Direct connection — Direct connection hanya lewat IPv6 dan sering timeout di jaringan rumah.
 
 > Simpan `.env` sebagai **UTF-8 tanpa BOM**. BOM membuat variabel di baris pertama tidak terbaca.
 
-### 4. Jalankan
+### 4. Jalankan Backend
 
 ```bash
 uv run uvicorn app.main:app --port 8000
@@ -225,15 +234,21 @@ uv run uvicorn app.main:app --port 8000
 
 Satu terminal saja. Tidak perlu ngrok.
 
-### 5. Hubungkan akunmu
+### 5. Hubungkan Akun
 
-1. Kirim `/start` ke bot. Karena akunmu belum terhubung, bot akan menampilkan **Chat ID**-mu.
-2. Isi `ADMIN_CHAT_ID` di `.env` dengan angka itu, lalu restart backend (`Ctrl+C`, jalankan lagi).
-3. Kirim `/invite NamaKamu email@kamu.com` — bot membalas dengan kode undangan.
+**Cara 1 (Registrasi Mandiri - Direkomendasikan):**
+1. Buat akun di dashboard web (`http://localhost:5173`) dengan email dan password.
+2. Buka bot di Telegram, lalu kirim:  
+   `/connect email@kamu.com`  
+   *(ganti dengan email yang kamu daftarkan)*.
+3. Bot langsung tersambung ke akunmu secara instan!
+
+**Cara 2 (Sistem Undangan Admin):**
+1. Kirim `/start` ke bot untuk melihat **Chat ID**-mu.
+2. Isi `ADMIN_CHAT_ID` di `.env` dengan angka itu, lalu restart backend.
+3. Kirim `/invite NamaKamu email@kamu.com` — bot membalas dengan kode undangan 8-karakter.
 4. Kirim `/connect <kode>` — akunmu terhubung.
 5. Buat area pertamamu: `area saya: Kuliah, Kerja, Project`.
-
-Untuk mengundang orang lain ke instance yang sama, ulangi langkah 3 dengan nama dan email mereka, lalu kirimkan kodenya. Kode berlaku tujuh hari dan hanya bisa dipakai sekali.
 
 ### 6. Dashboard (opsional)
 
@@ -330,9 +345,36 @@ uv run python tests/test_voice_transcriber.py # Transkripsi suara & routing ke a
 uv run python tests/test_connect_email.py     # Autentikasi email & penautan instan
 ```
 
+### Menjalankan Seluruh Test Suite
+
+```bash
+cd apps/backend
+uv run --with pytest --with pytest-asyncio pytest -o asyncio_mode=auto
+```
+
+### Seeding Data Awal (Uji Coba Cepat)
+
+Jika ingin mengisi database dengan sampel data lengkap (4 Area Hidup, 11 Tugas prioritas 3-tier, Habit dengan streaks, Sesi fokus, dan Catatan Knowledge Graph):
+
+```bash
+cd apps/backend
+# Sesuaikan TARGET_EMAIL di seed_user_data.py dengan email akunmu
+uv run python seed_user_data.py
+```
+
 Project ini dikembangkan dengan bantuan AI coding agent. Folder `.agents/rules/` berisi aturan yang dibaca otomatis oleh agent — setiap aturan berasal dari bug yang pernah terjadi, bukan preferensi gaya. Membacanya adalah cara tercepat memahami keputusan desain di project ini.
 
 Menambah dependensi: `uv add <paket>`. Perubahan skema: file SQL bernomor baru di `migrations/`, lengkap dengan kebijakan RLS.
+
+---
+
+## 💬 Beri Masukan & Evaluasi Pengguna
+
+Apakah kamu sudah mencoba Second Brain Agent? Kami sangat mengharapkan masukan, kritik, dan ide pengembangan dari kamu:
+
+👉 **[Isi Form Evaluasi & Wishlist Fitur (Google Form)](https://docs.google.com/forms/d/e/1FAIpQLSchtkcU2s55nVvISOAwxW_fRpRDkfip4DHsaxi5mplTXlqxmQ/viewform)**
+
+Setiap masukan akan dipelajari dan menjadi bahan pertimbangan utama untuk roadmap pengembangan berikutnya!
 
 ---
 
@@ -350,6 +392,14 @@ Menambah dependensi: `uv add <paket>`. Perubahan skema: file SQL bernomor baru d
 - [x] Laporan mingguan pola kerja & keseimbangan istirahat (`/weekly` & penjadwalan otomatis)
 - [x] Visualisasi hubungan antar catatan (Interactive Knowledge Graph di dashboard)
 - [x] File skema gabungan untuk instalasi 1-klik (`init_schema.sql`)
+- [x] Sistem registrasi & autentikasi mandiri kredensial (Email & Password di dashboard)
+- [x] Penautan instan akun Telegram via email (`/connect email@kamu.com`)
+
+**Mendatang (Berdasarkan Feedback Komunitas)**
+
+- [ ] Integrasi Kalender (Google Calendar sync)
+- [ ] Export Catatan ke format Markdown / PDF
+- [ ] Dukungan PWA / Offline cache untuk mobile browser
 
 ---
 
