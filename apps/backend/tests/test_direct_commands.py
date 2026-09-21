@@ -72,6 +72,12 @@ async def run_all_tests():
         session.add(task_a)
         await session.commit()
 
+    # User A melihat /tasks (memakai fungsi prioritas)
+    u_a_tasks = MockUpdate(chat_a_id)
+    await bot_module.tasks_cmd(u_a_tasks, MockContext())
+    tasks_reply = u_a_tasks.effective_message.replies[-1]
+    assert "#1 [Kuliah] Tugas Rahasia User A — " in tasks_reply
+
     # 1. User B mencoba menjalankan /done 1 (tugas milik User A)
     u_b = MockUpdate(chat_b_id)
     c_b = MockContext(args=["1"])

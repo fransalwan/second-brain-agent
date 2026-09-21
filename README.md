@@ -4,7 +4,7 @@ Asisten pribadi di Telegram yang membantu menjawab satu pertanyaan setiap hari: 
 
 Tangkap ide, catat tugas beserta deadline-nya, lacak sesi fokus, dan atur prioritas di antara beberapa area hidup — kuliah, pekerjaan, project pribadi — cukup lewat chat biasa.
 
-> **Status:** 🚧 Dalam pengembangan aktif. Pencatatan, timer, area, dan tugas sudah berjalan. Fungsi prioritas dan brief pagi sedang dikerjakan.
+> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, dan bedtime guardian) telah terimplementasi dan teruji.
 
 ---
 
@@ -30,13 +30,13 @@ Prinsip yang dipegang:
 | Area hidup yang bisa diatur dan diurutkan sendiri | ✅ |
 | Tugas dengan deadline dari bahasa sehari-hari ("deadline jumat") | ✅ |
 | Penanda tugas mendesak | ✅ |
-| Perintah cepat tanpa AI (`/areas`, `/tasks`, `/done`) | ✅ |
+| Perintah cepat tanpa AI (`/areas`, `/tasks`, `/done`, `/habits`, `/timer`, `/night`) | ✅ |
 | Dashboard web read-only dengan login magic link | ✅ |
 | Undangan untuk pengguna lain di instance yang sama | ✅ |
-| Fungsi prioritas: tiga tugas teratas beserta alasannya | 🚧 |
-| Brief pagi otomatis | 🚧 |
-| Pelacakan kebiasaan harian | 📋 |
-| Pengingat istirahat dan batas jam kerja malam | 📋 |
+| Fungsi prioritas: tiga tugas teratas beserta alasannya (3-tier deterministik) | ✅ |
+| Brief pagi otomatis (0 kuota LLM, susulan instan saat online) | ✅ |
+| Pelacakan kebiasaan harian (streak & integrasi ke brief pagi) | ✅ |
+| Pengingat istirahat saat fokus & batas jam kerja malam (*bedtime guardian*) | ✅ |
 
 ---
 
@@ -64,9 +64,14 @@ Perintah berikut **tidak memakai AI** — responsnya instan dan tetap bekerja sa
 | Perintah | Fungsi |
 | --- | --- |
 | `/start` | Sapaan, atau menampilkan Chat ID kalau akun belum terhubung |
-| `/areas` | Daftar area terurut |
-| `/tasks` | Daftar tugas pending beserta ID-nya |
-| `/done <id>` | Menandai tugas selesai |
+| `/areas` | Daftar area terurut berdasarkan prioritas |
+| `/tasks` | Daftar tugas pending terurut algoritma prioritas (3-tier) beserta ID-nya |
+| `/done <id>` | Menandai tugas selesai secara instan |
+| `/habits` | Melihat daftar habit aktif dan streak saat ini |
+| `/check <id>` | Mencentang habit yang sudah diselesaikan hari ini |
+| `/timer` | Melihat status timer aktif beserta durasi berjalan |
+| `/stop` | Menghentikan timer aktif secara langsung |
+| `/night [HH:MM]` | Melihat atau mengubah batas jam kerja malam (*bedtime guardian*) |
 | `/connect <kode>` | Menghubungkan akun Telegram dengan kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 
@@ -135,6 +140,10 @@ cp .env.example .env
 
 ### 2. Siapkan database
 
+#### Opsi A: Instance Baru (1-Klik via SQL Editor)
+Jalankan file [`apps/backend/migrations/init_schema.sql`](apps/backend/migrations/init_schema.sql) langsung di **Supabase → SQL Editor**. Skema lengkap tabel, relasi, indeks, dan kebijakan RLS akan dibuat secara otomatis sekaligus.
+
+#### Opsi B: Migrasi Bertahap (Instance Berjalan)
 Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → SQL Editor**:
 
 1. `001_timer_and_timezones.sql`
@@ -143,8 +152,12 @@ Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → S
 4. `004_invite_codes.sql`
 5. `005_rls_policies.sql`
 6. `006_areas_and_tasks.sql`
+7. `007_add_brief_columns_to_profiles.sql`
+8. `008_habits.sql`
+9. `009_timer_break_reminder.sql`
+10. `010_night_cutoff.sql`
 
-Semua migrasi aman dijalankan ulang.
+Semua file migrasi dan file inisialisasi aman dijalankan ulang (*idempotent*).
 
 ### 3. Isi `.env`
 
@@ -260,12 +273,17 @@ Catatan waktu: semua timestamp disimpan dalam UTC. Nilai di Supabase akan tampak
 
 ## Pengembangan
 
-Tes otomatis memakai SQLite di memori dan tidak menyentuh database asli:
+Tes otomatis memakai SQLite di memori (Rule 13) dan tidak menyentuh database asli Supabase:
 
 ```bash
 cd apps/backend
-uv run python tests/test_direct_commands.py
-uv run python tests/test_task_tools.py
+uv run python tests/test_priority.py          # Logika prioritas 3-tier
+uv run python tests/test_brief_scheduler.py   # Formatter & scheduler brief pagi
+uv run python tests/test_direct_commands.py   # Perintah cepat non-LLM & isolasi user
+uv run python tests/test_task_tools.py        # Validasi tool tugas & injeksi tanggal
+uv run python tests/test_habits.py            # Habit, streak, & idempotent check
+uv run python tests/test_break_reminder.py    # Pengingat istirahat & /timer /stop
+uv run python tests/test_night_cutoff.py      # Batas jam kerja malam & /night
 ```
 
 Project ini dikembangkan dengan bantuan AI coding agent. Folder `.agents/rules/` berisi aturan yang dibaca otomatis oleh agent — setiap aturan berasal dari bug yang pernah terjadi, bukan preferensi gaya. Membacanya adalah cara tercepat memahami keputusan desain di project ini.
@@ -276,23 +294,20 @@ Menambah dependensi: `uv add <paket>`. Perubahan skema: file SQL bernomor baru d
 
 ## Roadmap
 
-**Sedang dikerjakan**
+**Selesai**
 
-- [ ] Fungsi prioritas — tiga tugas teratas beserta alasannya
-- [ ] Brief pagi otomatis, dengan susulan kalau perangkat baru dinyalakan setelah jadwal
+- [x] Fungsi prioritas — tiga tugas teratas beserta alasannya (3-tier deterministik)
+- [x] Brief pagi otomatis, dengan susulan kalau perangkat baru dinyalakan setelah jadwal
+- [x] Pelacakan kebiasaan harian (streak, idempotent check, ringkasan brief)
+- [x] Pengingat istirahat saat sesi fokus terlalu lama (>= 90 menit, anti-spam)
+- [x] Batas jam kerja malam (*bedtime guardian*, /night, dan soft warning)
+- [x] File skema gabungan untuk instalasi baru (`init_schema.sql`)
 
-**Berikutnya**
+**Ide berikutnya**
 
-- [ ] Pelacakan kebiasaan harian
-- [ ] Pengingat istirahat saat sesi fokus terlalu lama
-- [ ] Batas jam kerja malam
-- [ ] File skema gabungan untuk instalasi baru
-
-**Ide setelah itu**
-
-- Transkripsi voice note
-- Laporan mingguan pola kerja
-- Visualisasi hubungan antar catatan
+- [ ] Transkripsi voice note
+- [ ] Laporan mingguan pola kerja
+- [ ] Visualisasi hubungan antar catatan
 
 ---
 

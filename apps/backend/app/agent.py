@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 from google.adk.agents import Agent
@@ -9,7 +9,19 @@ from google.genai import types
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, func, select
 from .database import SessionLocal
-from .models import Area, ChatHistory, Note, Task, TimeLog, utcnow
+from .habits import check_habit_for_today, get_user_habits_status
+from .models import (
+    Area,
+    ChatHistory,
+    Habit,
+    HabitLog,
+    Note,
+    Profile,
+    Task,
+    TimeLog,
+    utcnow,
+)
+from .scheduler import is_past_night_cutoff
 from .config import settings
 
 APP_NAME = "second_brain"
@@ -78,18 +90,44 @@ async def start_timer(project_name: str, tool_context: ToolContext) -> dict:
                 "running_project": running.project_name,
             }
 
-        log = TimeLog(user_id=user_id, project_name=project_name.strip())
+        profile = await session.get(Profile, user_id)
+        night_cutoff = (
+            profile.night_cutoff_time
+            if (profile and profile.night_cutoff_time)
+            else time(23, 0)
+        )
+        now_local = datetime.now(LOCAL_TZ)
+        is_late_night = is_past_night_cutoff(now_local.time(), night_cutoff)
+
+        log = TimeLog(
+            user_id=user_id,
+            project_name=project_name.strip(),
+            night_warning_sent=is_late_night,
+        )
         session.add(log)
         try:
             await session.commit()
         except IntegrityError:
             return {"status": "error", "reason": "timer_already_running"}
         await session.refresh(log)
-    return {
+
+    res = {
         "status": "success",
         "project": log.project_name,
         "started_at": _fmt(log.started_at),
     }
+    if is_late_night:
+        cutoff_str = night_cutoff.strftime("%H:%M")
+        curr_str = now_local.strftime("%H:%M")
+        warning_msg = (
+            f"⚠️ Peringatan: Sekarang sudah larut malam (pukul {curr_str}, "
+            f"melewati batas jam kerja {cutoff_str}). Jangan lupa jaga kesehatan dan segera istirahat!"
+        )
+        res["night_warning"] = warning_msg
+        res["message"] = (
+            f"Timer untuk '{log.project_name}' dimulai pada {_fmt(log.started_at)}. {warning_msg}"
+        )
+    return res
 
 
 async def stop_timer(tool_context: ToolContext) -> dict:
@@ -513,6 +551,186 @@ async def mark_urgent(
 
 
 # ---------------------------------------------------------------------------
+# Habit Tools
+# ---------------------------------------------------------------------------
+async def add_habit(name: str, tool_context: ToolContext = None) -> dict:
+    user_id = _user_id(tool_context)
+    name = (name or "").strip()
+    if not name:
+        return {
+            "status": "error",
+            "reason": "empty_name",
+            "message": "Nama habit tidak boleh kosong.",
+        }
+
+    async with SessionLocal() as session:
+        existing = await session.execute(
+            select(Habit).where(
+                Habit.user_id == user_id,
+                func.lower(Habit.name) == name.lower(),
+                Habit.is_active.is_(True),
+            )
+        )
+        if existing.scalars().first():
+            return {
+                "status": "error",
+                "reason": "already_exists",
+                "message": f"Habit '{name}' sudah ada.",
+            }
+
+        max_pos_res = await session.execute(
+            select(func.coalesce(func.max(Habit.position), 0)).where(
+                Habit.user_id == user_id
+            )
+        )
+        max_pos = max_pos_res.scalar_one()
+
+        habit = Habit(user_id=user_id, name=name, position=max_pos + 1)
+        session.add(habit)
+        await session.commit()
+        await session.refresh(habit)
+
+    return {
+        "status": "success",
+        "habit": {"id": habit.id, "name": habit.name},
+        "message": f"Habit '{habit.name}' berhasil ditambahkan.",
+    }
+
+
+async def list_habits(tool_context: ToolContext = None) -> dict:
+    user_id = _user_id(tool_context)
+    today = datetime.now(LOCAL_TZ).date()
+
+    async with SessionLocal() as session:
+        habits_status = await get_user_habits_status(session, user_id, today)
+
+    if not habits_status:
+        return {
+            "status": "success",
+            "habits": [],
+            "message": "Kamu belum memiliki habit terdaftar.",
+        }
+
+    return {
+        "status": "success",
+        "habits": [
+            {
+                "id": h.habit.id,
+                "name": h.habit.name,
+                "is_completed_today": h.is_completed_today,
+                "streak": h.streak,
+            }
+            for h in habits_status
+        ],
+    }
+
+
+async def check_habit(name_or_id: str, tool_context: ToolContext = None) -> dict:
+    user_id = _user_id(tool_context)
+    clean_val = str(name_or_id).strip()
+    if not clean_val:
+        return {
+            "status": "error",
+            "reason": "empty_input",
+            "message": "Sebutkan nama atau ID habit yang ingin dicentang.",
+        }
+
+    today = datetime.now(LOCAL_TZ).date()
+
+    async with SessionLocal() as session:
+        target_habit = None
+        if clean_val.lstrip("#").isdigit():
+            hid = int(clean_val.lstrip("#"))
+            target_habit = await session.get(Habit, hid)
+            if target_habit and (
+                target_habit.user_id != user_id or not target_habit.is_active
+            ):
+                target_habit = None
+        else:
+            res = await session.execute(
+                select(Habit).where(
+                    Habit.user_id == user_id,
+                    Habit.is_active.is_(True),
+                    func.lower(Habit.name).like(f"%{clean_val.lower()}%"),
+                )
+            )
+            target_habit = res.scalars().first()
+
+        if target_habit is None:
+            return {
+                "status": "error",
+                "reason": "not_found",
+                "message": f"Habit '{clean_val}' tidak ditemukan.",
+            }
+
+        habit, already_done, streak = await check_habit_for_today(
+            session, user_id, target_habit.id, today
+        )
+
+    streak_str = (
+        f" 🔥 {streak} hari berturut-turut!"
+        if streak > 1
+        else (" 🔥 Hari ke-1!" if streak == 1 else "")
+    )
+    if already_done:
+        msg = f"Habit '{habit.name}' sudah dicentang hari ini.{streak_str}"
+    else:
+        msg = f"✅ Beres! Habit '{habit.name}' berhasil dicentang hari ini.{streak_str}"
+
+    return {
+        "status": "success",
+        "habit_id": habit.id,
+        "name": habit.name,
+        "already_done": already_done,
+        "streak": streak,
+        "message": msg,
+    }
+
+
+async def delete_habit(name_or_id: str, tool_context: ToolContext = None) -> dict:
+    user_id = _user_id(tool_context)
+    clean_val = str(name_or_id).strip()
+    if not clean_val:
+        return {
+            "status": "error",
+            "reason": "empty_input",
+            "message": "Sebutkan nama atau ID habit yang ingin dihapus.",
+        }
+
+    async with SessionLocal() as session:
+        target_habit = None
+        if clean_val.lstrip("#").isdigit():
+            hid = int(clean_val.lstrip("#"))
+            target_habit = await session.get(Habit, hid)
+            if target_habit and target_habit.user_id != user_id:
+                target_habit = None
+        else:
+            res = await session.execute(
+                select(Habit).where(
+                    Habit.user_id == user_id,
+                    func.lower(Habit.name) == clean_val.lower(),
+                )
+            )
+            target_habit = res.scalars().first()
+
+        if target_habit is None:
+            return {
+                "status": "error",
+                "reason": "not_found",
+                "message": f"Habit '{clean_val}' tidak ditemukan.",
+            }
+
+        target_habit.is_active = False
+        session.add(target_habit)
+        await session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Habit '{target_habit.name}' berhasil dinonaktifkan.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Agent & Dynamic Instruction Runner
 # ---------------------------------------------------------------------------
 INDO_DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
@@ -558,10 +776,15 @@ Aturan Pengelolaan Tugas:
    - Mengubah urutan prioritas area: panggil reorder_areas(ordered_names=[...]).
    - Menghapus area: panggil delete_area(name=...). Jangan hapus jika masih punya tugas pending.
 5. Jika pesan berisi ide/catatan: panggil save_note.
-6. Mulai fokus: start_timer.
+6. Mulai fokus: start_timer. Jika respons mengandung night_warning, sertakan pesan pengingat tersebut kepada pengguna dengan ramah dan peduli agar segera istirahat.
 7. Selesai: stop_timer.
 8. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
 9. Cari catatan: search_notes.
+10. Habit harian:
+    - Menambah habit baru: panggil add_habit(name=...).
+    - Melihat daftar habit: panggil list_habits().
+    - Mencentang habit: panggil check_habit(name_or_id=...).
+    - Menghapus habit: panggil delete_habit(name_or_id=...).
 
 Gaya balasan: singkat, teks polos tanpa markdown. Sebutkan urutan nomor saat menampilkan area."""
 
@@ -584,6 +807,10 @@ root_agent = Agent(
         delete_area,
         add_task,
         mark_urgent,
+        add_habit,
+        list_habits,
+        check_habit,
+        delete_habit,
     ],
 )
 

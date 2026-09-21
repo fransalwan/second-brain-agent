@@ -1,9 +1,9 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Date, DateTime
+from sqlalchemy import BigInteger, Date, DateTime, Time
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
@@ -32,6 +32,9 @@ class Profile(SQLModel, table=True):
     telegram_chat_id: Optional[int] = Field(
         default=None, unique=True, sa_type=BigInteger
     )
+    brief_time: time = Field(default=time(7, 0), sa_type=Time)
+    last_brief_date: Optional[date] = Field(default=None, sa_type=Date)
+    night_cutoff_time: time = Field(default=time(23, 0), sa_type=Time)
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
@@ -60,6 +63,8 @@ class TimeLog(SQLModel, table=True):
     # ended_at NULL = timer masih jalan
     ended_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     duration_minutes: Optional[int] = None
+    break_reminder_sent: bool = Field(default=False)
+    night_warning_sent: bool = Field(default=False)
 
 
 class Donation(SQLModel, table=True):
@@ -114,6 +119,31 @@ class Task(SQLModel, table=True):
     completed_at: Optional[datetime] = Field(
         default=None, sa_type=DateTime(timezone=True)
     )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class Habit(SQLModel, table=True):
+    __tablename__ = "habits"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    name: str
+    is_active: bool = Field(default=True)
+    position: int = Field(default=1)
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class HabitLog(SQLModel, table=True):
+    __tablename__ = "habit_logs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    habit_id: int = Field(foreign_key="habits.id", index=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    completed_date: date = Field(sa_type=Date)
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
