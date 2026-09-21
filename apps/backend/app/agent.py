@@ -22,6 +22,12 @@ from .models import (
     utcnow,
 )
 from .scheduler import is_past_night_cutoff
+from .recharge import (
+    YOUTUBE_MUSIC_PLAYLISTS,
+    build_shopeefood_url,
+    get_random_activity,
+    get_random_movie,
+)
 from .config import settings
 
 APP_NAME = "second_brain"
@@ -731,6 +737,44 @@ async def delete_habit(name_or_id: str, tool_context: ToolContext = None) -> dic
 
 
 # ---------------------------------------------------------------------------
+# Mode Jeda / Recharge Tool
+# ---------------------------------------------------------------------------
+async def get_recharge_suggestion(
+    category: str = "all", tool_context: ToolContext = None
+) -> dict:
+    """Mengambil rekomendasi relaksasi (musik YouTube Music, kopi ShopeeFood, rekomendasi tontonan santai, atau ide aktivitas offline) saat pengguna merasa jenuh, stres, atau lelah."""
+    cat = (category or "all").lower().strip()
+    res = {
+        "status": "success",
+        "message": "Pikiran butuh jeda agar bisa kembali jernih dan segar.",
+        "youtube_music": {
+            "title": YOUTUBE_MUSIC_PLAYLISTS[0]["title"],
+            "url": YOUTUBE_MUSIC_PLAYLISTS[0]["url"],
+            "desc": YOUTUBE_MUSIC_PLAYLISTS[0]["desc"],
+        },
+        "shopeefood_coffee": {
+            "preset": "Kopi Susu Gula Aren",
+            "url": build_shopeefood_url("kopi susu gula aren"),
+        },
+    }
+    if cat in {"movie", "film", "nonton", "all"}:
+        m = get_random_movie()
+        res["recommended_movie"] = {
+            "title": m["title"],
+            "type": m["type"],
+            "platform": m["platform"],
+            "reason": m["reason"],
+        }
+    if cat in {"activity", "hangout", "refresh", "all"}:
+        a = get_random_activity()
+        res["offline_activity"] = {
+            "title": a["title"],
+            "detail": a["detail"],
+        }
+    return res
+
+
+# ---------------------------------------------------------------------------
 # Agent & Dynamic Instruction Runner
 # ---------------------------------------------------------------------------
 INDO_DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
@@ -785,6 +829,12 @@ Aturan Pengelolaan Tugas:
     - Melihat daftar habit: panggil list_habits().
     - Mencentang habit: panggil check_habit(name_or_id=...).
     - Menghapus habit: panggil delete_habit(name_or_id=...).
+11. Mode Jeda & Empati Kelelahan (PENTING):
+    - Jika pengguna mengeluh lelah, jenuh, penat, pusing, ingin ngopi, atau butuh refreshing ("jenuh", "burnout", "capek banget", "pengen ngopi", "pusing"):
+      * JANGAN menyuruh pengguna mengerjakan tugas atau menagih deadline.
+      * Berikan balasan yang hangat, suportif, dan dorong pengguna untuk istirahat sejenak.
+      * Panggil get_recharge_suggestion untuk menyertakan tautan musik YouTube Music, link pesan kopi di ShopeeFood, rekomendasi tontonan, atau ide hangout santai.
+      * Beri tahu pengguna bahwa mereka juga bisa mengetik /chill kapan saja untuk membuka menu jeda interaktif.
 
 Gaya balasan: singkat, teks polos tanpa markdown. Sebutkan urutan nomor saat menampilkan area."""
 
@@ -811,6 +861,7 @@ root_agent = Agent(
         list_habits,
         check_habit,
         delete_habit,
+        get_recharge_suggestion,
     ],
 )
 

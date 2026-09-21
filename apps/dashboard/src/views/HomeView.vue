@@ -4,6 +4,38 @@ import { supabase } from '../lib/supabase'
 
 interface ProfileItem {
   full_name: string | null
+  brief_time: string | null
+  night_cutoff_time: string | null
+}
+
+interface AreaItem {
+  id: number
+  name: string
+  position: number
+}
+
+interface TaskItem {
+  id: number
+  area_id: number | null
+  title: string
+  deadline: string | null
+  is_urgent: boolean
+  status: string
+  completed_at: string | null
+  created_at: string
+}
+
+interface HabitItem {
+  id: number
+  name: string
+  is_active: boolean
+  position: number
+}
+
+interface HabitLogItem {
+  id: number
+  habit_id: number
+  completed_date: string
 }
 
 interface NoteItem {
@@ -25,23 +57,34 @@ const userEmail = ref<string | null>(null)
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
 
+const areas = ref<AreaItem[]>([])
+const tasks = ref<TaskItem[]>([])
+const habits = ref<HabitItem[]>([])
+const habitLogs = ref<HabitLogItem[]>([])
 const notes = ref<NoteItem[]>([])
-const notesLoading = ref(true)
-const notesError = ref<string | null>(null)
-
 const timeLogs = ref<TimeLogItem[]>([])
-const timeLogsLoading = ref(true)
-const timeLogsError = ref<string | null>(null)
 
+const loading = ref(true)
+const errorMsg = ref<string | null>(null)
 const loggingOut = ref(false)
+const taskFilter = ref<'all' | 'pending' | 'completed'>('pending')
 
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
 })
+
+const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+const todayHuman = dateFormatter.format(new Date())
 
 function formatDateTime(isoString: string | null): string {
   if (!isoString) return '-'
@@ -52,79 +95,148 @@ function formatDateTime(isoString: string | null): string {
   }
 }
 
+function getTodayIso(): string {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const todayIso = getTodayIso()
+
+const areaMap = computed(() => {
+  const map: Record<number, string> = {}
+  for (const a of areas.value) {
+    map[a.id] = a.name
+  }
+  return map
+})
+
 const activeTimer = computed(() => {
   return timeLogs.value.find((t) => t.ended_at === null) ?? null
 })
 
+const totalFocusMinutesToday = computed(() => {
+  return timeLogs.value
+    .filter((t) => t.started_at.startsWith(todayIso) && t.duration_minutes !== null)
+    .reduce((acc, t) => acc + (t.duration_minutes || 0), 0)
+})
+
+const pendingTasks = computed(() => {
+  return tasks.value.filter((t) => t.status === 'pending')
+})
+
+const completedTasks = computed(() => {
+  return tasks.value.filter((t) => t.status === 'completed')
+})
+
+const urgentCount = computed(() => {
+  return pendingTasks.value.filter((t) => t.is_urgent).length
+})
+
+const filteredTasks = computed(() => {
+  if (taskFilter.value === 'pending') return pendingTasks.value
+  if (taskFilter.value === 'completed') return completedTasks.value
+  return tasks.value
+})
+
+const habitsWithStatus = computed(() => {
+  return habits.value.map((habit) => {
+    const logs = habitLogs.value
+      .filter((l) => l.habit_id === habit.id)
+      .map((l) => l.completed_date)
+    const logSet = new Set(logs)
+    const isCompletedToday = logSet.has(todayIso)
+
+    // Hitung streak sederhana
+    let streak = 0
+    let curr = new Date()
+    if (!isCompletedToday) {
+      curr.setDate(curr.getDate() - 1)
+    }
+
+    while (true) {
+      const yr = curr.getFullYear()
+      const mo = String(curr.getMonth() + 1).padStart(2, '0')
+      const dy = String(curr.getDate()).padStart(2, '0')
+      const dStr = `${yr}-${mo}-${dy}`
+      if (logSet.has(dStr)) {
+        streak += 1
+        curr.setDate(curr.getDate() - 1)
+      } else {
+        break
+      }
+    }
+
+    return {
+      ...habit,
+      isCompletedToday,
+      streak,
+    }
+  })
+})
+
+const completedHabitsTodayCount = computed(() => {
+  return habitsWithStatus.value.filter((h) => h.isCompletedToday).length
+})
+
+function formatDeadline(dl: string | null): { text: string; badgeClass: string } {
+  if (!dl) return { text: 'Tanpa deadline', badgeClass: 'text-gray-400 bg-gray-50' }
+  if (dl < todayIso) {
+    return { text: `Terlambat (${dl})`, badgeClass: 'text-rose-700 bg-rose-50 border-rose-200' }
+  }
+  if (dl === todayIso) {
+    return { text: 'Hari ini', badgeClass: 'text-amber-800 bg-amber-50 border-amber-200 font-semibold' }
+  }
+  return { text: dl, badgeClass: 'text-blue-700 bg-blue-50 border-blue-100' }
+}
+
 async function fetchData() {
+  loading.value = true
+  errorMsg.value = null
+
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  if (!session) return
+  if (!session) {
+    loading.value = false
+    return
+  }
   userEmail.value = session.user?.email ?? null
 
-  const profilePromise = supabase
-    .from('profiles')
-    .select('full_name')
-    .maybeSingle()
+  try {
+    const [
+      profileRes,
+      areasRes,
+      tasksRes,
+      habitsRes,
+      habitLogsRes,
+      timeLogsRes,
+      notesRes,
+    ] = await Promise.all([
+      supabase.from('profiles').select('full_name, brief_time, night_cutoff_time').maybeSingle(),
+      supabase.from('areas').select('id, name, position').order('position', { ascending: true }),
+      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+      supabase.from('habits').select('*').eq('is_active', true).order('position', { ascending: true }),
+      supabase.from('habit_logs').select('*').order('completed_date', { ascending: false }),
+      supabase.from('time_logs').select('*').order('started_at', { ascending: false }).limit(30),
+      supabase.from('notes').select('*').order('created_at', { ascending: false }).limit(20),
+    ])
 
-  const notesPromise = supabase
-    .from('notes')
-    .select('id, content, tags, created_at')
-    .order('created_at', { ascending: false })
-    .limit(20)
-
-  const timeLogsPromise = supabase
-    .from('time_logs')
-    .select('id, project_name, started_at, ended_at, duration_minutes')
-    .order('started_at', { ascending: false })
-    .limit(20)
-
-  const [profileRes, notesRes, timeLogsRes] = await Promise.allSettled([
-    profilePromise,
-    notesPromise,
-    timeLogsPromise,
-  ])
-
-  profileLoaded.value = true
-
-  // 1. Profil
-  if (profileRes.status === 'fulfilled') {
-    const { data, error } = profileRes.value
-    if (!error && data) {
-      profile.value = data
-    } else {
-      profile.value = null
-    }
-  } else {
-    profile.value = null
-  }
-
-  // 2. Notes
-  notesLoading.value = false
-  if (notesRes.status === 'fulfilled') {
-    const { data, error } = notesRes.value
-    if (error) {
-      notesError.value = 'Gagal memuat catatan.'
-    } else {
-      notes.value = data ?? []
-    }
-  } else {
-    notesError.value = 'Gagal memuat catatan.'
-  }
-
-  // 3. Time Logs
-  timeLogsLoading.value = false
-  if (timeLogsRes.status === 'fulfilled') {
-    const { data, error } = timeLogsRes.value
-    if (error) {
-      timeLogsError.value = 'Gagal memuat catatan waktu.'
-    } else {
-      timeLogs.value = data ?? []
-    }
-  } else {
-    timeLogsError.value = 'Gagal memuat catatan waktu.'
+    profileLoaded.value = true
+    profile.value = profileRes.data ?? null
+    areas.value = areasRes.data ?? []
+    tasks.value = tasksRes.data ?? []
+    habits.value = habitsRes.data ?? []
+    habitLogs.value = habitLogsRes.data ?? []
+    timeLogs.value = timeLogsRes.data ?? []
+    notes.value = notesRes.data ?? []
+  } catch (err: any) {
+    errorMsg.value = err?.message || 'Gagal memuat data dashboard.'
+  } finally {
+    loading.value = false
   }
 }
 
@@ -143,195 +255,426 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 text-gray-900">
-    <!-- Header -->
-    <header class="border-b border-gray-200 bg-white">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <div>
-          <h1 class="text-xl font-bold tracking-tight text-gray-900">Second Brain</h1>
-          <p class="text-xs text-gray-500">
-            <span v-if="profile?.full_name" class="font-semibold text-gray-800">
-              {{ profile.full_name }}
-            </span>
-            <span v-if="profile?.full_name" class="mx-1.5 text-gray-300">•</span>
-            <span>{{ userEmail || '...' }}</span>
-          </p>
+  <div class="min-h-screen bg-gray-50 text-gray-900 pb-16">
+    <!-- Header Navbar -->
+    <header class="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-xs">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-lg font-bold shadow-xs">
+            🧠
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base font-bold tracking-tight text-gray-900 sm:text-lg">Second Brain</h1>
+              <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Dashboard</span>
+            </div>
+            <p class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+              <span v-if="profile?.full_name" class="font-semibold text-gray-800">{{ profile.full_name }}</span>
+              <span v-if="profile?.full_name" class="text-gray-300">•</span>
+              <span>{{ userEmail }}</span>
+            </p>
+          </div>
         </div>
-        <button
-          @click="handleLogout"
-          :disabled="loggingOut"
-          class="rounded-lg border border-gray-300 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50"
-        >
-          {{ loggingOut ? 'Keluar...' : 'Logout' }}
-        </button>
+
+        <div class="flex items-center gap-2.5">
+          <!-- Indikator Jadwal -->
+          <div v-if="profile" class="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+            <span>☀️ Brief: <strong class="text-gray-800">{{ profile.brief_time?.slice(0, 5) || '07:00' }}</strong></span>
+            <span class="text-gray-300">|</span>
+            <span>🌙 Malam: <strong class="text-gray-800">{{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</strong></span>
+          </div>
+
+          <button
+            @click="handleLogout"
+            :disabled="loggingOut"
+            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+          >
+            {{ loggingOut ? 'Keluar...' : 'Logout' }}
+          </button>
+        </div>
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
       <!-- Banner jika akun belum connect Telegram -->
       <div
         v-if="profileLoaded && !profile"
-        class="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm"
+        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm"
       >
         <div class="flex items-start gap-3">
-          <span class="text-lg">ℹ️</span>
+          <span class="text-xl">⚠️</span>
           <div>
-            <h2 class="text-sm font-semibold">Akun Belum Terhubung ke Telegram</h2>
+            <h2 class="text-sm font-semibold">Akun Belum Ditautkan ke Bot Telegram</h2>
             <p class="mt-1 text-xs leading-relaxed text-amber-800">
-              Akun Supabase ini belum ditautkan ke bot Telegram. Untuk menghubungkan profil kamu, kirim perintah
-              <code class="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-900">/connect KODE-UNDANGAN</code>
-              ke bot Telegram Second Brain.
+              Akun Supabase ini belum memiliki profil terhubung. Kirim perintah
+              <code class="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-900">/connect KODE</code>
+              di Telegram agar aktivitas sinkron secara real-time.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- Grid 2 Kolom: Time Logs & Notes -->
-      <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <!-- Kolom 1: Deep Work & Time Logs -->
-        <section class="space-y-4">
+      <!-- Banner Active Timer Berjalan -->
+      <div
+        v-if="activeTimer"
+        class="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 sm:p-5 shadow-sm transition-all"
+      >
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start sm:items-center gap-3">
+            <span class="relative flex h-3.5 w-3.5 mt-1 sm:mt-0">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-600"></span>
+            </span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Sesi Fokus Aktif</span>
+                <span class="text-xs text-emerald-700">Dimulai {{ formatDateTime(activeTimer.started_at) }}</span>
+              </div>
+              <h2 class="text-lg sm:text-xl font-bold text-emerald-950 mt-0.5">
+                {{ activeTimer.project_name }}
+              </h2>
+            </div>
+          </div>
+          <div class="text-xs text-emerald-800 bg-emerald-100/70 border border-emerald-200 rounded-lg px-3 py-1.5 self-start sm:self-auto">
+            Ketik <strong>/stop</strong> di Telegram untuk menghentikan sesi ini
+          </div>
+        </div>
+      </div>
+
+      <!-- Ringkasan Statistik Utama (4 Card Metrics) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        <!-- Metric 1: Waktu Fokus Hari Ini -->
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
           <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-900">Deep Work Tracker</h2>
-            <span class="text-xs text-gray-500">20 sesi terbaru</span>
+            <span class="text-xs font-medium text-gray-500">Fokus Hari Ini</span>
+            <span class="text-base">⏱️</span>
           </div>
+          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
+            <span v-if="totalFocusMinutesToday >= 60">
+              {{ Math.floor(totalFocusMinutesToday / 60) }}j {{ totalFocusMinutesToday % 60 }}m
+            </span>
+            <span v-else>
+              {{ totalFocusMinutesToday }} menit
+            </span>
+          </p>
+          <span class="text-[11px] text-gray-400 mt-0.5 block">Dari sesi deep work</span>
+        </div>
 
-          <!-- Highlight Timer Aktif -->
+        <!-- Metric 2: Tugas Pending & Mendesak -->
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-500">Tugas Pending</span>
+            <span class="text-base">🎯</span>
+          </div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <p class="text-xl sm:text-2xl font-extrabold text-gray-900">{{ pendingTasks.length }}</p>
+            <span v-if="urgentCount > 0" class="rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-bold text-rose-700">
+              {{ urgentCount }} mendesak
+            </span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-0.5 block">{{ completedTasks.length }} tugas selesai</span>
+        </div>
+
+        <!-- Metric 3: Habit Hari Ini -->
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-500">Habit Hari Ini</span>
+            <span class="text-base">🔥</span>
+          </div>
+          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
+            {{ completedHabitsTodayCount }}/{{ habits.length }}
+          </p>
+          <span class="text-[11px] text-gray-400 mt-0.5 block">Centang via /check di Telegram</span>
+        </div>
+
+        <!-- Metric 4: Catatan & Ide -->
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-500">Catatan & Ide</span>
+            <span class="text-base">📝</span>
+          </div>
+          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
+            {{ notes.length }}
+          </p>
+          <span class="text-[11px] text-gray-400 mt-0.5 block">Tersimpan dari chat</span>
+        </div>
+      </div>
+
+      <!-- Area Hidup Chips (Prinsip Urutan Prioritas) -->
+      <div v-if="areas.length > 0" class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+        <div class="flex items-center justify-between mb-2.5">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Urutan Prioritas Area Hidup</span>
+            <span class="text-xs text-gray-400">(Bobot tugas ditentukan urutan ini)</span>
+          </div>
+          <span class="text-[11px] text-gray-400">Atur lewat bot: <code>ubah urutan area: ...</code></span>
+        </div>
+        <div class="flex flex-wrap gap-2">
           <div
-            v-if="activeTimer"
-            class="relative overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm"
+            v-for="area in areas"
+            :key="area.id"
+            class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50/80 px-2.5 py-1 text-xs font-medium text-gray-800"
           >
-            <div class="flex items-center justify-between">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                <span class="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></span>
-                Timer Sedang Berjalan
-              </span>
-              <span class="text-xs text-emerald-700">
-                Dimulai: {{ formatDateTime(activeTimer.started_at) }}
-              </span>
-            </div>
-            <h3 class="mt-2 text-xl font-bold text-emerald-950">
-              {{ activeTimer.project_name }}
-            </h3>
-            <p class="mt-1 text-xs text-emerald-800">
-              Kirim "udahan dulu" ke bot Telegram untuk menghentikan timer ini.
-            </p>
+            <span class="h-4 w-4 rounded-full bg-gray-900 text-[10px] text-white flex items-center justify-center font-bold">
+              {{ area.position }}
+            </span>
+            <span>{{ area.name }}</span>
           </div>
+        </div>
+      </div>
 
-          <!-- Time Logs Content States -->
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div v-if="timeLogsLoading" class="py-8 text-center text-sm text-gray-500">
-              Memuat data sesi kerja...
+      <!-- Konten Utama 2 Kolom -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Kolom Kiri (7 Kolom): Tugas & Habit Tracker -->
+        <div class="lg:col-span-7 space-y-6">
+          <!-- Section 1: Daftar Tugas -->
+          <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4 border-b border-gray-100 pb-3">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Daftar Tugas</h2>
+                <p class="text-xs text-gray-500">Diurutkan berdasarkan area & deadline</p>
+              </div>
+
+              <!-- Filter Tab -->
+              <div class="flex rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+                <button
+                  @click="taskFilter = 'pending'"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    taskFilter === 'pending' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                  ]"
+                >
+                  Pending ({{ pendingTasks.length }})
+                </button>
+                <button
+                  @click="taskFilter = 'completed'"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    taskFilter === 'completed' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                  ]"
+                >
+                  Selesai ({{ completedTasks.length }})
+                </button>
+                <button
+                  @click="taskFilter = 'all'"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    taskFilter === 'all' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                  ]"
+                >
+                  Semua
+                </button>
+              </div>
             </div>
 
-            <div
-              v-else-if="timeLogsError"
-              class="rounded-lg bg-rose-50 p-4 text-sm text-rose-700 border border-rose-200"
-            >
-              {{ timeLogsError }}
-            </div>
-
-            <div
-              v-else-if="timeLogs.length === 0"
-              class="py-8 text-center text-sm text-gray-500"
-            >
-              Belum ada riwayat sesi deep work.<br />
-              <span class="text-xs text-gray-400">
-                Kirim pesan misalnya <em>"mulai ngoding second brain"</em> ke Telegram.
-              </span>
+            <!-- Tasks List -->
+            <div v-if="filteredTasks.length === 0" class="py-8 text-center text-xs text-gray-500">
+              Tidak ada tugas dalam kategori ini.
             </div>
 
             <ul v-else class="divide-y divide-gray-100">
               <li
-                v-for="item in timeLogs"
-                :key="item.id"
-                class="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                v-for="task in filteredTasks"
+                :key="task.id"
+                class="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3 group"
+              >
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span
+                      v-if="task.area_id && areaMap[task.area_id]"
+                      class="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-800 border border-blue-100"
+                    >
+                      [{{ areaMap[task.area_id] }}]
+                    </span>
+                    <span
+                      v-if="task.is_urgent && task.status === 'pending'"
+                      class="rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200"
+                    >
+                      ⚠️ Mendesak
+                    </span>
+                    <span
+                      :class="[
+                        'text-sm font-medium text-gray-900',
+                        task.status === 'completed' ? 'line-through text-gray-400' : ''
+                      ]"
+                    >
+                      {{ task.title }}
+                    </span>
+                  </div>
+
+                  <div class="mt-1 flex items-center gap-2 text-xs">
+                    <span class="text-gray-400">#{{ task.id }}</span>
+                    <span class="text-gray-300">•</span>
+                    <!-- Deadline Badge -->
+                    <span
+                      v-if="task.status === 'pending'"
+                      :class="[
+                        'rounded px-1.5 py-0.5 text-[11px] border',
+                        formatDeadline(task.deadline).badgeClass
+                      ]"
+                    >
+                      {{ formatDeadline(task.deadline).text }}
+                    </span>
+                    <span v-else class="text-[11px] text-emerald-700 font-medium">
+                      ✓ Selesai {{ formatDateTime(task.completed_at) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Status Pill -->
+                <span
+                  v-if="task.status === 'completed'"
+                  class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200"
+                >
+                  Selesai
+                </span>
+                <span
+                  v-else
+                  class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+                >
+                  Pending
+                </span>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Section 2: Habit Tracker -->
+          <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-3">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Kebiasaan Harian</h2>
+                <p class="text-xs text-gray-500">Status pencapaian hari ini ({{ todayHuman }})</p>
+              </div>
+              <span class="text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-2 py-1">
+                {{ completedHabitsTodayCount }}/{{ habits.length }} Selesai
+              </span>
+            </div>
+
+            <div v-if="habits.length === 0" class="py-6 text-center text-xs text-gray-500">
+              Belum ada habit yang didaftarkan.<br />
+              Kirim <code>tambah habit [nama]</code> di Telegram.
+            </div>
+
+            <ul v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <li
+                v-for="h in habitsWithStatus"
+                :key="h.id"
+                :class="[
+                  'rounded-lg border p-3 flex items-center justify-between transition-all',
+                  h.isCompletedToday ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50/40'
+                ]"
               >
                 <div>
-                  <div class="flex items-center gap-2">
-                    <span class="font-medium text-gray-900">{{ item.project_name }}</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-sm">{{ h.isCompletedToday ? '✅' : '⏳' }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ h.name }}</span>
+                  </div>
+                  <span class="text-[11px] text-gray-500 mt-0.5 block">ID #{{ h.id }}</span>
+                </div>
+                <div class="text-right">
+                  <span
+                    v-if="h.streak > 0"
+                    class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900"
+                  >
+                    🔥 {{ h.streak }} hari
+                  </span>
+                  <span v-else class="text-[11px] text-gray-400">Belum ada streak</span>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+
+        <!-- Kolom Kanan (5 Kolom): Deep Work Logs & Catatan Ide -->
+        <div class="lg:col-span-5 space-y-6">
+          <!-- Sesi Fokus (Time Logs) -->
+          <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-3">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Riwayat Sesi Fokus</h2>
+                <p class="text-xs text-gray-500">Sesi deep work terbaru</p>
+              </div>
+              <span class="text-xs text-gray-400">30 sesi terakhir</span>
+            </div>
+
+            <div v-if="timeLogs.length === 0" class="py-6 text-center text-xs text-gray-500">
+              Belum ada riwayat fokus. Mulai dengan mengirim <code>mulai [project]</code> di Telegram.
+            </div>
+
+            <ul v-else class="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">
+              <li
+                v-for="item in timeLogs"
+                :key="item.id"
+                class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between"
+              >
+                <div class="min-w-0 pr-2">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-medium text-sm text-gray-900 truncate">{{ item.project_name }}</span>
                     <span
                       v-if="item.ended_at === null"
-                      class="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800"
+                      class="rounded bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800 shrink-0"
                     >
                       Aktif
                     </span>
                   </div>
-                  <div class="mt-0.5 text-xs text-gray-500">
+                  <span class="text-[11px] text-gray-400 block mt-0.5">
                     {{ formatDateTime(item.started_at) }}
-                    <span v-if="item.ended_at"> → {{ formatDateTime(item.ended_at) }}</span>
-                  </div>
+                  </span>
                 </div>
-                <div class="text-right">
+                <div class="shrink-0 text-right">
                   <span
                     v-if="item.duration_minutes !== null"
-                    class="font-mono text-sm font-semibold text-gray-800"
+                    class="font-mono text-xs font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded"
                   >
-                    {{ item.duration_minutes }} m
+                    {{ item.duration_minutes }}m
                   </span>
-                  <span v-else class="text-xs text-emerald-600 font-medium">berjalan</span>
+                  <span v-else class="text-xs text-emerald-600 font-semibold">berjalan</span>
                 </div>
               </li>
             </ul>
-          </div>
-        </section>
+          </section>
 
-        <!-- Kolom 2: Notes & Ideas -->
-        <section class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-900">Catatan & Ide</h2>
-            <span class="text-xs text-gray-500">20 catatan terbaru</span>
-          </div>
-
-          <!-- Notes Content States -->
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div v-if="notesLoading" class="py-8 text-center text-sm text-gray-500">
-              Memuat catatan...
+          <!-- Catatan & Ide -->
+          <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-3">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Catatan & Ide</h2>
+                <p class="text-xs text-gray-500">Tersimpan otomatis dari chat</p>
+              </div>
+              <span class="text-xs text-gray-400">20 catatan terakhir</span>
             </div>
 
-            <div
-              v-else-if="notesError"
-              class="rounded-lg bg-rose-50 p-4 text-sm text-rose-700 border border-rose-200"
-            >
-              {{ notesError }}
+            <div v-if="notes.length === 0" class="py-6 text-center text-xs text-gray-500">
+              Belum ada catatan yang tersimpan.
             </div>
 
-            <div
-              v-else-if="notes.length === 0"
-              class="py-8 text-center text-sm text-gray-500"
-            >
-              Belum ada catatan yang tersimpan.<br />
-              <span class="text-xs text-gray-400">
-                Kirim ide apa pun lewat Telegram untuk menyimpannya otomatis.
-              </span>
-            </div>
-
-            <ul v-else class="divide-y divide-gray-100">
+            <ul v-else class="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">
               <li
                 v-for="note in notes"
                 :key="note.id"
-                class="py-3.5 first:pt-0 last:pb-0"
+                class="py-3 first:pt-0 last:pb-0"
               >
-                <p class="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                <p class="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-gray-800">
                   {{ note.content }}
                 </p>
-                <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  <div class="flex flex-wrap gap-1.5">
+                <div class="mt-2 flex flex-wrap items-center justify-between gap-1.5">
+                  <div class="flex flex-wrap gap-1">
                     <span
                       v-for="tag in note.tags ?? []"
                       :key="tag"
-                      class="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                      class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
                     >
                       #{{ tag }}
                     </span>
                   </div>
-                  <span class="text-xs text-gray-400">
+                  <span class="text-[10px] text-gray-400">
                     {{ formatDateTime(note.created_at) }}
                   </span>
                 </div>
               </li>
             </ul>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   </div>

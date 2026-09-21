@@ -10,6 +10,7 @@ from telegram import Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -34,6 +35,15 @@ from .models import (
     utcnow,
 )
 from .priority import prioritize_tasks
+from .recharge import (
+    build_chill_menu_keyboard,
+    build_coffee_keyboard,
+    build_hangout_keyboard,
+    build_movie_keyboard,
+    build_music_keyboard,
+    get_random_activity,
+    get_random_movie,
+)
 from .scheduler import setup_brief_scheduler
 
 logger = logging.getLogger(__name__)
@@ -105,12 +115,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• /check <id> — centang habit\n"
         "• /timer — lihat status timer aktif\n"
         "• /stop — hentikan timer aktif\n"
-        "• /night [HH:MM] — atur batas jam kerja malam\n\n"
+        "• /night [HH:MM] — atur batas jam kerja malam\n"
+        "• /chill — menu mode jeda (YouTube Music, kopi, film, hangout)\n"
+        "• /kopi — pesan kopi cepat di ShopeeFood\n\n"
         "Contoh pesan chat (diproses AI):\n"
         "• area saya: Kuliah, Usaha, Pribadi\n"
         "• ide: bikin fitur export notes ke markdown\n"
         "• mulai ngoding second brain\n"
         "• udahan dulu\n"
+        "• jenuh banget nih, puterin lagu santai\n"
         "• rekap hari ini\n"
         "• cari catatan soal vue"
     )
@@ -656,6 +669,113 @@ async def night_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def chill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    text = (
+        "🌿 <b>Mode Jeda — Saatnya Rehat Sejenak</b>\n\n"
+        "Pikiran butuh waktu jeda agar kembali jernih dan segar. "
+        "Pilih mood booster yang kamu inginkan di bawah ini:"
+    )
+    await update.effective_message.reply_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_chill_menu_keyboard(),
+    )
+
+
+async def coffee_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    text = (
+        "☕ <b>Pesan Kopi di ShopeeFood</b>\n\n"
+        "Pilih menu kopi favoritmu untuk langsung membuka pencarian di ShopeeFood:"
+    )
+    await update.effective_message.reply_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_coffee_keyboard(),
+    )
+
+
+async def chill_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    await query.answer()
+    data = query.data or ""
+
+    if data == "chill:main":
+        text = (
+            "🌿 <b>Mode Jeda — Saatnya Rehat Sejenak</b>\n\n"
+            "Pikiran butuh waktu jeda agar kembali jernih dan segar. "
+            "Pilih mood booster yang kamu inginkan di bawah ini:"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_chill_menu_keyboard(),
+        )
+    elif data == "chill:music":
+        text = (
+            "🎵 <b>Pilih Soundtrack Relaksasimu (YouTube Music)</b>\n\n"
+            "Klik salah satu playlist kurasi di bawah untuk langsung memutar musik pengembali mood:"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_music_keyboard(),
+        )
+    elif data == "chill:coffee":
+        text = (
+            "☕ <b>Pesan Kopi di ShopeeFood</b>\n\n"
+            "Pilih menu kopi favoritmu untuk langsung membuka pencarian di ShopeeFood:"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_coffee_keyboard(),
+        )
+    elif data == "chill:movie":
+        m = get_random_movie()
+        text = (
+            f"🎬 <b>Rekomendasi Tontonan Ringan</b>\n\n"
+            f"<b>{m['title']}</b> ({m['type']})\n"
+            f"• <b>Genre:</b> {m['genre']}\n"
+            f"• <b>Platform:</b> {m['platform']}\n\n"
+            f"💡 <i>{m['reason']}</i>"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_movie_keyboard(),
+        )
+    elif data == "chill:hangout":
+        act = get_random_activity()
+        text = (
+            f"🚶‍♂️ <b>Ide Reset Pikiran & Hangout</b>\n\n"
+            f"<b>{act['title']}</b>\n\n"
+            f"{act['detail']}"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_hangout_keyboard(),
+        )
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -676,6 +796,11 @@ ptb_app.add_handler(CommandHandler("check", check_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["timer", "status"], timer_cmd, filters=private))
 ptb_app.add_handler(CommandHandler("stop", stop_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["night", "bedtime"], night_cmd, filters=private))
+ptb_app.add_handler(
+    CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
+)
+ptb_app.add_handler(CommandHandler(["kopi", "coffee"], coffee_cmd, filters=private))
+ptb_app.add_handler(CallbackQueryHandler(chill_callback, pattern=r"^chill:"))
 # UpdateType.MESSAGE = abaikan pesan yang di-edit (supaya tidak diproses dua kali)
 ptb_app.add_handler(
     MessageHandler(

@@ -38,9 +38,21 @@ class MockBot:
     def __init__(self):
         self.sent_messages = []
 
-    async def send_message(self, chat_id: int, text: str, parse_mode: str = None):
+    async def send_message(
+        self,
+        chat_id: int,
+        text: str,
+        parse_mode: str = None,
+        reply_markup=None,
+        **kwargs,
+    ):
         self.sent_messages.append(
-            {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+            {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": parse_mode,
+                "reply_markup": reply_markup,
+            }
         )
 
 

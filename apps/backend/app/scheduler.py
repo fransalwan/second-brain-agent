@@ -14,6 +14,7 @@ from .database import SessionLocal
 from .habits import get_user_habits_status
 from .models import Area, Profile, Task, TimeLog, utcnow
 from .priority import get_top_tasks_for_brief, prioritize_tasks
+from .recharge import build_break_reminder_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ async def check_and_send_break_reminders(bot: Bot) -> int:
                     chat_id=profile.telegram_chat_id,
                     text=message_text,
                     parse_mode=ParseMode.HTML,
+                    reply_markup=build_break_reminder_keyboard(),
                 )
                 async with SessionLocal() as session:
                     tl = await session.get(TimeLog, time_log.id)
