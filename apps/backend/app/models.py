@@ -35,6 +35,7 @@ class Profile(SQLModel, table=True):
     brief_time: time = Field(default=time(7, 0), sa_type=Time)
     last_brief_date: Optional[date] = Field(default=None, sa_type=Date)
     night_cutoff_time: time = Field(default=time(23, 0), sa_type=Time)
+    last_weekly_report_date: Optional[date] = Field(default=None, sa_type=Date)
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Second Brain Agent - Initial Schema (Supabase PostgreSQL)
 -- =============================================================================
--- Skema lengkap gabungan (Migrasi 001 - 010) untuk inisialisasi 1-klik instance baru.
+-- Skema lengkap gabungan (Migrasi 001 - 011) untuk inisialisasi 1-klik instance baru.
 -- Jalankan file ini sekali di Supabase SQL Editor.
 -- Aman dijalankan ulang (idempotent).
 -- =============================================================================
@@ -13,13 +13,14 @@ create extension if not exists "uuid-ossp";
 -- 1. TABEL PROFILES
 -- -----------------------------------------------------------------------------
 create table if not exists public.profiles (
-    id                uuid primary key references auth.users(id) on delete cascade,
-    full_name         text,
-    telegram_chat_id  bigint unique,
-    brief_time        time not null default '07:00:00',
-    last_brief_date   date,
-    night_cutoff_time time not null default '23:00:00',
-    created_at        timestamptz not null default now()
+    id                      uuid primary key references auth.users(id) on delete cascade,
+    full_name               text,
+    telegram_chat_id        bigint unique,
+    brief_time              time not null default '07:00:00',
+    last_brief_date         date,
+    night_cutoff_time       time not null default '23:00:00',
+    last_weekly_report_date date,
+    created_at              timestamptz not null default now()
 );
 
 create index if not exists idx_profiles_brief_schedule

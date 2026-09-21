@@ -45,6 +45,11 @@ from .recharge import (
     get_random_movie,
 )
 from .scheduler import setup_brief_scheduler
+from .weekly_report import (
+    format_weekly_report_html,
+    generate_weekly_insight_llm,
+    get_weekly_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -341,6 +346,74 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reply = f"⚠️ AI sedang bermasalah, tapi pesanmu sudah disimpan sebagai catatan mentah (#{note_id})."
 
     await message.reply_text(reply[:TELEGRAM_MAX_LEN])
+
+
+async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat_id = update.effective_chat.id
+
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await message.reply_text(NOT_LINKED_MSG.format(chat_id=chat_id))
+        return
+
+    voice_or_audio = message.voice or message.audio
+    if not voice_or_audio:
+        return
+
+    if voice_or_audio.duration and voice_or_audio.duration > 300:
+        await message.reply_text("⚠️ Rekaman suara maksimal 5 menit.")
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+
+    # 1. Unduh audio bytes dari Telegram
+    try:
+        tg_file = await context.bot.get_file(voice_or_audio.file_id)
+        audio_bytearray = await tg_file.download_as_bytearray()
+        audio_bytes = bytes(audio_bytearray)
+    except Exception:
+        logger.exception("Gagal mengunduh audio Telegram chat_id=%s", chat_id)
+        await message.reply_text("⚠️ Gagal mengunduh rekaman suara dari Telegram. Coba kirim ulang.")
+        return
+
+    mime_type = getattr(voice_or_audio, "mime_type", None) or "audio/ogg"
+
+    # 2. Transkripsi dengan Gemini Multimodal
+    try:
+        from google.genai import Client, types
+        genai_client = Client(api_key=settings.GOOGLE_API_KEY)
+        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+        prompt = (
+            "Transkripsikan pesan suara bahasa Indonesia ini secara akurat kata demi kata. "
+            "Koreksi kesalahan ejaan kecil yang wajar bila jelas konteksnya. "
+            "Hanya berikan teks hasil transkripsi tanpa tanda kutip, tanpa kata pengantar, dan tanpa penutup apapun."
+        )
+        response = genai_client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[audio_part, prompt],
+        )
+        transcribed_text = response.text.strip() if response and response.text else ""
+    except Exception:
+        logger.exception("Gagal transkripsi suara Gemini chat_id=%s", chat_id)
+        await message.reply_text("⚠️ Gagal mentranskripsikan suara saat menghubungi AI. Coba lagi sebentar atau ketik langsung.")
+        return
+
+    if not transcribed_text:
+        await message.reply_text("🎙️ Suara tidak terdengar jelas atau kosong. Silakan coba lagi.")
+        return
+
+    # 3. Proses lewat Agent
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+    try:
+        reply = await run_agent(profile.id, chat_id, transcribed_text)
+    except Exception:
+        logger.exception("Agent gagal memproses suara dari chat_id=%s", chat_id)
+        note_id = await save_raw_note(profile, f"[Voice Note]: {transcribed_text}")
+        reply = f"⚠️ AI bermasalah saat memproses aksi, tapi transkripsi sudah disimpan sebagai catatan mentah (#{note_id})."
+
+    formatted_reply = f"🎙️ \"{transcribed_text}\"\n\n{reply}"
+    await message.reply_text(formatted_reply[:TELEGRAM_MAX_LEN])
 
 
 async def areas_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -776,6 +849,31 @@ async def chill_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
 
+async def weekly_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id)
+        )
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+
+    today = datetime.now(LOCAL_TZ).date()
+
+    async with SessionLocal() as session:
+        stats = await get_weekly_stats(session, profile.id, today)
+
+    insight = await generate_weekly_insight_llm(stats)
+    report_html = format_weekly_report_html(stats, insight=insight)
+
+    await update.effective_message.reply_text(
+        report_html,
+        parse_mode=ParseMode.HTML,
+    )
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -800,7 +898,14 @@ ptb_app.add_handler(
     CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
 )
 ptb_app.add_handler(CommandHandler(["kopi", "coffee"], coffee_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["weekly", "laporan"], weekly_cmd, filters=private))
 ptb_app.add_handler(CallbackQueryHandler(chill_callback, pattern=r"^chill:"))
+ptb_app.add_handler(
+    MessageHandler(
+        private & filters.UpdateType.MESSAGE & (filters.VOICE | filters.AUDIO),
+        handle_voice_message,
+    )
+)
 # UpdateType.MESSAGE = abaikan pesan yang di-edit (supaya tidak diproses dua kali)
 ptb_app.add_handler(
     MessageHandler(

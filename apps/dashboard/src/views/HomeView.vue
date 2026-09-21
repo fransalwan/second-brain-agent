@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 
 interface ProfileItem {
@@ -53,6 +53,26 @@ interface TimeLogItem {
   duration_minutes: number | null
 }
 
+interface GraphNode {
+  id: number
+  label: string
+  fullContent: string
+  tags: string[]
+  created_at: string
+  x: number
+  y: number
+  vx: number
+  vy: number
+  radius: number
+  color: string
+}
+
+interface GraphEdge {
+  source: GraphNode
+  target: GraphNode
+  sharedTag?: string
+}
+
 const userEmail = ref<string | null>(null)
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
@@ -68,6 +88,12 @@ const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 const loggingOut = ref(false)
 const taskFilter = ref<'all' | 'pending' | 'completed'>('pending')
+const notesTab = ref<'list' | 'graph'>('list')
+const graphCanvas = ref<HTMLCanvasElement | null>(null)
+const graphNodes = ref<GraphNode[]>([])
+const graphEdges = ref<GraphEdge[]>([])
+const selectedNode = ref<GraphNode | null>(null)
+const hoveredNode = ref<GraphNode | null>(null)
 
 const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
@@ -248,6 +274,312 @@ async function handleLogout() {
     loggingOut.value = false
   }
 }
+
+let animFrameId: number | null = null
+let draggedNode: GraphNode | null = null
+let dragStartX = 0
+let dragStartY = 0
+let hasMovedFar = false
+
+function initGraphData() {
+  const colorPalette = ['#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#f472b6', '#4ade80', '#fb923c']
+  const count = notes.value.length
+  if (count === 0) {
+    graphNodes.value = []
+    graphEdges.value = []
+    return
+  }
+
+  const canvasWidth = graphCanvas.value?.clientWidth || 360
+  const canvasHeight = graphCanvas.value?.clientHeight || 320
+  const cx = canvasWidth / 2
+  const cy = canvasHeight / 2
+
+  const nodesList: GraphNode[] = notes.value.map((n, idx) => {
+    let color = '#94a3b8'
+    if (n.tags && n.tags.length > 0) {
+      const hash = n.tags[0].split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+      color = colorPalette[hash % colorPalette.length]
+    }
+    const angle = (idx / count) * 2 * Math.PI
+    const r = Math.min(cx, cy) * 0.65 * (0.6 + 0.4 * Math.random())
+    return {
+      id: n.id,
+      label: n.content.length > 20 ? n.content.slice(0, 20) + '...' : n.content,
+      fullContent: n.content,
+      tags: n.tags || [],
+      created_at: n.created_at,
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      radius: 9 + Math.min((n.tags?.length || 0) * 2, 6),
+      color,
+    }
+  })
+
+  // Hubungkan simpul yang memiliki kesamaan tags atau keyword penting (> 4 huruf)
+  const edgesList: GraphEdge[] = []
+  for (let i = 0; i < nodesList.length; i++) {
+    for (let j = i + 1; j < nodesList.length; j++) {
+      const a = nodesList[i]
+      const b = nodesList[j]
+      const sharedTag = a.tags.find((t) => b.tags.includes(t))
+      if (sharedTag) {
+        edgesList.push({ source: a, target: b, sharedTag })
+        continue
+      }
+      const wordsA = new Set(
+        a.fullContent.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
+      )
+      const wordsB = b.fullContent.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
+      const commonWord = wordsB.find((w) => wordsA.has(w))
+      if (commonWord) {
+        edgesList.push({ source: a, target: b, sharedTag: commonWord })
+      }
+    }
+  }
+
+  graphNodes.value = nodesList
+  graphEdges.value = edgesList
+}
+
+function startSimulation() {
+  stopSimulation()
+  const canvas = graphCanvas.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = window.devicePixelRatio || 1
+  const rect = canvas.getBoundingClientRect()
+  canvas.width = rect.width * dpr
+  canvas.height = rect.height * dpr
+
+  function frame() {
+    if (!canvas || !ctx) return
+    const w = rect.width
+    const h = rect.height
+    const cx = w / 2
+    const cy = h / 2
+
+    // 1. Gaya tolak-menolak antar simpul (Coulomb repulsion)
+    for (let i = 0; i < graphNodes.value.length; i++) {
+      for (let j = i + 1; j < graphNodes.value.length; j++) {
+        const a = graphNodes.value[i]
+        const b = graphNodes.value[j]
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1
+        if (dist < 180) {
+          const force = ((180 - dist) / dist) * 0.5
+          a.vx -= dx * force * 0.05
+          a.vy -= dy * force * 0.05
+          b.vx += dx * force * 0.05
+          b.vy += dy * force * 0.05
+        }
+      }
+    }
+
+    // 2. Gaya tarik relasi (Spring attraction)
+    for (const edge of graphEdges.value) {
+      const a = edge.source
+      const b = edge.target
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1
+      const force = (dist - 75) * 0.03
+      a.vx += (dx / dist) * force
+      a.vy += (dy / dist) * force
+      b.vx -= (dx / dist) * force
+      b.vy -= (dy / dist) * force
+    }
+
+    // 3. Gravitasi sentral & redaman
+    for (const node of graphNodes.value) {
+      if (node !== draggedNode) {
+        node.vx += (cx - node.x) * 0.006
+        node.vy += (cy - node.y) * 0.006
+        node.x += node.vx
+        node.y += node.vy
+        node.vx *= 0.88
+        node.vy *= 0.88
+
+        const pad = node.radius + 8
+        if (node.x < pad) { node.x = pad; node.vx = 0 }
+        if (node.x > w - pad) { node.x = w - pad; node.vx = 0 }
+        if (node.y < pad) { node.y = pad; node.vy = 0 }
+        if (node.y > h - pad) { node.y = h - pad; node.vy = 0 }
+      }
+    }
+
+    // 4. Render canvas
+    ctx.save()
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, w, h)
+
+    // Gambar Garis Relasi (Edges)
+    for (const edge of graphEdges.value) {
+      const isConnectedToSelected =
+        selectedNode.value &&
+        (edge.source.id === selectedNode.value.id || edge.target.id === selectedNode.value.id)
+      const isConnectedToHovered =
+        hoveredNode.value &&
+        (edge.source.id === hoveredNode.value.id || edge.target.id === hoveredNode.value.id)
+
+      ctx.beginPath()
+      ctx.moveTo(edge.source.x, edge.source.y)
+      ctx.lineTo(edge.target.x, edge.target.y)
+      if (isConnectedToSelected || isConnectedToHovered) {
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.75)'
+        ctx.lineWidth = 2
+      } else {
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)'
+        ctx.lineWidth = 1
+      }
+      ctx.stroke()
+
+      // Tampilkan label tag pada garis jika simpul disorot
+      if ((isConnectedToSelected || isConnectedToHovered) && edge.sharedTag) {
+        const midX = (edge.source.x + edge.target.x) / 2
+        const midY = (edge.source.y + edge.target.y) / 2
+        ctx.fillStyle = 'rgba(203, 213, 225, 0.9)'
+        ctx.font = '10px Inter, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(`#${edge.sharedTag}`, midX, midY - 4)
+      }
+    }
+
+    // Gambar Simpul (Nodes)
+    for (const node of graphNodes.value) {
+      const isSelected = selectedNode.value?.id === node.id
+      const isHovered = hoveredNode.value?.id === node.id
+
+      // Efek pendar (Halo glow) saat hover / selected
+      if (isSelected || isHovered) {
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, node.radius + 5, 0, 2 * Math.PI)
+        ctx.fillStyle = isSelected ? 'rgba(59, 130, 246, 0.35)' : 'rgba(255, 255, 255, 0.15)'
+        ctx.fill()
+      }
+
+      // Lingkaran utama
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI)
+      ctx.fillStyle = node.color
+      ctx.fill()
+      ctx.lineWidth = isSelected ? 2.5 : 1.5
+      ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.7)'
+      ctx.stroke()
+
+      // Teks label simpul
+      ctx.fillStyle = isSelected ? '#ffffff' : '#cbd5e1'
+      ctx.font = isSelected ? 'bold 11px Inter, sans-serif' : '10px Inter, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(node.label, node.x, node.y + node.radius + 13)
+    }
+
+    ctx.restore()
+    animFrameId = requestAnimationFrame(frame)
+  }
+
+  animFrameId = requestAnimationFrame(frame)
+}
+
+function stopSimulation() {
+  if (animFrameId !== null) {
+    cancelAnimationFrame(animFrameId)
+    animFrameId = null
+  }
+}
+
+function handleCanvasMouseDown(e: MouseEvent) {
+  const canvas = graphCanvas.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = e.clientX - rect.left
+  const mouseY = e.clientY - rect.top
+
+  for (const node of graphNodes.value) {
+    const dx = node.x - mouseX
+    const dy = node.y - mouseY
+    if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 5) {
+      draggedNode = node
+      dragStartX = mouseX
+      dragStartY = mouseY
+      hasMovedFar = false
+      break
+    }
+  }
+}
+
+function handleCanvasMouseMove(e: MouseEvent) {
+  const canvas = graphCanvas.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = e.clientX - rect.left
+  const mouseY = e.clientY - rect.top
+
+  if (draggedNode) {
+    const dx = mouseX - dragStartX
+    const dy = mouseY - dragStartY
+    if (Math.sqrt(dx * dx + dy * dy) > 5) {
+      hasMovedFar = true
+    }
+    draggedNode.x = mouseX
+    draggedNode.y = mouseY
+    draggedNode.vx = 0
+    draggedNode.vy = 0
+  } else {
+    let found: GraphNode | null = null
+    for (const node of graphNodes.value) {
+      const dx = node.x - mouseX
+      const dy = node.y - mouseY
+      if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 5) {
+        found = node
+        break
+      }
+    }
+    hoveredNode.value = found
+  }
+}
+
+function handleCanvasMouseUp() {
+  if (draggedNode) {
+    if (!hasMovedFar) {
+      selectedNode.value = selectedNode.value?.id === draggedNode.id ? null : draggedNode
+    }
+    draggedNode = null
+  }
+}
+
+function handleCanvasMouseLeave() {
+  draggedNode = null
+  hoveredNode.value = null
+}
+
+function switchNotesTab(tab: 'list' | 'graph') {
+  notesTab.value = tab
+  if (tab === 'graph') {
+    nextTick(() => {
+      initGraphData()
+      startSimulation()
+    })
+  } else {
+    stopSimulation()
+  }
+}
+
+watch(notes, () => {
+  if (notesTab.value === 'graph') {
+    initGraphData()
+  }
+})
+
+onUnmounted(() => {
+  stopSimulation()
+})
 
 onMounted(() => {
   fetchData()
@@ -636,43 +968,137 @@ onMounted(() => {
 
           <!-- Catatan & Ide -->
           <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
-            <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 border-b border-gray-100 pb-3">
               <div>
                 <h2 class="text-base font-bold text-gray-900">Catatan & Ide</h2>
                 <p class="text-xs text-gray-500">Tersimpan otomatis dari chat</p>
               </div>
-              <span class="text-xs text-gray-400">20 catatan terakhir</span>
+
+              <!-- Tab Navigasi: Daftar vs Graf -->
+              <div class="flex items-center bg-gray-100 p-0.5 rounded-lg text-xs font-medium self-start sm:self-auto">
+                <button
+                  type="button"
+                  @click="switchNotesTab('list')"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    notesTab === 'list'
+                      ? 'bg-white text-gray-900 shadow-xs font-semibold'
+                      : 'text-gray-500 hover:text-gray-700'
+                  ]"
+                >
+                  📋 Daftar
+                </button>
+                <button
+                  type="button"
+                  @click="switchNotesTab('graph')"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    notesTab === 'graph'
+                      ? 'bg-white text-indigo-900 shadow-xs font-semibold'
+                      : 'text-gray-500 hover:text-gray-700'
+                  ]"
+                >
+                  🕸️ Jejaring Ide
+                </button>
+              </div>
             </div>
 
-            <div v-if="notes.length === 0" class="py-6 text-center text-xs text-gray-500">
-              Belum ada catatan yang tersimpan.
-            </div>
+            <!-- Tab 1: Daftar Catatan -->
+            <div v-if="notesTab === 'list'">
+              <div v-if="notes.length === 0" class="py-6 text-center text-xs text-gray-500">
+                Belum ada catatan yang tersimpan.
+              </div>
 
-            <ul v-else class="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">
-              <li
-                v-for="note in notes"
-                :key="note.id"
-                class="py-3 first:pt-0 last:pb-0"
-              >
-                <p class="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-gray-800">
-                  {{ note.content }}
-                </p>
-                <div class="mt-2 flex flex-wrap items-center justify-between gap-1.5">
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="tag in note.tags ?? []"
-                      :key="tag"
-                      class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
-                    >
-                      #{{ tag }}
+              <ul v-else class="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">
+                <li
+                  v-for="note in notes"
+                  :key="note.id"
+                  class="py-3 first:pt-0 last:pb-0"
+                >
+                  <p class="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-gray-800">
+                    {{ note.content }}
+                  </p>
+                  <div class="mt-2 flex flex-wrap items-center justify-between gap-1.5">
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="tag in note.tags ?? []"
+                        :key="tag"
+                        class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
+                      >
+                        #{{ tag }}
+                      </span>
+                    </div>
+                    <span class="text-[10px] text-gray-400">
+                      {{ formatDateTime(note.created_at) }}
                     </span>
                   </div>
-                  <span class="text-[10px] text-gray-400">
-                    {{ formatDateTime(note.created_at) }}
-                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Tab 2: Visualisasi Hubungan Antar Catatan (Knowledge Graph) -->
+            <div v-else>
+              <div v-if="notes.length === 0" class="py-6 text-center text-xs text-gray-500">
+                Belum ada catatan untuk divisualisasikan.
+              </div>
+              <div v-else class="space-y-3">
+                <div class="flex items-center justify-between text-[11px] text-gray-500">
+                  <div class="flex items-center gap-1.5">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span><strong>{{ graphNodes.length }}</strong> simpul • <strong>{{ graphEdges.length }}</strong> relasi</span>
+                  </div>
+                  <span class="text-gray-400">Tarik simpul untuk menata • Klik untuk detail</span>
                 </div>
-              </li>
-            </ul>
+
+                <div class="relative overflow-hidden rounded-xl bg-slate-950 shadow-inner border border-slate-800">
+                  <canvas
+                    ref="graphCanvas"
+                    @mousedown="handleCanvasMouseDown"
+                    @mousemove="handleCanvasMouseMove"
+                    @mouseup="handleCanvasMouseUp"
+                    @mouseleave="handleCanvasMouseLeave"
+                    class="w-full h-80 cursor-grab active:cursor-grabbing block"
+                  ></canvas>
+                </div>
+
+                <!-- Detail Catatan Terpilih -->
+                <div
+                  v-if="selectedNode"
+                  class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 text-xs transition-all shadow-xs"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-indigo-950 flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-full inline-block" :style="{ backgroundColor: selectedNode.color }"></span>
+                      Catatan #{{ selectedNode.id }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="selectedNode = null"
+                      class="text-gray-400 hover:text-gray-600 font-bold px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p class="mt-1.5 text-xs leading-relaxed text-gray-800 whitespace-pre-wrap">
+                    {{ selectedNode.fullContent }}
+                  </p>
+                  <div class="mt-2 flex flex-wrap items-center justify-between gap-1.5">
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="tag in selectedNode.tags"
+                        :key="tag"
+                        class="rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 text-[10px] font-semibold"
+                      >
+                        #{{ tag }}
+                      </span>
+                    </div>
+                    <span class="text-[10px] text-gray-400">
+                      {{ formatDateTime(selectedNode.created_at) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
       </div>

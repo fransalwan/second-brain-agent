@@ -15,6 +15,11 @@ from .habits import get_user_habits_status
 from .models import Area, Profile, Task, TimeLog, utcnow
 from .priority import get_top_tasks_for_brief, prioritize_tasks
 from .recharge import build_break_reminder_keyboard
+from .weekly_report import (
+    format_weekly_report_html,
+    generate_weekly_insight_llm,
+    get_weekly_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +274,67 @@ async def check_and_send_night_warnings(bot: Bot) -> int:
     return sent_count
 
 
+async def check_and_send_weekly_reports(bot: Bot) -> int:
+    """Memeriksa profil yang memenuhi syarat untuk menerima Laporan Mingguan.
+
+    Kriteria:
+    1. Hari ini adalah hari Minggu (weekday == 6).
+    2. Jam lokal >= 20:00.
+    3. last_weekly_report_date IS NULL atau last_weekly_report_date < tanggal hari ini.
+    4. telegram_chat_id terdaftar.
+    """
+    now_local = datetime.now(LOCAL_TZ)
+    if now_local.weekday() != 6 or now_local.hour < 20:
+        return 0
+
+    current_date = now_local.date()
+
+    async with SessionLocal() as session:
+        stmt = select(Profile).where(
+            Profile.telegram_chat_id.is_not(None),
+            or_(
+                Profile.last_weekly_report_date.is_(None),
+                Profile.last_weekly_report_date < current_date,
+            ),
+        )
+        res = await session.execute(stmt)
+        eligible_profiles = res.scalars().all()
+
+    if not eligible_profiles:
+        return 0
+
+    sent_count = 0
+    for profile in eligible_profiles:
+        try:
+            async with SessionLocal() as session:
+                stats = await get_weekly_stats(session, profile.id, current_date)
+
+            insight = await generate_weekly_insight_llm(stats)
+            msg_text = format_weekly_report_html(stats, insight)
+
+            await bot.send_message(
+                chat_id=profile.telegram_chat_id,
+                text=msg_text,
+                parse_mode=ParseMode.HTML,
+            )
+
+            async with SessionLocal() as session:
+                p = await session.get(Profile, profile.id)
+                if p:
+                    p.last_weekly_report_date = current_date
+                    session.add(p)
+                    await session.commit()
+
+            sent_count += 1
+            logger.info("Laporan mingguan berhasil dikirim ke user %s", profile.id)
+        except Exception as e:
+            logger.exception(
+                "Gagal mengirim laporan mingguan ke user %s: %s", profile.id, e
+            )
+
+    return sent_count
+
+
 async def brief_job_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Callback pembungkus untuk JobQueue python-telegram-bot (Brief Pagi)."""
     await check_and_send_briefs(context.bot)
@@ -284,8 +350,13 @@ async def night_job_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     await check_and_send_night_warnings(context.bot)
 
 
+async def weekly_job_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback pembungkus untuk JobQueue python-telegram-bot (Laporan Mingguan)."""
+    await check_and_send_weekly_reports(context.bot)
+
+
 def setup_brief_scheduler(application: Application) -> None:
-    """Mendaftarkan periodic checker (Brief Pagi, Istirahat, & Jam Malam) ke JobQueue PTB."""
+    """Mendaftarkan periodic checker (Brief Pagi, Istirahat, Jam Malam, & Laporan Mingguan) ke JobQueue PTB."""
     if application.job_queue is None:
         logger.warning(
             "JobQueue tidak tersedia pada Application; scheduler tidak didaftarkan."
@@ -327,4 +398,16 @@ def setup_brief_scheduler(application: Application) -> None:
     logger.info(
         "Scheduler pengingat batas jam malam berhasil didaftarkan (interval: %s detik).",
         NIGHT_CHECK_INTERVAL_SECONDS,
+    )
+
+    # 4. Laporan Mingguan: first 30s, interval 15 menit (hanya trigger Minggu malam >= 20:00)
+    application.job_queue.run_repeating(
+        weekly_job_callback,
+        interval=CHECK_INTERVAL_SECONDS,
+        first=30,
+        name="check_weekly_reports",
+    )
+    logger.info(
+        "Scheduler laporan mingguan berhasil didaftarkan (interval: %s detik, first: 30s).",
+        CHECK_INTERVAL_SECONDS,
     )

@@ -30,13 +30,17 @@ Prinsip yang dipegang:
 | Area hidup yang bisa diatur dan diurutkan sendiri | ✅ |
 | Tugas dengan deadline dari bahasa sehari-hari ("deadline jumat") | ✅ |
 | Penanda tugas mendesak | ✅ |
-| Perintah cepat tanpa AI (`/areas`, `/tasks`, `/done`, `/habits`, `/timer`, `/night`) | ✅ |
+| Perintah cepat tanpa AI (`/areas`, `/tasks`, `/done`, `/habits`, `/timer`, `/night`, `/chill`, `/kopi`, `/weekly`) | ✅ |
 | Dashboard web read-only dengan login magic link | ✅ |
 | Undangan untuk pengguna lain di instance yang sama | ✅ |
 | Fungsi prioritas: tiga tugas teratas beserta alasannya (3-tier deterministik) | ✅ |
 | Brief pagi otomatis (0 kuota LLM, susulan instan saat online) | ✅ |
 | Pelacakan kebiasaan harian (streak & integrasi ke brief pagi) | ✅ |
 | Pengingat istirahat saat fokus & batas jam kerja malam (*bedtime guardian*) | ✅ |
+| Mode Jeda & Recharge (YouTube Music, ShopeeFood kopi, film santai, ide hangout) | ✅ |
+| Transkripsi voice note multimodal via Gemini (terhubung langsung ke aksi agent) | ✅ |
+| Laporan mingguan pola kerja & refleksi cerdas (otomatis Minggu malam & on-demand `/weekly`) | ✅ |
+| Visualisasi hubungan antar catatan (Knowledge Graph interaktif di dashboard) | ✅ |
 
 ---
 
@@ -56,10 +60,12 @@ Kirim pesan ke bot seperti biasa. Agent yang menentukan aksinya.
 | `udahan dulu` | Menghentikan timer, durasi dicatat |
 | `rekap hari ini` | Ringkasan waktu fokus dan catatan hari ini |
 | `cari catatan soal vue` | Mencari catatan berdasarkan kata kunci |
+| `jenuh nih, butuh rehat` | Membuka Mode Jeda dengan rekomendasi musik, kopi, film, atau hangout |
+| *(Kirim Voice Note)* | Ditranskripsikan otomatis via Gemini dan langsung dieksekusi sebagai tugas/catatan/timer |
 
 ### Perintah cepat
 
-Perintah berikut **tidak memakai AI** — responsnya instan dan tetap bekerja saat kuota Gemini habis.
+Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya instan dan andal:
 
 | Perintah | Fungsi |
 | --- | --- |
@@ -72,6 +78,9 @@ Perintah berikut **tidak memakai AI** — responsnya instan dan tetap bekerja sa
 | `/timer` | Melihat status timer aktif beserta durasi berjalan |
 | `/stop` | Menghentikan timer aktif secara langsung |
 | `/night [HH:MM]` | Melihat atau mengubah batas jam kerja malam (*bedtime guardian*) |
+| `/chill` | Menu Mode Jeda interaktif (YouTube Music, ShopeeFood, Rekomendasi Film & Hangout) |
+| `/kopi` | Akses cepat pilihan menu kopi ShopeeFood |
+| `/weekly` | Melihat Laporan Mingguan Pola Kerja (waktu fokus, tugas selesai, habit, tidur, insight) |
 | `/connect <kode>` | Menghubungkan akun Telegram dengan kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 
@@ -284,6 +293,9 @@ uv run python tests/test_task_tools.py        # Validasi tool tugas & injeksi ta
 uv run python tests/test_habits.py            # Habit, streak, & idempotent check
 uv run python tests/test_break_reminder.py    # Pengingat istirahat & /timer /stop
 uv run python tests/test_night_cutoff.py      # Batas jam kerja malam & /night
+uv run python tests/test_recharge.py          # Mode Jeda, YouTube Music & ShopeeFood
+uv run python tests/test_weekly_report.py      # Laporan mingguan pola kerja & scheduler
+uv run python tests/test_voice_transcriber.py # Transkripsi suara & routing ke agent
 ```
 
 Project ini dikembangkan dengan bantuan AI coding agent. Folder `.agents/rules/` berisi aturan yang dibaca otomatis oleh agent — setiap aturan berasal dari bug yang pernah terjadi, bukan preferensi gaya. Membacanya adalah cara tercepat memahami keputusan desain di project ini.
@@ -301,13 +313,11 @@ Menambah dependensi: `uv add <paket>`. Perubahan skema: file SQL bernomor baru d
 - [x] Pelacakan kebiasaan harian (streak, idempotent check, ringkasan brief)
 - [x] Pengingat istirahat saat sesi fokus terlalu lama (>= 90 menit, anti-spam)
 - [x] Batas jam kerja malam (*bedtime guardian*, /night, dan soft warning)
-- [x] File skema gabungan untuk instalasi baru (`init_schema.sql`)
-
-**Ide berikutnya**
-
-- [ ] Transkripsi voice note
-- [ ] Laporan mingguan pola kerja
-- [ ] Visualisasi hubungan antar catatan
+- [x] Mode Jeda & Recharge (YouTube Music & ShopeeFood kopi)
+- [x] Transkripsi voice note multimodal via Gemini Audio
+- [x] Laporan mingguan pola kerja & keseimbangan istirahat (`/weekly` & penjadwalan otomatis)
+- [x] Visualisasi hubungan antar catatan (Interactive Knowledge Graph di dashboard)
+- [x] File skema gabungan untuk instalasi 1-klik (`init_schema.sql`)
 
 ---
 
