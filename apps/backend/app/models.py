@@ -1,10 +1,9 @@
-# apps/backend/app/models.py
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime
+from sqlalchemy import BigInteger, Date, DateTime
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
@@ -85,6 +84,36 @@ class InviteCode(SQLModel, table=True):
     # BigInteger: sama seperti Profile.telegram_chat_id
     used_by_chat_id: Optional[int] = Field(default=None, sa_type=BigInteger)
     expires_at: datetime = Field(sa_type=DateTime(timezone=True))
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class Area(SQLModel, table=True):
+    __tablename__ = "areas"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    name: str
+    position: int
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class Task(SQLModel, table=True):
+    __tablename__ = "tasks"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    area_id: Optional[int] = Field(default=None, foreign_key="areas.id", index=True)
+    title: str
+    deadline: Optional[date] = Field(default=None, sa_type=Date)
+    is_urgent: bool = Field(default=False)
+    status: str = Field(default="pending")
+    completed_at: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
