@@ -4,7 +4,38 @@ Asisten pribadi di Telegram yang membantu menjawab satu pertanyaan setiap hari: 
 
 Tangkap ide, catat tugas beserta deadline-nya, lacak sesi fokus, dan atur prioritas di antara beberapa area hidup — kuliah, pekerjaan, project pribadi — cukup lewat chat biasa.
 
-> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, dan bedtime guardian) telah terimplementasi dan teruji.
+> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, bedtime guardian, voice note, weekly report, dan auth) telah terimplementasi dan teruji.
+
+---
+
+## 🚀 Panduan Cepat Memulai (3 Langkah Mudah)
+
+Siapa pun bisa langsung menggunakan Second Brain Agent dalam hitungan menit:
+
+```mermaid
+flowchart LR
+    A["1. Buat Akun di Web Dashboard"] --> B["2. Kirim /connect email di Telegram"] --> C["3. Siap Digunakan! (Chat & Suara)"]
+```
+
+### Langkah 1: Buat Akun di Dashboard Web
+1. Buka dashboard web Second Brain di browsermu.
+2. Pilih tab **Daftar Baru (Sign Up)**, isi Nama Lengkap, Email, dan Password (minimal 6 karakter).
+3. Klik **Buat Akun Sekarang** — kamu akan langsung diarahkan masuk ke dashboard.
+
+### Langkah 2: Tautkan Akun ke Bot Telegram
+Pilih salah satu cara termudah:
+- **Opsi A (Rekomendasi):** Buka bot Second Brain di Telegram, lalu kirim perintah:  
+  `/connect email@kamu.com`  
+  *(ganti dengan email yang kamu daftarkan tadi di web)*.
+- **Opsi B:** Kirim `/start` di bot Telegram untuk melihat Chat ID kamu, lalu masukkan Chat ID tersebut pada form di dashboard web dan klik **Hubungkan**.
+
+### Langkah 3: Mulai Gunakan!
+Akunmu sekarang aktif dan sinkron real-time! Kamu bisa langsung:
+- Kirim pesan biasa: `tugas kerja: kirim invoice deadline jumat`
+- Rekam **Voice Note**: Diktekan ide atau tugas saat sedang di jalan tanpa perlu mengetik.
+- Mulai sesi fokus: `mulai ngoding backend`
+- Cek prioritas: `/tasks`
+- Saat jenuh: `/chill` untuk memutar YouTube Music santai atau memesan kopi di ShopeeFood.
 
 ---
 
@@ -81,7 +112,7 @@ Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya ins
 | `/chill` | Menu Mode Jeda interaktif (YouTube Music, ShopeeFood, Rekomendasi Film & Hangout) |
 | `/kopi` | Akses cepat pilihan menu kopi ShopeeFood |
 | `/weekly` | Melihat Laporan Mingguan Pola Kerja (waktu fokus, tugas selesai, habit, tidur, insight) |
-| `/connect <kode>` | Menghubungkan akun Telegram dengan kode undangan |
+| `/connect <email atau kode>` | Menghubungkan akun Telegram dengan email web atau kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 
 Setiap balasan tentang tugas selalu menyebut area, nama hari, dan tanggal deadline. Kalau AI salah menangkap maksudmu, kesalahannya langsung terlihat dan bisa dikoreksi.
@@ -296,6 +327,7 @@ uv run python tests/test_night_cutoff.py      # Batas jam kerja malam & /night
 uv run python tests/test_recharge.py          # Mode Jeda, YouTube Music & ShopeeFood
 uv run python tests/test_weekly_report.py      # Laporan mingguan pola kerja & scheduler
 uv run python tests/test_voice_transcriber.py # Transkripsi suara & routing ke agent
+uv run python tests/test_connect_email.py     # Autentikasi email & penautan instan
 ```
 
 Project ini dikembangkan dengan bantuan AI coding agent. Folder `.agents/rules/` berisi aturan yang dibaca otomatis oleh agent — setiap aturan berasal dari bug yang pernah terjadi, bukan preferensi gaya. Membacanya adalah cara tercepat memahami keputusan desain di project ini.

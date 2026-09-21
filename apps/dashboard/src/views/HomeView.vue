@@ -3,7 +3,10 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 
 interface ProfileItem {
+  id?: string
+  email?: string | null
   full_name: string | null
+  telegram_chat_id: number | null
   brief_time: string | null
   night_cutoff_time: string | null
 }
@@ -94,6 +97,55 @@ const graphNodes = ref<GraphNode[]>([])
 const graphEdges = ref<GraphEdge[]>([])
 const selectedNode = ref<GraphNode | null>(null)
 const hoveredNode = ref<GraphNode | null>(null)
+
+// State penautan Telegram Chat ID
+const inputChatId = ref('')
+const linkingChatId = ref(false)
+const linkSuccessMsg = ref('')
+const linkErrorMsg = ref('')
+
+async function handleLinkTelegram() {
+  if (!inputChatId.value.trim()) return
+  const rawId = inputChatId.value.trim()
+  if (!/^\d+$/.test(rawId)) {
+    linkErrorMsg.value = 'Chat ID harus berupa angka positif (contoh: 123456789).'
+    return
+  }
+
+  linkingChatId.value = true
+  linkSuccessMsg.value = ''
+  linkErrorMsg.value = ''
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) return
+
+    const { error } = await supabase.from('profiles').upsert({
+      id: session.user.id,
+      email: session.user.email ?? userEmail.value,
+      full_name:
+        profile.value?.full_name ||
+        session.user.user_metadata?.full_name ||
+        userEmail.value?.split('@')[0] ||
+        'Pengguna',
+      telegram_chat_id: parseInt(rawId, 10),
+    })
+
+    if (error) {
+      linkErrorMsg.value = error.message
+    } else {
+      linkSuccessMsg.value = 'Akun Telegram berhasil ditautkan! Buka bot Telegram dan kirim /start.'
+      inputChatId.value = ''
+      await fetchData()
+    }
+  } catch (err: any) {
+    linkErrorMsg.value = 'Gagal menautkan Telegram Chat ID.'
+  } finally {
+    linkingChatId.value = false
+  }
+}
 
 const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
@@ -242,7 +294,10 @@ async function fetchData() {
       timeLogsRes,
       notesRes,
     ] = await Promise.all([
-      supabase.from('profiles').select('full_name, brief_time, night_cutoff_time').maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, telegram_chat_id, brief_time, night_cutoff_time')
+        .maybeSingle(),
       supabase.from('areas').select('id, name, position').order('position', { ascending: true }),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('habits').select('*').eq('is_active', true).order('position', { ascending: true }),
@@ -628,20 +683,61 @@ onMounted(() => {
     </header>
 
     <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
-      <!-- Banner jika akun belum connect Telegram -->
+      <!-- Banner Onboarding Hubungkan Telegram (jika profil belum ada atau belum punya telegram_chat_id) -->
       <div
-        v-if="profileLoaded && !profile"
-        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm"
+        v-if="profileLoaded && (!profile || !profile.telegram_chat_id)"
+        class="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950 shadow-sm transition-all"
       >
-        <div class="flex items-start gap-3">
-          <span class="text-xl">⚠️</span>
-          <div>
-            <h2 class="text-sm font-semibold">Akun Belum Ditautkan ke Bot Telegram</h2>
-            <p class="mt-1 text-xs leading-relaxed text-amber-800">
-              Akun Supabase ini belum memiliki profil terhubung. Kirim perintah
-              <code class="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-900">/connect KODE</code>
-              di Telegram agar aktivitas sinkron secara real-time.
-            </p>
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-2 max-w-xl">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">✈️</span>
+              <div>
+                <h2 class="text-base font-bold text-indigo-950">Tautkan Akun ke Bot Telegram</h2>
+                <p class="text-xs text-indigo-700">Hubungkan bot agar kamu bisa mencatat tugas, ide via suara, dan menerima brief pagi.</p>
+              </div>
+            </div>
+            <div class="pt-1 text-xs text-indigo-900 space-y-1.5">
+              <p class="flex items-start gap-1.5">
+                <span class="font-bold shrink-0">Opsi 1 (Instan):</span>
+                <span>Buka bot Telegram kamu dan ketik perintah: <code class="rounded bg-white px-2 py-0.5 font-mono font-bold text-indigo-900 border border-indigo-200 shadow-2xs">/connect {{ userEmail }}</code></span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <span class="font-bold shrink-0">Opsi 2 (Form Web):</span>
+                <span>Ketik <code class="rounded bg-white px-1.5 py-0.5 font-mono text-indigo-900 border border-indigo-200">/start</code> di bot untuk melihat Chat ID kamu, lalu masukkan di samping 👉</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Form Input Chat ID Langsung -->
+          <div class="w-full lg:w-80 rounded-xl bg-white p-4 border border-indigo-100 shadow-xs space-y-2.5 shrink-0">
+            <label for="tg-chat-id" class="block text-xs font-semibold text-gray-800">
+              Input Chat ID Telegram
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                id="tg-chat-id"
+                v-model="inputChatId"
+                type="text"
+                placeholder="Contoh: 123456789"
+                class="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+              />
+              <button
+                type="button"
+                @click="handleLinkTelegram"
+                :disabled="linkingChatId || !inputChatId"
+                class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 shadow-xs"
+              >
+                {{ linkingChatId ? 'Menyimpan...' : 'Hubungkan' }}
+              </button>
+            </div>
+
+            <div v-if="linkSuccessMsg" class="rounded-lg bg-emerald-50 p-2 text-[11px] text-emerald-800 border border-emerald-200">
+              {{ linkSuccessMsg }}
+            </div>
+            <div v-if="linkErrorMsg" class="rounded-lg bg-rose-50 p-2 text-[11px] text-rose-800 border border-rose-200">
+              {{ linkErrorMsg }}
+            </div>
           </div>
         </div>
       </div>

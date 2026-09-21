@@ -27,6 +27,7 @@ class ChatHistory(SQLModel, table=True):
 class Profile(SQLModel, table=True):
     __tablename__ = "profiles"
     id: UUID = Field(primary_key=True)
+    email: Optional[str] = Field(default=None, index=True)
     full_name: Optional[str] = None
     # BigInteger: chat ID Telegram bisa melebihi batas integer 32-bit
     telegram_chat_id: Optional[int] = Field(

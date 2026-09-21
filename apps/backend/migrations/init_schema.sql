@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Second Brain Agent - Initial Schema (Supabase PostgreSQL)
 -- =============================================================================
--- Skema lengkap gabungan (Migrasi 001 - 011) untuk inisialisasi 1-klik instance baru.
+-- Skema lengkap gabungan (Migrasi 001 - 012) untuk inisialisasi 1-klik instance baru.
 -- Jalankan file ini sekali di Supabase SQL Editor.
 -- Aman dijalankan ulang (idempotent).
 -- =============================================================================
@@ -14,6 +14,7 @@ create extension if not exists "uuid-ossp";
 -- -----------------------------------------------------------------------------
 create table if not exists public.profiles (
     id                      uuid primary key references auth.users(id) on delete cascade,
+    email                   text,
     full_name               text,
     telegram_chat_id        bigint unique,
     brief_time              time not null default '07:00:00',
@@ -22,6 +23,9 @@ create table if not exists public.profiles (
     last_weekly_report_date date,
     created_at              timestamptz not null default now()
 );
+
+create index if not exists idx_profiles_lower_email
+    on public.profiles (lower(email));
 
 create index if not exists idx_profiles_brief_schedule
     on public.profiles (brief_time, last_brief_date);
@@ -213,6 +217,16 @@ alter table public.habit_logs enable row level security;
 drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
     on public.profiles for select to authenticated
+    using (auth.uid() = id);
+
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+    on public.profiles for insert to authenticated
+    with check (auth.uid() = id);
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+    on public.profiles for update to authenticated
     using (auth.uid() = id);
 
 -- Policy Notes

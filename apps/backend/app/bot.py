@@ -5,7 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import httpx
-from sqlmodel import col, select, text
+from sqlmodel import col, func, select, text
 from telegram import Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import (
@@ -74,10 +74,14 @@ if settings.TELEGRAM_MODE == "webhook":
 ptb_app = builder.build()
 
 NOT_LINKED_MSG = (
-    "Akun Telegram ini belum terhubung ke Second Brain.\n\n"
-    "Kalau kamu punya kode undangan, kirim:\n"
-    "/connect KODE-KAMU\n\n"
-    "Chat ID kamu: {chat_id}"
+    "👋 <b>Halo! Akun Telegram ini belum terhubung ke Second Brain.</b>\n\n"
+    "📌 <b>Pilih salah satu cara mudah untuk menghubungkan:</b>\n"
+    "1. Jika kamu sudah mendaftar di dashboard web, kirim:\n"
+    "   <code>/connect email@kamu.com</code>\n\n"
+    "2. Atau masukkan Chat ID kamu di form dashboard web:\n"
+    "   Chat ID: <code>{chat_id}</code>\n\n"
+    "3. Jika memiliki kode undangan khusus, kirim:\n"
+    "   <code>/connect KODE-UNDANGAN</code>"
 )
 
 
@@ -105,7 +109,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if profile is None:
         await update.effective_message.reply_text(
-            NOT_LINKED_MSG.format(chat_id=chat_id)
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
         )
         return
 
@@ -122,7 +127,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• /stop — hentikan timer aktif\n"
         "• /night [HH:MM] — atur batas jam kerja malam\n"
         "• /chill — menu mode jeda (YouTube Music, kopi, film, hangout)\n"
-        "• /kopi — pesan kopi cepat di ShopeeFood\n\n"
+        "• /kopi — pesan kopi cepat di ShopeeFood\n"
+        "• /weekly — laporan performa mingguan\n\n"
         "Contoh pesan chat (diproses AI):\n"
         "• area saya: Kuliah, Usaha, Pribadi\n"
         "• ide: bikin fitur export notes ke markdown\n"
@@ -140,14 +146,87 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     existing = await get_profile_by_chat_id(chat_id)
     if existing is not None:
-        await message.reply_text("Akun ini sudah terhubung.")
+        await message.reply_text("Akun Telegram ini sudah terhubung ke Second Brain.")
         return
 
     if not context.args:
-        await message.reply_text("Format: /connect KODE-KAMU")
+        await message.reply_text(
+            "Format: /connect <email@kamu.com> atau /connect <KODE-UNDANGAN>\n\n"
+            "Contoh: /connect budi@gmail.com"
+        )
         return
 
-    code = context.args[0].strip().upper()
+    raw_arg = context.args[0].strip()
+
+    # Opsi 1: Menghubungkan via Email yang telah terdaftar di web dashboard
+    if "@" in raw_arg:
+        email = raw_arg.lower()
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(Profile).where(func.lower(Profile.email) == email)
+            )
+            profile = result.scalars().first()
+
+            # Fallback jika belum ada di tabel profiles tapi ada di auth.users (Supabase)
+            if profile is None:
+                try:
+                    auth_user_res = await session.execute(
+                        text(
+                            "SELECT id, raw_user_meta_data FROM auth.users WHERE lower(email) = lower(:email) LIMIT 1"
+                        ),
+                        {"email": email},
+                    )
+                    row = auth_user_res.first()
+                    if row:
+                        u_id = row[0] if isinstance(row[0], UUID) else UUID(str(row[0]))
+                        meta = (
+                            row[1] if len(row) > 1 and isinstance(row[1], dict) else {}
+                        )
+                        user_name = meta.get("full_name") or email.split("@")[0]
+                        profile = Profile(id=u_id, email=email, full_name=user_name)
+                        session.add(profile)
+                except Exception:
+                    pass
+
+            if profile is None:
+                await message.reply_text(
+                    f"Email '{email}' belum terdaftar di Second Brain.\n\n"
+                    "Silakan daftar akun terlebih dahulu di web dashboard, lalu kirim kembali perintah ini."
+                )
+                return
+
+            if (
+                profile.telegram_chat_id is not None
+                and profile.telegram_chat_id != chat_id
+            ):
+                await message.reply_text(
+                    "Email ini sudah terhubung ke akun Telegram lain."
+                )
+                return
+
+            profile.telegram_chat_id = chat_id
+            if not profile.email:
+                profile.email = email
+            session.add(profile)
+            await session.commit()
+            full_name = profile.full_name
+
+        logger.info(
+            "Profil %s terhubung via email=%s, chat_id=%s",
+            profile.id,
+            email,
+            chat_id,
+        )
+        name = f", {full_name}" if full_name else ""
+        await message.reply_text(
+            f"🎉 Berhasil terhubung{name}!\n\n"
+            f"Akun Telegram kamu sekarang aktif dan sinkron dengan {email}.\n"
+            "Kirim /start untuk melihat panduan penggunaan."
+        )
+        return
+
+    # Opsi 2: Menghubungkan via Kode Undangan (Invite Code)
+    code = raw_arg.upper()
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -163,28 +242,31 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if invite is None:
             await message.reply_text(
-                "Kode tidak valid, sudah dipakai, atau sudah kedaluwarsa."
+                "Kode undangan tidak valid, sudah dipakai, atau sudah kedaluwarsa.\n\n"
+                "Jika kamu sudah mendaftar di web, gunakan: /connect email@kamu.com"
             )
             return
 
-        # Disalin sebelum commit: setelah commit objek bisa expired dan
-        # akses atributnya memicu lazy-load yang tidak valid di konteks async.
         full_name = invite.full_name
 
         existing_profile = await session.get(Profile, invite.auth_user_id)
         if existing_profile is not None:
-            await message.reply_text(
-                "Profil untuk akun ini sudah terdaftar atau sudah terhubung ke Telegram."
+            if existing_profile.telegram_chat_id is not None:
+                await message.reply_text(
+                    "Profil untuk akun ini sudah terdaftar dan terhubung ke Telegram."
+                )
+                return
+            existing_profile.telegram_chat_id = chat_id
+            session.add(existing_profile)
+        else:
+            session.add(
+                Profile(
+                    id=invite.auth_user_id,
+                    full_name=full_name,
+                    telegram_chat_id=chat_id,
+                )
             )
-            return
 
-        session.add(
-            Profile(
-                id=invite.auth_user_id,
-                full_name=full_name,
-                telegram_chat_id=chat_id,
-            )
-        )
         invite.used_at = utcnow()
         invite.used_by_chat_id = chat_id
         await session.commit()
@@ -333,7 +415,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     profile = await get_profile_by_chat_id(chat_id)
     if profile is None:
-        await message.reply_text(NOT_LINKED_MSG.format(chat_id=chat_id))
+        await message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id), parse_mode=ParseMode.HTML
+        )
         return
 
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
@@ -348,13 +432,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await message.reply_text(reply[:TELEGRAM_MAX_LEN])
 
 
-async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_voice_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     message = update.effective_message
     chat_id = update.effective_chat.id
 
     profile = await get_profile_by_chat_id(chat_id)
     if profile is None:
-        await message.reply_text(NOT_LINKED_MSG.format(chat_id=chat_id))
+        await message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id), parse_mode=ParseMode.HTML
+        )
         return
 
     voice_or_audio = message.voice or message.audio
@@ -374,7 +462,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         audio_bytes = bytes(audio_bytearray)
     except Exception:
         logger.exception("Gagal mengunduh audio Telegram chat_id=%s", chat_id)
-        await message.reply_text("⚠️ Gagal mengunduh rekaman suara dari Telegram. Coba kirim ulang.")
+        await message.reply_text(
+            "⚠️ Gagal mengunduh rekaman suara dari Telegram. Coba kirim ulang."
+        )
         return
 
     mime_type = getattr(voice_or_audio, "mime_type", None) or "audio/ogg"
@@ -382,6 +472,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     # 2. Transkripsi dengan Gemini Multimodal
     try:
         from google.genai import Client, types
+
         genai_client = Client(api_key=settings.GOOGLE_API_KEY)
         audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
         prompt = (
@@ -396,11 +487,15 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         transcribed_text = response.text.strip() if response and response.text else ""
     except Exception:
         logger.exception("Gagal transkripsi suara Gemini chat_id=%s", chat_id)
-        await message.reply_text("⚠️ Gagal mentranskripsikan suara saat menghubungi AI. Coba lagi sebentar atau ketik langsung.")
+        await message.reply_text(
+            "⚠️ Gagal mentranskripsikan suara saat menghubungi AI. Coba lagi sebentar atau ketik langsung."
+        )
         return
 
     if not transcribed_text:
-        await message.reply_text("🎙️ Suara tidak terdengar jelas atau kosong. Silakan coba lagi.")
+        await message.reply_text(
+            "🎙️ Suara tidak terdengar jelas atau kosong. Silakan coba lagi."
+        )
         return
 
     # 3. Proses lewat Agent
@@ -412,7 +507,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         note_id = await save_raw_note(profile, f"[Voice Note]: {transcribed_text}")
         reply = f"⚠️ AI bermasalah saat memproses aksi, tapi transkripsi sudah disimpan sebagai catatan mentah (#{note_id})."
 
-    formatted_reply = f"🎙️ \"{transcribed_text}\"\n\n{reply}"
+    formatted_reply = f'🎙️ "{transcribed_text}"\n\n{reply}'
     await message.reply_text(formatted_reply[:TELEGRAM_MAX_LEN])
 
 
