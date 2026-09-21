@@ -1,9 +1,10 @@
 # apps/backend/app/ambient.py
 """Modul logika ambient tracking: pelacakan otomatis via OS watcher / VS Code."""
 
+from datetime import datetime, time, timezone
 import html
 import logging
-from datetime import datetime, time, timezone
+import re
 from typing import Any, Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -14,7 +15,7 @@ from telegram.constants import ParseMode
 
 from .config import settings
 from .habits import check_habit_for_today, get_user_habits_status
-from .models import Area, Habit, HabitLog, Profile, TimeLog, utcnow
+from .models import Area, Habit, HabitLog, Profile, Task, TimeLog, utcnow
 from .scheduler import is_past_night_cutoff
 
 logger = logging.getLogger(__name__)
@@ -298,11 +299,13 @@ async def auto_check_habits_on_focus(
                 session, user_id, s.habit.id, today
             )
             if habit and not already_done:
-                checked.append({
-                    "id": habit.id,
-                    "name": habit.name,
-                    "streak": streak,
-                })
+                checked.append(
+                    {
+                        "id": habit.id,
+                        "name": habit.name,
+                        "streak": streak,
+                    }
+                )
     return checked
 
 
@@ -316,7 +319,10 @@ async def check_habit_by_keyword(
     """Mencentang habit berdasarkan nama atau kata kunci (untuk trigger ambient mandiri)."""
     profile = await get_profile_by_email(session, email)
     if not profile:
-        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
 
     today = datetime.now(LOCAL_TZ).date()
     statuses = await get_user_habits_status(session, profile.id, today)
@@ -411,3 +417,132 @@ async def get_ambient_status(session: AsyncSession, email: str) -> dict:
         "active_timer": active_timer_data,
         "areas": areas,
     }
+
+
+async def handle_git_commit_event(
+    session: AsyncSession,
+    email: str,
+    commit_message: str,
+    repo_name: Optional[str] = None,
+    branch: Optional[str] = None,
+    notify_telegram: bool = True,
+    bot: Optional[Any] = None,
+) -> dict:
+    """Memproses event git commit: otomatis menyelesaikan task terkait dan mencentang habit coding."""
+    profile = await get_profile_by_email(session, email)
+    if not profile:
+        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+
+    clean_msg = commit_message.strip()
+    if not clean_msg:
+        return {"status": "ignored", "reason": "empty_commit_message"}
+
+    # 1. Ekstrak Task ID eksplisit: #12, task #12, fix #12, tugas 12, dll.
+    explicit_ids = set()
+    for m in re.finditer(r"#(\d+)", clean_msg):
+        explicit_ids.add(int(m.group(1)))
+    for m in re.finditer(r"(?i)\b(?:tugas|task|id:?|fix|fixes|fixed|closes?|closed|done)\s*#?(\d+)\b", clean_msg):
+        explicit_ids.add(int(m.group(1)))
+
+    completed_tasks = []
+    now_utc = utcnow()
+
+    if explicit_ids:
+        # Cari task pending berdasarkan ID yang diekstrak
+        res_tasks = await session.execute(
+            select(Task).where(
+                Task.user_id == profile.id,
+                col(Task.id).in_(list(explicit_ids)),
+                Task.status == "pending",
+            )
+        )
+        tasks_to_complete = res_tasks.scalars().all()
+        for t in tasks_to_complete:
+            t.status = "completed"
+            t.completed_at = now_utc
+            session.add(t)
+            completed_tasks.append({"id": t.id, "title": t.title})
+        if tasks_to_complete:
+            await session.commit()
+
+    # 2. Jika tidak ada task ID eksplisit, coba pencocokan kata kunci judul tugas
+    if not completed_tasks:
+        res_all_pending = await session.execute(
+            select(Task).where(
+                Task.user_id == profile.id,
+                Task.status == "pending",
+            )
+        )
+        pending_tasks = res_all_pending.scalars().all()
+
+        git_stop_words = {
+            "feat", "fix", "chore", "refactor", "docs", "test", "style", "perf",
+            "merge", "branch", "update", "wip", "selesaikan", "beres", "kelar", "done",
+            "tambah", "ubah", "hapus", "add", "remove", "dan", "yang", "di", "ke", "dari", "ini", "itu"
+        }
+        msg_words = {
+            w.lower().strip(".,:;!()[]{}'\"")
+            for w in clean_msg.split()
+            if len(w) > 2
+        } - git_stop_words
+
+        for t in pending_tasks:
+            t_words = {
+                w.lower().strip(".,:;!()[]{}'\"")
+                for w in t.title.split()
+                if len(w) > 2
+            } - git_stop_words
+            overlap = t_words.intersection(msg_words)
+            # Jika ada minimal 2 kata kunci spesifik yang cocok atau seluruh kata kunci pendek tugas ada di commit
+            if len(overlap) >= 2 or (len(t_words) == 1 and len(overlap) == 1):
+                t.status = "completed"
+                t.completed_at = now_utc
+                session.add(t)
+                completed_tasks.append({"id": t.id, "title": t.title})
+                await session.commit()
+                break
+
+    # 3. Otomatis centang habit coding hari ini jika ada commit
+    auto_habits = await auto_check_habits_on_focus(
+        session=session,
+        user_id=profile.id,
+        project_name=repo_name or "Coding",
+        duration_minutes=20,
+        min_minutes=15,
+    )
+
+    # 4. Kirim notifikasi Telegram pasif
+    if notify_telegram and profile.telegram_chat_id and bot and (completed_tasks or auto_habits):
+        try:
+            repo_display = html.escape(repo_name) if repo_name else "local-repo"
+            branch_display = f" ({html.escape(branch)})" if branch else ""
+            msg = (
+                f"🎯 <b>[Git Auto-Sync]</b> Commit terdeteksi!\n"
+                f"📦 <code>{repo_display}</code>{branch_display}\n"
+                f"💬 <i>\"{html.escape(clean_msg[:120])}\"</i>\n\n"
+            )
+            if completed_tasks:
+                msg += "✅ <b>Tugas Berhasil Diselesaikan:</b>\n"
+                for ct in completed_tasks:
+                    msg += f"• <b>{html.escape(ct['title'])}</b> (ID: #{ct['id']})\n"
+            if auto_habits:
+                msg += "\n🔥 <b>Habit Harian Tercentang:</b>\n"
+                for ah in auto_habits:
+                    msg += f"• <b>{html.escape(ah['name'])}</b> (Streak: {ah['streak']} hari 🔥)\n"
+
+            await bot.send_message(
+                chat_id=profile.telegram_chat_id,
+                text=msg,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.warning(f"Gagal mengirim notif Telegram git commit: {e}")
+
+    return {
+        "status": "success",
+        "completed_tasks": completed_tasks,
+        "auto_checked_habits": auto_habits,
+        "repo": repo_name,
+        "branch": branch,
+    }
+

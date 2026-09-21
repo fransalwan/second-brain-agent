@@ -15,11 +15,16 @@ from sqlmodel import SQLModel, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.ambient import get_ambient_status, start_ambient_timer, stop_ambient_timer
+from app.ambient import (
+    get_ambient_status,
+    handle_git_commit_event,
+    start_ambient_timer,
+    stop_ambient_timer,
+)
 from app.config import settings
 from app.database import get_session
 from app.main import app
-from app.models import Area, Habit, Profile, TimeLog, utcnow
+from app.models import Area, Habit, Profile, Task, TimeLog, utcnow
 
 
 @pytest.fixture
@@ -357,6 +362,149 @@ async def test_ambient_direct_habit_check_api():
         assert data["habit_name"] == "Membaca Buku 15 Menit"
         assert data["streak"] == 1
         assert data["already_completed"] is False
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()
+
+
+async def test_git_commit_auto_done_by_id(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="git_user@example.com",
+        full_name="Git User",
+        telegram_chat_id=554433,
+    )
+    task1 = Task(
+        id=10,
+        user_id=user_id,
+        title="Bikin sistem autentikasi mandiri",
+        status="pending",
+    )
+    task2 = Task(
+        id=11,
+        user_id=user_id,
+        title="Perbarui dokumentasi README",
+        status="pending",
+    )
+    async_session.add(profile)
+    async_session.add(task1)
+    async_session.add(task2)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+    res = await handle_git_commit_event(
+        session=async_session,
+        email="git_user@example.com",
+        commit_message="feat(auth): selesaikan login page #10 dan fix #11",
+        repo_name="second-brain-agent",
+        branch="main",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+
+    assert res["status"] == "success"
+    assert len(res["completed_tasks"]) == 2
+
+    # Verifikasi status di DB
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+    assert task1.status == "completed"
+    assert task1.completed_at is not None
+    assert task2.status == "completed"
+    assert task2.completed_at is not None
+    assert mock_bot.send_message.called
+
+
+async def test_git_commit_auto_done_by_keyword(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="git_kw_user@example.com",
+        full_name="Git Keyword User",
+        telegram_chat_id=778899,
+    )
+    task = Task(
+        id=25,
+        user_id=user_id,
+        title="Kirim revisi invoice tagihan klien",
+        status="pending",
+    )
+    async_session.add(profile)
+    async_session.add(task)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+    # Pesan commit tanpa ID eksplisit tapi cocok dengan kata kunci judul
+    res = await handle_git_commit_event(
+        session=async_session,
+        email="git_kw_user@example.com",
+        commit_message="fix: kirim revisi invoice klien",
+        repo_name="usaha-karir",
+        branch="main",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+
+    assert res["status"] == "success"
+    assert len(res["completed_tasks"]) == 1
+    assert res["completed_tasks"][0]["id"] == 25
+
+    await async_session.refresh(task)
+    assert task.status == "completed"
+    assert task.completed_at is not None
+
+
+async def test_git_commit_api_endpoint():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        profile = Profile(
+            id=user_id,
+            email="git_api@example.com",
+            full_name="Git API Tester",
+        )
+        task = Task(
+            id=99,
+            user_id=user_id,
+            title="Setup ambient git hook",
+            status="pending",
+        )
+        session.add(profile)
+        session.add(task)
+        await session.commit()
+
+    async def override_get_session():
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = {"X-Ambient-Key": settings.AMBIENT_API_KEY}
+        resp = await client.post(
+            "/api/v1/ambient/git/commit",
+            headers=headers,
+            json={
+                "email": "git_api@example.com",
+                "commit_message": "feat: finish task #99",
+                "repo_name": "second-brain-agent",
+                "branch": "main",
+                "notify_telegram": False,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert len(data["completed_tasks"]) == 1
+        assert data["completed_tasks"][0]["id"] == 99
 
     app.dependency_overrides.clear()
     await test_engine.dispose()

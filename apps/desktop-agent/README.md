@@ -66,3 +66,24 @@ Output log akan muncul di terminal:
 
 Untuk menghentikan pemantauan, tekan `Ctrl + C`. Timer yang sedang berjalan akan disimpan dan dihentikan dengan aman.
 
+---
+
+## 🎯 Memasang Git Hook (Auto-Done Tasks & Habit Sync)
+
+Kamu bisa menghubungkan repo Git lokal mana saja ke Second Brain dengan 1 perintah:
+
+```powershell
+# Pasang ke repository saat ini:
+python apps/desktop-agent/install_git_hook.py
+
+# Atau pasang ke repository lain:
+python apps/desktop-agent/install_git_hook.py "C:\Path\Ke\Repo\Lain"
+```
+
+### Cara Kerja:
+Saat kamu melakukan `git commit`:
+- `git commit -m "feat(auth): fix login bug #3"` -> Tugas #3 otomatis berstatus `completed`.
+- `git commit -m "revisi invoice klien selesai"` -> Tugas yang judulnya cocok otomatis diselesaikan.
+- Commit pertama hari ini otomatis mencentang habit ngoding harianmu.
+- Bot Telegram mengirim notifikasi konfirmasi bahwa tugas telah beres!
+

@@ -94,6 +94,7 @@ from pydantic import BaseModel
 from .ambient import (
     check_habit_by_keyword,
     get_ambient_status,
+    handle_git_commit_event,
     start_ambient_timer,
     stop_ambient_timer,
 )
@@ -211,5 +212,35 @@ async def api_ambient_habit_check(
         raise HTTPException(status_code=400, detail=result.get("message"))
     elif result.get("status") == "not_found":
         raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
+class AmbientGitCommitRequest(BaseModel):
+    email: str
+    commit_message: str
+    repo_name: str | None = None
+    branch: str | None = None
+    notify_telegram: bool = True
+
+
+@app.post("/api/v1/ambient/git/commit")
+async def api_ambient_git_commit(
+    payload: AmbientGitCommitRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Menerima event git commit untuk auto-done tasks dan habit sync."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await handle_git_commit_event(
+        session=session,
+        email=payload.email,
+        commit_message=payload.commit_message,
+        repo_name=payload.repo_name,
+        branch=payload.branch,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
     return result
 
