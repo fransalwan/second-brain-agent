@@ -37,7 +37,7 @@ Kalau AI sedang gagal (misalnya limit API), pesan tetap disimpan sebagai catatan
 | Backend & API | Python 3.11, FastAPI, SQLModel, SQLAlchemy (async) + asyncpg, uv |
 | Database & Auth | Supabase (PostgreSQL, Auth, Row Level Security) |
 | AI Agent | Google ADK (Agent Development Kit) + Gemini (`gemini-3.6-flash`) |
-| Bot | Telegram Bot API via webhook (`python-telegram-bot`) |
+| Bot | Telegram Bot API via polling (default self-hosted) / webhook (`python-telegram-bot`) |
 | Dashboard | Vue 3 (Composition API), Vite, TypeScript, Tailwind CSS v4, vue-router |
 | Infrastruktur | ngrok domain statis (backend lokal), Render (rencana deployment cloud) |
 | Tooling development | Antigravity IDE (agent-first, membaca `.agents/`) |
@@ -228,8 +228,9 @@ cp .env.example .env
 | Variabel | Keterangan |
 | --- | --- |
 | `DATABASE_URL` | Supabase → **Connect** → **Session pooler**. Format `postgresql://postgres.<project-ref>:<password>@<host>.pooler.supabase.com:5432/postgres` (port 5432) |
+| `TELEGRAM_MODE` | Default `polling` (untuk self-hosted lokal tanpa tunnel). Opsi: `webhook` |
 | `TELEGRAM_BOT_TOKEN` | Token bot Telegram dari @BotFather |
-| `TELEGRAM_WEBHOOK_SECRET` | String acak buatan sendiri: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `TELEGRAM_WEBHOOK_SECRET` | String acak, **hanya wajib** jika `TELEGRAM_MODE=webhook`: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `ADMIN_CHAT_ID` | Telegram Chat ID admin untuk otorisasi perintah `/invite` |
 | `GOOGLE_API_KEY` | Gemini API key dari Google AI Studio |
 | `GOOGLE_GENAI_USE_VERTEXAI` | `FALSE` |
@@ -247,9 +248,9 @@ Verifikasi konfigurasi backend:
 ```bash
 uv run python -c "
 from app.config import settings
-for k in ('TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','GOOGLE_API_KEY','GEMINI_MODEL','DATABASE_URL'):
+for k in ('TELEGRAM_MODE','TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','GOOGLE_API_KEY','GEMINI_MODEL','DATABASE_URL'):
     v = getattr(settings, k, '') or ''
-    print(k, 'OK' if v else 'KOSONG', len(v))
+    print(k, 'OK' if v else 'KOSONG (OPSIONAL)' if k == 'TELEGRAM_WEBHOOK_SECRET' and settings.TELEGRAM_MODE == 'polling' else 'KOSONG', len(str(v)))
 "
 ```
 
@@ -267,40 +268,51 @@ Semua migrasi aman dijalankan ulang (idempotent).
 
 ### 4. Menjalankan Backend & Bot
 
-Karena ngrok menggunakan domain statis gratis, URL tunnel **tidak berganti setiap restart**. Pendaftaran webhook (`setWebhook`) hanya perlu dijalankan **satu kali** saat setup awal.
+Secara default, bot berjalan dalam **mode polling** (`TELEGRAM_MODE=polling`). Anda **tidak membutuhkan ngrok**, domain publik, atau registrasi webhook.
 
-Untuk sesi kerja sehari-hari, Anda **hanya perlu menjalankan 2 terminal** (Terminal 1 dan Terminal 2):
+#### A. Mode Polling (Default — Self-Hosted Lokal)
 
-**Terminal 1 — server backend**
+Cukup jalankan 1 terminal untuk server backend:
+
 ```bash
 cd apps/backend
 uv run uvicorn app.main:app --reload --port 8000
 ```
 Cek koneksi database: `curl -s http://localhost:8000/test-db` harus mengembalikan `"status":"success"`.
 
-**Terminal 2 — tunnel ngrok (domain statis)**
+> **Catatan drop_pending_updates=False:** Pada mode polling, pesan Telegram yang dikirim saat server/komputer mati akan otomatis ditarik dan diproses begitu backend menyala kembali. Untuk instalasi *self-hosted* di perangkat pribadi, ini perilaku yang diharapkan agar tidak ada ide atau catatan yang terlewat.
+
+> **Catatan error `409 Conflict` saat `--reload`:** Saat file `.py` disimpan dan uvicorn me-reload proses, proses baru bisa mulai berjalan sesaat sebelum proses lama selesai memutus koneksi polling. Telegram akan merespons `409 Conflict` selama beberapa detik. Begitu proses lama benar-benar berhenti, proses baru akan otomatis tersambung normal tanpa perlu tindakan manual.
+
+Verifikasi status polling (memastikan webhook lama sudah terhapus):
 ```bash
-ngrok http 8000 --url=<domain-statis-kamu>
+uv run python -c "
+from app.bot import ptb_app
+import asyncio
+async def check():
+    async with ptb_app.bot:
+        info = await ptb_app.bot.get_webhook_info()
+        print(f'Webhook URL: {info.url!r} (kosong = polling aktif)')
+        print(f'Pending updates: {info.pending_update_count}')
+asyncio.run(check())
+"
 ```
+*(Skrip di atas aman digunakan karena mengecek via client bot tanpa mencetak URL request mentah atau token ke terminal).*
 
-**Terminal 3 — daftarkan webhook [HANYA SETUP AWAL / SEKALI SAJA]**
-```bash
-cd apps/backend
-TOKEN=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
-SECRET=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
+#### B. Mode Webhook (Opsional — Server Publik)
 
-curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
-  -d "url=https://<domain-statis-kamu>/telegram/webhook" \
-  -d "secret_token=$SECRET" \
-  -d "drop_pending_updates=true"
-```
-
-Verifikasi webhook aktif:
-```bash
-curl -s "https://api.telegram.org/bot$TOKEN/getWebhookInfo" | python -m json.tool
-```
-
-Yang diharapkan: `url` menunjuk ke domain statis kamu, `pending_update_count: 0`, dan tidak ada `last_error_message`.
+Jika dideploy ke server publik (seperti Render atau VPS):
+1. Set `TELEGRAM_MODE=webhook` dan isi `TELEGRAM_WEBHOOK_SECRET` di `.env`.
+2. Daftarkan URL webhook sekali saja:
+   ```bash
+   cd apps/backend
+   TOKEN=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_BOT_TOKEN)" | tr -d '\r\n')
+   SECRET=$(uv run python -c "from app.config import settings; print(settings.TELEGRAM_WEBHOOK_SECRET)" | tr -d '\r\n')
+   curl -s -X POST "https://api.telegram.org/bot$TOKEN/setWebhook" \
+     -d "url=https://<domain-kamu>/telegram/webhook" \
+     -d "secret_token=$SECRET" \
+     -d "drop_pending_updates=true"
+   ```
 
 ### 5. Menjalankan Dashboard Lokal
 

@@ -27,8 +27,12 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
 TELEGRAM_MAX_LEN = 4096
 
-# updater(None) = tanpa polling. Update masuk lewat webhook FastAPI.
-ptb_app = Application.builder().token(TELEGRAM_BOT_TOKEN).updater(None).build()
+# Bangun Application: updater(None) hanya jika mode webhook.
+# Pada mode polling (default), updater internal dibiarkan aktif untuk start_polling.
+builder = Application.builder().token(TELEGRAM_BOT_TOKEN)
+if settings.TELEGRAM_MODE == "webhook":
+    builder = builder.updater(None)
+ptb_app = builder.build()
 
 NOT_LINKED_MSG = (
     "Akun Telegram ini belum terhubung ke Second Brain.\n\n"

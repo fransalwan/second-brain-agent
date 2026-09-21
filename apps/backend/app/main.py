@@ -15,15 +15,20 @@ from .bot import ptb_app
 from .database import engine, get_session
 from .models import Note
 
-TELEGRAM_WEBHOOK_SECRET = settings.TELEGRAM_WEBHOOK_SECRET
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Nyalakan bot saat server start, matikan dengan rapi saat server stop
     async with ptb_app:
         await ptb_app.start()
+        if settings.TELEGRAM_MODE == "polling":
+            # drop_pending_updates=False: pesan yang dikirim saat instance mati
+            # akan tetap diproses begitu backend menyala (penting untuk self-hosted
+            # di perangkat pribadi yang tidak selalu aktif 24 jam).
+            await ptb_app.updater.start_polling(drop_pending_updates=False)
         yield
+        if settings.TELEGRAM_MODE == "polling":
+            await ptb_app.updater.stop()
         await ptb_app.stop()
     await engine.dispose()
 
@@ -49,9 +54,15 @@ async def telegram_webhook(
     request: Request,
     x_telegram_bot_api_secret_token: str | None = Header(default=None),
 ):
+    if settings.TELEGRAM_MODE != "webhook":
+        raise HTTPException(
+            status_code=404, detail="Webhook endpoint inactive in polling mode"
+        )
+
     # Tolak request yang bukan dari Telegram
+    secret = settings.TELEGRAM_WEBHOOK_SECRET or ""
     received = (x_telegram_bot_api_secret_token or "").encode()
-    if not secrets.compare_digest(received, TELEGRAM_WEBHOOK_SECRET.encode()):
+    if not secrets.compare_digest(received, secret.encode()):
         raise HTTPException(status_code=403, detail="Invalid secret token")
 
     update = Update.de_json(await request.json(), ptb_app.bot)
