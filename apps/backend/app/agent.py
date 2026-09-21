@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 from google.adk.agents import Agent
@@ -383,34 +383,194 @@ async def delete_area(name: str, tool_context: ToolContext) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Agent & Runner
+# Task Tools
 # ---------------------------------------------------------------------------
-INSTRUCTION = """
-            Kamu adalah asisten "second brain" pribadi di Telegram. Tugasmu mengelola area hidup, menangkap ide tanpa hambatan, dan melacak waktu deep work.
-            Aturan:
-            1. Penolakan tool adalah final (PENTING):
-               Jika pemanggilan tool menghasilkan error atau penolakan (misal status='error' pada set_areas atau delete_area):
-               - JANGAN PERNAH mencoba memanggil tool lain secara otomatis di giliran yang sama.
-               - Langsung sampaikan isi pesan penolakan tersebut kepada pengguna apa adanya dan tunggu keputusan pengguna di pesan berikutnya.
-            2. Area hidup:
-               - Pengguna menentukan daftar area pertama kali: panggil set_areas(names=[...]). Ingat: set_areas hanya untuk setup awal saat belum punya area.
-               - Melihat daftar area: panggil list_areas().
-               - Menambah area baru: panggil add_area(name=...).
-               - Mengubah urutan prioritas area: panggil reorder_areas(ordered_names=[...]).
-               - Menghapus area: panggil delete_area(name=...). Jangan hapus jika masih punya tugas pending.
-            3. Jika pesan berisi ide/catatan: panggil save_note.
-            4. Mulai fokus: start_timer.
-            5. Selesai: stop_timer.
-            6. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
-            7. Cari catatan: search_notes.
-            Gaya balasan: singkat, teks polos tanpa markdown. Sebutkan urutan nomor saat menampilkan area.
-            """
+async def add_task(
+    title: str,
+    area_name: str,
+    deadline: str | None = None,
+    is_urgent: bool = False,
+    tool_context: ToolContext = None,
+) -> dict:
+    user_id = _user_id(tool_context)
+    title = (title or "").strip()
+    if not title:
+        return {
+            "status": "error",
+            "reason": "empty_title",
+            "message": "Judul tugas tidak boleh kosong.",
+        }
+
+    parsed_deadline = None
+    if deadline:
+        deadline_str = str(deadline).strip()
+        if deadline_str and deadline_str.lower() not in ("none", "null"):
+            try:
+                parsed_deadline = date.fromisoformat(deadline_str)
+            except (ValueError, TypeError):
+                return {
+                    "status": "error",
+                    "reason": "invalid_date_format",
+                    "message": f"Format deadline '{deadline}' tidak valid. Gunakan format ISO YYYY-MM-DD.",
+                }
+
+    async with SessionLocal() as session:
+        areas_res = await session.execute(
+            select(Area).where(Area.user_id == user_id).order_by(Area.position.asc())
+        )
+        user_areas = areas_res.scalars().all()
+        if not user_areas:
+            return {
+                "status": "error",
+                "reason": "no_areas_configured",
+                "message": (
+                    "Kamu belum membuat area hidup. Di Second Brain, setiap tugas "
+                    "perlu masuk ke suatu area agar bisa diprioritaskan. "
+                    "Mau buat area apa saja? (Contoh: kirim 'area saya: Kuliah, Usaha, Pribadi')"
+                ),
+            }
+
+        target_area = None
+        clean_area_name = (area_name or "").strip().lower()
+        for a in user_areas:
+            if a.name.lower() == clean_area_name:
+                target_area = a
+                break
+
+        if target_area is None:
+            valid_names = ", ".join(f"'{a.name}'" for a in user_areas)
+            return {
+                "status": "error",
+                "reason": "area_not_found",
+                "message": f"Area '{area_name}' tidak ditemukan. Area yang kamu miliki: {valid_names}.",
+            }
+
+        task = Task(
+            user_id=user_id,
+            area_id=target_area.id,
+            title=title,
+            deadline=parsed_deadline,
+            is_urgent=bool(is_urgent),
+            status="pending",
+        )
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+
+    return {
+        "status": "success",
+        "task": {
+            "id": task.id,
+            "title": task.title,
+            "area_name": target_area.name,
+            "deadline": task.deadline.isoformat() if task.deadline else None,
+            "is_urgent": task.is_urgent,
+        },
+    }
+
+
+async def mark_urgent(
+    task_id: int,
+    is_urgent: bool = True,
+    tool_context: ToolContext = None,
+) -> dict:
+    user_id = _user_id(tool_context)
+    try:
+        clean_id = int(str(task_id).lstrip("#").strip())
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "reason": "invalid_id",
+            "message": "ID tugas harus berupa angka.",
+        }
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Task).where(Task.id == clean_id, Task.user_id == user_id)
+        )
+        task = result.scalars().first()
+        if task is None:
+            return {
+                "status": "error",
+                "reason": "not_found",
+                "message": f"Tugas #{clean_id} tidak ditemukan.",
+            }
+
+        task.is_urgent = bool(is_urgent)
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+        title = task.title
+
+    status_str = "mendesak" if task.is_urgent else "biasa"
+    return {
+        "status": "success",
+        "task_id": clean_id,
+        "title": title,
+        "is_urgent": task.is_urgent,
+        "message": f"Tugas #{clean_id} ('{title}') ditandai sebagai {status_str}.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Agent & Dynamic Instruction Runner
+# ---------------------------------------------------------------------------
+INDO_DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+
+
+def get_instruction(ctx: object = None) -> str:
+    """Instruksi yang dihitung ulang dinamis di setiap request berdasarkan APP_TIMEZONE."""
+    now_local = datetime.now(LOCAL_TZ)
+    day_name = INDO_DAYS[now_local.weekday()]
+    date_iso = now_local.strftime("%Y-%m-%d")
+    date_human = now_local.strftime("%d %B %Y")
+
+    return f"""Kamu adalah asisten "second brain" pribadi di Telegram. Tugasmu mengelola tugas, area hidup, menangkap ide tanpa hambatan, dan melacak waktu deep work.
+
+KONTEKS WAKTU SAAT INI (APP_TIMEZONE: {settings.APP_TIMEZONE}):
+- Hari ini: {day_name}, {date_human} (ISO: {date_iso})
+
+Aturan Pengelolaan Tugas:
+1. Menambah tugas: panggil add_task(title=..., area_name=..., deadline=..., is_urgent=...).
+   - Format deadline HANYA boleh ISO YYYY-MM-DD atau None jika tanpa deadline.
+   - Aturan konversi tanggal deadline relatif:
+     * "hari ini" = {date_iso}
+     * "besok" = 1 hari setelah hari ini
+     * "lusa" = 2 hari setelah hari ini
+     * Nama hari (misal "jumat", "senin", dll):
+       - PENTING: Jika pengguna menyebut nama hari yang SAMA dengan hari ini (contoh: menyebut "jumat" saat hari ini {day_name}), gunakan tanggal HARI INI ({date_iso}). JANGAN gunakan minggu depan!
+       - Jika pengguna menyebut "jumat depan" (ada kata "depan"), barulah dihitung 7 hari ke depan dari jumat ini.
+   - Penentuan area tugas:
+     * Gunakan area yang disebut pengguna (misal "tugas kuliah: ...").
+     * Jika pengguna TIDAK menyebut area, tebak secara semantik dari daftar area pengguna yang ada (cocokkan konteks tugas).
+     * Jika benar-benar ambigu dan tidak ada kecocokan, tanyakan kepada pengguna ingin dimasukkan ke area mana.
+   - Balasan setelah menambah tugas WAJIB menyebutkan: area terpilih, nama hari, dan tanggal lengkap deadline (contoh: "Tugas dicatat di [Kuliah]: Revisi bab 2 (Deadline: Jumat, 25 Sep 2026)").
+2. Menandai tugas mendesak:
+   - Panggil mark_urgent(task_id=..., is_urgent=True).
+3. Penolakan tool adalah final (PENTING):
+   - Jika pemanggilan tool menghasilkan error atau penolakan (status="error", misal set_areas, delete_area, add_task):
+     * JANGAN PERNAH mencoba memanggil tool lain secara otomatis di giliran yang sama.
+     * Langsung sampaikan isi pesan penolakan tersebut kepada pengguna apa adanya dan tunggu keputusan pengguna di pesan berikutnya.
+4. Area hidup:
+   - Pengguna menentukan daftar area pertama kali: panggil set_areas(names=[...]). Hanya untuk setup awal saat belum punya area.
+   - Melihat daftar area: panggil list_areas().
+   - Menambah area baru: panggil add_area(name=...).
+   - Mengubah urutan prioritas area: panggil reorder_areas(ordered_names=[...]).
+   - Menghapus area: panggil delete_area(name=...). Jangan hapus jika masih punya tugas pending.
+5. Jika pesan berisi ide/catatan: panggil save_note.
+6. Mulai fokus: start_timer.
+7. Selesai: stop_timer.
+8. Rekap: panggil get_summary dengan period="day" untuk hari ini, atau period="week" untuk minggu ini. Hanya dua nilai itu yang valid.
+9. Cari catatan: search_notes.
+
+Gaya balasan: singkat, teks polos tanpa markdown. Sebutkan urutan nomor saat menampilkan area."""
+
 
 root_agent = Agent(
     name="second_brain_agent",
     model=GEMINI_MODEL,
     description="Asisten second brain.",
-    instruction=INSTRUCTION,
+    instruction=get_instruction,
     tools=[
         save_note,
         search_notes,
@@ -422,6 +582,8 @@ root_agent = Agent(
         add_area,
         reorder_areas,
         delete_area,
+        add_task,
+        mark_urgent,
     ],
 )
 
