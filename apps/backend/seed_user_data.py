@@ -8,6 +8,7 @@ Mengisi data realistis di seluruh modul:
 - Sesi fokus (Time Logs) harian & pekanan
 - Catatan & ide dengan tags saling terhubung untuk Knowledge Graph
 """
+
 import asyncio
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -37,7 +38,9 @@ async def seed_data():
             return
 
         user_id = profile.id
-        print(f"Mempersiapkan data seed untuk user: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]")
+        print(
+            f"Mempersiapkan data seed untuk user: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]"
+        )
 
         # Pastikan konfigurasi profil optimal
         profile.brief_time = time(7, 0)
@@ -76,7 +79,11 @@ async def seed_data():
         # 4. Buat Tugas (Tasks: Tier 1 Urgent, Tier 2 Deadline, Tier 3 Backlog, & Completed)
         # Helper datetime UTC
         def local_dt(d: date, hour: int, minute: int) -> datetime:
-            return datetime.combine(d, time(hour, minute)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc)
+            return (
+                datetime.combine(d, time(hour, minute))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc)
+            )
 
         tasks_data = [
             # TIER 1: Urgent (Mendesak)
@@ -179,10 +186,30 @@ async def seed_data():
 
         # 5. Buat Habits & Riwayat Centang (Streaks)
         habits_data = [
-            Habit(user_id=user_id, name="Olahraga Pagi 20 Menit", position=1, is_active=True),
-            Habit(user_id=user_id, name="Membaca Buku 15 Menit", position=2, is_active=True),
-            Habit(user_id=user_id, name="Review Prioritas & Rencana Harian", position=3, is_active=True),
-            Habit(user_id=user_id, name="Minum Air Putih 2 Liter", position=4, is_active=True),
+            Habit(
+                user_id=user_id,
+                name="Olahraga Pagi 20 Menit",
+                position=1,
+                is_active=True,
+            ),
+            Habit(
+                user_id=user_id,
+                name="Membaca Buku 15 Menit",
+                position=2,
+                is_active=True,
+            ),
+            Habit(
+                user_id=user_id,
+                name="Review Prioritas & Rencana Harian",
+                position=3,
+                is_active=True,
+            ),
+            Habit(
+                user_id=user_id,
+                name="Minum Air Putih 2 Liter",
+                position=4,
+                is_active=True,
+            ),
         ]
         for h in habits_data:
             session.add(h)
@@ -202,17 +229,29 @@ async def seed_data():
         habit_logs = []
         for day_offset in range(4):  # today, yesterday, -2, -3
             habit_logs.append(
-                HabitLog(user_id=user_id, habit_id=habits_list[0].id, completed_date=today - timedelta(days=day_offset))
+                HabitLog(
+                    user_id=user_id,
+                    habit_id=habits_list[0].id,
+                    completed_date=today - timedelta(days=day_offset),
+                )
             )
         for day_offset in range(3):  # today, yesterday, -2
             habit_logs.append(
-                HabitLog(user_id=user_id, habit_id=habits_list[1].id, completed_date=today - timedelta(days=day_offset))
+                HabitLog(
+                    user_id=user_id,
+                    habit_id=habits_list[1].id,
+                    completed_date=today - timedelta(days=day_offset),
+                )
             )
         habit_logs.append(
             HabitLog(user_id=user_id, habit_id=habits_list[2].id, completed_date=today)
         )
         habit_logs.append(
-            HabitLog(user_id=user_id, habit_id=habits_list[3].id, completed_date=today - timedelta(days=1))
+            HabitLog(
+                user_id=user_id,
+                habit_id=habits_list[3].id,
+                completed_date=today - timedelta(days=1),
+            )
         )
 
         for hl in habit_logs:
@@ -349,7 +388,9 @@ async def seed_data():
         for n in notes_data:
             session.add(n)
         await session.commit()
-        print(f"Berhasil membuat {len(notes_data)} Catatan dengan tags beririsan untuk Knowledge Graph.")
+        print(
+            f"Berhasil membuat {len(notes_data)} Catatan dengan tags beririsan untuk Knowledge Graph."
+        )
 
     print("\n[OK] DATA SEEDING SELESAI DENGAN SUKSES 100%!")
 

@@ -85,3 +85,91 @@ async def test_db_connection(session: AsyncSession = Depends(get_session)):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# ==========================================
+# AMBIENT TRACKING ENDPOINTS (OS / VS Code)
+# ==========================================
+from pydantic import BaseModel
+from .ambient import get_ambient_status, start_ambient_timer, stop_ambient_timer
+
+
+class AmbientStartRequest(BaseModel):
+    email: str
+    project_name: str
+    source: str = "vscode"
+    context: str | None = None
+    notify_telegram: bool = True
+
+
+class AmbientStopRequest(BaseModel):
+    email: str
+    project_name: str | None = None
+    reason: str = "window_closed"
+    notify_telegram: bool = True
+
+
+def verify_ambient_key(
+    x_ambient_key: str | None = Header(default=None, alias="X-Ambient-Key"),
+):
+    expected = settings.AMBIENT_API_KEY
+    if not expected or not x_ambient_key or not secrets.compare_digest(x_ambient_key, expected):
+        raise HTTPException(status_code=403, detail="Header X-Ambient-Key tidak valid atau tidak disertakan")
+    return True
+
+
+@app.post("/api/v1/ambient/timer/start")
+async def api_ambient_start(
+    payload: AmbientStartRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Memulai timer fokus otomatis dari ambient desktop watcher."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await start_ambient_timer(
+        session=session,
+        email=payload.email,
+        project_name=payload.project_name,
+        source=payload.source,
+        context=payload.context,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+
+
+@app.post("/api/v1/ambient/timer/stop")
+async def api_ambient_stop(
+    payload: AmbientStopRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Menghentikan timer fokus otomatis saat jendela ditutup atau idle."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await stop_ambient_timer(
+        session=session,
+        email=payload.email,
+        project_name=payload.project_name,
+        reason=payload.reason,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+
+
+@app.get("/api/v1/ambient/status")
+async def api_ambient_status(
+    email: str,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Cek status timer aktif dan konfigurasi user untuk ambient daemon."""
+    result = await get_ambient_status(session=session, email=email)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+

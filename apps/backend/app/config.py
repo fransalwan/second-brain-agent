@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     ADMIN_CHAT_ID: Optional[int] = None
     GOOGLE_GENAI_USE_VERTEXAI: str = "FALSE"
+    AMBIENT_API_KEY: str = "second-brain-ambient-key"
 
     @model_validator(mode="after")
     def validate_mode_settings(self) -> "Settings":

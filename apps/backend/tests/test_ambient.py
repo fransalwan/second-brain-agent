@@ -1,0 +1,260 @@
+# apps/backend/tests/test_ambient.py
+"""Unit test untuk modul ambient tracking dan endpoint API."""
+
+import asyncio
+from datetime import datetime, time, timedelta
+from pathlib import Path
+import sys
+from unittest.mock import AsyncMock
+import uuid
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlmodel import SQLModel, select
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from app.ambient import get_ambient_status, start_ambient_timer, stop_ambient_timer
+from app.config import settings
+from app.database import get_session
+from app.main import app
+from app.models import Area, Profile, TimeLog, utcnow
+
+
+@pytest.fixture
+async def async_session():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    async with async_session_factory() as session:
+        yield session
+
+    await test_engine.dispose()
+
+
+async def test_ambient_start_and_idempotent(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="frans@example.com",
+        full_name="Frans",
+        telegram_chat_id=12345678,
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+
+    # 1. Start timer pertama kali
+    res1 = await start_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Second Brain Agent",
+        source="vscode",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+    assert res1["status"] == "started"
+    assert res1["project"] == "Second Brain Agent"
+    assert mock_bot.send_message.called
+
+    # 2. Start timer kedua kali dengan project yang sama (Idempotent)
+    mock_bot.reset_mock()
+    res2 = await start_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Second Brain Agent",
+        source="vscode",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+    assert res2["status"] == "already_running"
+    assert res2["project"] == "Second Brain Agent"
+    assert not mock_bot.send_message.called  # Tidak mengirim pesan ganda
+
+
+async def test_ambient_context_switch(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="frans@example.com",
+        full_name="Frans",
+        telegram_chat_id=12345678,
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+
+    # Start project 1 (Usaha & Karir)
+    await start_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Usaha & Karir",
+        bot=mock_bot,
+    )
+
+    # Ubah started_at timer lama seolah-olah sudah jalan 30 menit
+    res = await async_session.execute(select(TimeLog).where(TimeLog.user_id == user_id))
+    old_timer = res.scalars().first()
+    old_timer.started_at = utcnow() - timedelta(minutes=30)
+    async_session.add(old_timer)
+    await async_session.commit()
+
+    # Start project 2 (Kuliah & Riset) -> harus auto switch
+    res_switch = await start_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Kuliah & Riset",
+        bot=mock_bot,
+    )
+    assert res_switch["status"] == "started"
+    assert res_switch["project"] == "Kuliah & Riset"
+
+    # Verifikasi timer lama selesai dengan durasi 30 menit
+    await async_session.refresh(old_timer)
+    assert old_timer.ended_at is not None
+    assert old_timer.duration_minutes == 30
+
+
+async def test_ambient_stop_discard_micro_session(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="frans@example.com",
+        full_name="Frans",
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    # Start timer
+    await start_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Testing",
+    )
+
+    # Stop langsung (< 60 detik)
+    res_stop = await stop_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        project_name="Testing",
+        reason="window_closed",
+    )
+    assert res_stop["status"] == "discarded"
+    assert res_stop["reason"] == "duration_too_short"
+
+    # Verifikasi record dihapus agar tidak mengotori DB
+    res_db = await async_session.execute(select(TimeLog).where(TimeLog.user_id == user_id))
+    assert res_db.scalars().first() is None
+
+
+async def test_ambient_stop_meaningful_session(async_session: AsyncSession):
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="frans@example.com",
+        full_name="Frans",
+        telegram_chat_id=12345678,
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    mock_bot = AsyncMock()
+
+    # Buat timer yang sudah berjalan 45 menit
+    timer = TimeLog(
+        user_id=user_id,
+        project_name="Second Brain Agent",
+        started_at=utcnow() - timedelta(minutes=45),
+    )
+    async_session.add(timer)
+    await async_session.commit()
+
+    # Stop timer
+    res_stop = await stop_ambient_timer(
+        session=async_session,
+        email="frans@example.com",
+        reason="window_closed",
+        notify_telegram=True,
+        bot=mock_bot,
+    )
+    assert res_stop["status"] == "stopped"
+    assert res_stop["duration_minutes"] == 45
+    assert mock_bot.send_message.called
+
+
+async def test_ambient_api_endpoints():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        profile = Profile(
+            id=user_id,
+            email="api_test@example.com",
+            full_name="API Tester",
+        )
+        area = Area(
+            user_id=user_id,
+            name="Usaha",
+            position=1,
+        )
+        session.add(profile)
+        session.add(area)
+        await session.commit()
+
+    async def override_get_session():
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Request tanpa API Key -> 403
+        resp_unauth = await client.post(
+            "/api/v1/ambient/timer/start",
+            json={"email": "api_test@example.com", "project_name": "Usaha"},
+        )
+        assert resp_unauth.status_code == 403
+
+        # 2. Request dengan API Key yang benar -> 200
+        headers = {"X-Ambient-Key": settings.AMBIENT_API_KEY}
+        resp_start = await client.post(
+            "/api/v1/ambient/timer/start",
+            headers=headers,
+            json={"email": "api_test@example.com", "project_name": "Usaha"},
+        )
+        assert resp_start.status_code == 200
+        assert resp_start.json()["status"] == "started"
+
+        # 3. Cek Status Endpoint
+        resp_status = await client.get(
+            "/api/v1/ambient/status?email=api_test@example.com",
+            headers=headers,
+        )
+        assert resp_status.status_code == 200
+        status_data = resp_status.json()
+        assert status_data["active_timer"]["project_name"] == "Usaha"
+        assert len(status_data["areas"]) == 1
+
+        # 4. Stop Endpoint
+        resp_stop = await client.post(
+            "/api/v1/ambient/timer/stop",
+            headers=headers,
+            json={"email": "api_test@example.com", "reason": "window_closed"},
+        )
+        assert resp_stop.status_code == 200
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()
