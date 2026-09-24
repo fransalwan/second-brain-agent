@@ -13,11 +13,11 @@
   "project_mappings": {
     "thesis-manuscripts": "Thesis: Penulisan & Naskah",
     "thesis-experiments": "Thesis: Eksperimen & Model",
-    "second-brain-agent": "Second Brain Agent",
-    "scrap-yard-dashboard": "Usaha & Karir",
-    "CV PELANGI EFRATA": "Usaha & Karir",
-    "slp-iris": "Kuliah & Riset",
-    "Matkul": "Kuliah & Riset",
-    "default": "Usaha & Karir"
+    "second-brain-agent": "Karir",
+    "scrap-yard-dashboard": "Karir",
+    "CV PELANGI EFRATA": "Usaha",
+    "slp-iris": "Kuliah dan Riset",
+    "Matkul": "Kuliah dan Riset",
+    "default": "Usaha"
   }
 }

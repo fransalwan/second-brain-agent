@@ -60,10 +60,10 @@ async def seed_data():
 
         # 3. Buat Area Hidup (4 Area Terurut Prioritas)
         areas_data = [
-            Area(user_id=user_id, name="Usaha & Karir", position=1),
-            Area(user_id=user_id, name="Kuliah & Riset", position=2),
-            Area(user_id=user_id, name="Second Brain Agent", position=3),
-            Area(user_id=user_id, name="Pribadi & Kesehatan", position=4),
+            Area(user_id=user_id, name="Kesehatan", position=1),
+            Area(user_id=user_id, name="Kuliah dan Riset", position=2),
+            Area(user_id=user_id, name="Karir", position=3),
+            Area(user_id=user_id, name="Usaha", position=4),
         ]
         for a in areas_data:
             session.add(a)
@@ -89,7 +89,7 @@ async def seed_data():
             # TIER 1: Urgent (Mendesak)
             Task(
                 user_id=user_id,
-                area_id=areas["Usaha & Karir"],
+                area_id=areas["Usaha"],
                 title="Kirim revisi invoice & konfirmasi pembayaran klien",
                 is_urgent=True,
                 deadline=today,
@@ -97,7 +97,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Kuliah & Riset"],
+                area_id=areas["Kuliah dan Riset"],
                 title="Submit bab 3 metodologi penelitian ke portal kampus",
                 is_urgent=True,
                 deadline=today + timedelta(days=1),
@@ -106,7 +106,7 @@ async def seed_data():
             # TIER 2: Mendekati Deadline (Dalam 2-3 hari ke depan)
             Task(
                 user_id=user_id,
-                area_id=areas["Second Brain Agent"],
+                area_id=areas["Karir"],
                 title="Review PR open source & buat rilis release v1.1.0",
                 is_urgent=False,
                 deadline=today + timedelta(days=2),
@@ -114,7 +114,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Usaha & Karir"],
+                area_id=areas["Karir"],
                 title="Presentasi laporan performa triwulan ke stakeholder",
                 is_urgent=False,
                 deadline=today + timedelta(days=3),
@@ -123,7 +123,7 @@ async def seed_data():
             # TIER 3: Backlog Berdasarkan Bobot Area Hidup
             Task(
                 user_id=user_id,
-                area_id=areas["Kuliah & Riset"],
+                area_id=areas["Kuliah dan Riset"],
                 title="Membaca 2 paper jurnal internasional tentang Autonomous AI Agents",
                 is_urgent=False,
                 deadline=None,
@@ -131,7 +131,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Second Brain Agent"],
+                area_id=areas["Karir"],
                 title="Eksplorasi integrasi export catatan ke format Markdown & PDF",
                 is_urgent=False,
                 deadline=None,
@@ -139,7 +139,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Pribadi & Kesehatan"],
+                area_id=areas["Kesehatan"],
                 title="Beli biji kopi arabika fresh roast & vitamin harian",
                 is_urgent=False,
                 deadline=today + timedelta(days=4),
@@ -148,7 +148,7 @@ async def seed_data():
             # COMPLETED TASKS (Untuk metrik mingguan & dashboard)
             Task(
                 user_id=user_id,
-                area_id=areas["Second Brain Agent"],
+                area_id=areas["Karir"],
                 title="Implementasi fitur Voice Note Transcriber via Gemini Multimodal Audio",
                 is_urgent=True,
                 status="completed",
@@ -156,7 +156,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Second Brain Agent"],
+                area_id=areas["Karir"],
                 title="Buat visualisasi relasi ide interaktif (Knowledge Graph Canvas)",
                 is_urgent=False,
                 status="completed",
@@ -164,7 +164,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Usaha & Karir"],
+                area_id=areas["Usaha"],
                 title="Setup sistem autentikasi kredensial login & registrasi mandiri",
                 is_urgent=False,
                 status="completed",
@@ -172,7 +172,7 @@ async def seed_data():
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Pribadi & Kesehatan"],
+                area_id=areas["Kesehatan"],
                 title="Medical check-up rutin bulanan",
                 is_urgent=False,
                 status="completed",
