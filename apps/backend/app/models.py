@@ -149,3 +149,42 @@ class HabitLog(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
+
+
+class ThesisChapter(SQLModel, table=True):
+    __tablename__ = "thesis_chapters"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    chapter_num: int  # 1 sampai 5
+    title: str
+    status: str = Field(default="Belum Mulai")  # Belum Mulai, Drafting, Revisi, Selesai
+    progress: int = Field(default=0)  # 0 - 100
+    updated_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class SupervisionLog(SQLModel, table=True):
+    __tablename__ = "supervision_logs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    notes: str
+    action_items: Optional[str] = None
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class ExperimentMetric(SQLModel, table=True):
+    __tablename__ = "experiment_metrics"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    model_name: str
+    metrics_summary: str  # Misal "Akurasi: 92.4%, F1: 91.8%, Loss: 0.14"
+    parameters: Optional[str] = None  # Misal "Epoch: 50, LR: 0.001"
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )

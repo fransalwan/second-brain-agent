@@ -27,7 +27,7 @@ class MockMessage:
     def __init__(self):
         self.replies = []
 
-    async def reply_text(self, text: str):
+    async def reply_text(self, text: str, *args, **kwargs):
         self.replies.append(text)
 
 

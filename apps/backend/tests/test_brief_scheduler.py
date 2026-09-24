@@ -83,7 +83,7 @@ async def test_scheduler_catch_up_and_deduplication():
     async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
-    today = date(2026, 9, 21)
+    today = datetime.now(scheduler_module.LOCAL_TZ).date()
     u1_id = uuid.uuid4()
     u2_id = uuid.uuid4()
     u3_id = uuid.uuid4()

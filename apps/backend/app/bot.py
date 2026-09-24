@@ -7,7 +7,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import httpx
-from sqlmodel import col, func, select, text
+from sqlmodel import col, desc, func, select, text
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import (
@@ -27,16 +27,29 @@ from .brief_formatter import INDO_DAYS, INDO_MONTHS
 from .habits import check_habit_for_today, get_user_habits_status
 from .models import (
     Area,
+    ExperimentMetric,
     Habit,
     HabitLog,
     InviteCode,
     Note,
     Profile,
+    SupervisionLog,
     Task,
+    ThesisChapter,
     TimeLog,
     utcnow,
 )
 from .priority import prioritize_tasks
+from .thesis import (
+    add_experiment_metric,
+    add_supervision_log,
+    format_thesis_progress_html,
+    get_coursework_tasks,
+    get_or_create_thesis_chapters,
+    get_recent_metrics,
+    get_supervision_summary,
+    update_thesis_chapter,
+)
 from .recharge import (
     build_chill_menu_keyboard,
     build_coffee_keyboard,
@@ -1445,6 +1458,310 @@ async def disconnect_callback(
         )
 
 
+# ==========================================
+# MODUL KULIAH & RISET (THESIS, BIMBINGAN, METRIK, MATKUL)
+# ==========================================
+def build_thesis_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Bab 1", callback_data="thesis:select:1"),
+            InlineKeyboardButton("Bab 2", callback_data="thesis:select:2"),
+            InlineKeyboardButton("Bab 3", callback_data="thesis:select:3"),
+            InlineKeyboardButton("Bab 4", callback_data="thesis:select:4"),
+            InlineKeyboardButton("Bab 5", callback_data="thesis:select:5"),
+        ]
+    ])
+
+
+async def thesis_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        chapters = await get_or_create_thesis_chapters(session, profile.id)
+
+    text_html = format_thesis_progress_html(chapters)
+    await update.effective_message.reply_text(
+        text_html,
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_thesis_keyboard(),
+    )
+
+
+async def thesis_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data.startswith("thesis:select:"):
+        ch_num = int(data.split("thesis:select:")[-1])
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⚪ Belum Mulai (0%)", callback_data=f"thesis:set:{ch_num}:Belum Mulai:0")],
+            [InlineKeyboardButton("📝 Drafting (35%)", callback_data=f"thesis:set:{ch_num}:Drafting:35")],
+            [InlineKeyboardButton("✍️ Revisi (65%)", callback_data=f"thesis:set:{ch_num}:Revisi:65")],
+            [InlineKeyboardButton("👀 Review Dospem (85%)", callback_data=f"thesis:set:{ch_num}:Review Dospem:85")],
+            [InlineKeyboardButton("✅ Selesai / Acc (100%)", callback_data=f"thesis:set:{ch_num}:Selesai:100")],
+            [InlineKeyboardButton("◀️ Kembali", callback_data="thesis:main")],
+        ])
+        await query.answer()
+        await query.edit_message_text(
+            f"🎯 <b>Update Status Bab {ch_num}</b>\n\nPilih status terbaru pengerjaan bab ini:",
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
+        )
+        return
+
+    if data.startswith("thesis:set:"):
+        parts = data.split(":")
+        ch_num = int(parts[2])
+        status = parts[3]
+        progress = int(parts[4])
+
+        async with SessionLocal() as session:
+            await update_thesis_chapter(session, profile.id, ch_num, status, progress)
+            chapters = await get_or_create_thesis_chapters(session, profile.id)
+
+        await query.answer(f"Bab {ch_num} diperbarui: {status} ({progress}%)!", show_alert=False)
+        text_html = format_thesis_progress_html(chapters)
+        await query.edit_message_text(
+            text_html,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_thesis_keyboard(),
+        )
+        return
+
+    if data == "thesis:main":
+        async with SessionLocal() as session:
+            chapters = await get_or_create_thesis_chapters(session, profile.id)
+        await query.answer()
+        text_html = format_thesis_progress_html(chapters)
+        await query.edit_message_text(
+            text_html,
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_thesis_keyboard(),
+        )
+        return
+
+
+async def bimbingan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    raw_args = " ".join(context.args).strip() if context.args else ""
+    async with SessionLocal() as session:
+        if raw_args:
+            log = await add_supervision_log(session, profile.id, notes=raw_args)
+            await update.effective_message.reply_text(
+                f"📝 <b>Notulensi Bimbingan Berhasil Dicatat!</b>\n\n"
+                f"• <b>Catatan:</b> {html.escape(log.notes)}\n"
+                f"• <b>Waktu:</b> {log.created_at.astimezone(LOCAL_TZ).strftime('%d %b %Y %H:%M')}\n\n"
+                "Semangat mengeksekusi catatan dari dosen pembimbing! 💪",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        logs, days_since = await get_supervision_summary(session, profile.id)
+
+    if not logs:
+        await update.effective_message.reply_text(
+            "Belum ada catatan bimbingan tersimpan.\n\n"
+            "Cara mencatat bimbingan baru:\n"
+            "<code>/bimbingan Dospem minta revisi batasan masalah bab 1 dan evaluasi F1</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    lines = ["📝 <b>Riwayat Bimbingan Dosen Pembimbing</b>\n"]
+    if days_since is not None:
+        if days_since > 14:
+            lines.append(
+                f"⚠️ <b>Peringatan Anti-Ghosting:</b> Sudah <b>{days_since} hari</b> sejak bimbingan terakhir! "
+                "Yuk rapikan draft naskah dan jadwalkan bimbingan minggu ini.\n"
+            )
+        elif days_since == 0:
+            lines.append("📅 Bimbingan terakhir: <b>Hari ini!</b>\n")
+        else:
+            lines.append(f"📅 Bimbingan terakhir: <b>{days_since} hari yang lalu</b>\n")
+
+    for i, log in enumerate(logs, start=1):
+        dt_str = log.created_at.astimezone(LOCAL_TZ).strftime("%d %b %Y")
+        lines.append(f"{i}. <b>[{dt_str}]</b> {html.escape(log.notes)}")
+
+    lines.append("\nTambah catatan baru: <code>/bimbingan [catatan revisi]</code>")
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+
+async def metric_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    raw_args = " ".join(context.args).strip() if context.args else ""
+    async with SessionLocal() as session:
+        if raw_args:
+            parts = raw_args.split("|")
+            main_part = parts[0].strip()
+            params = parts[1].strip() if len(parts) > 1 else None
+
+            tokens = main_part.split(None, 1)
+            model_name = tokens[0] if tokens else "Experiment"
+            summary = tokens[1] if len(tokens) > 1 else main_part
+
+            metric = await add_experiment_metric(
+                session,
+                profile.id,
+                model_name=model_name,
+                metrics_summary=summary,
+                parameters=params,
+            )
+            param_str = f"\n• <b>Parameter:</b> {html.escape(metric.parameters)}" if metric.parameters else ""
+            await update.effective_message.reply_text(
+                f"🧪 <b>Metrik Eksperimen Berhasil Dicatat!</b>\n\n"
+                f"• <b>Model:</b> <code>{html.escape(metric.model_name)}</code>\n"
+                f"• <b>Metrik:</b> {html.escape(metric.metrics_summary)}{param_str}\n"
+                f"• <b>Waktu:</b> {metric.created_at.astimezone(LOCAL_TZ).strftime('%d %b %Y %H:%M')}\n\n"
+                "Hasil ini tersimpan untuk tabel perbandingan Bab 4 naskahmu!",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        metrics = await get_recent_metrics(session, profile.id)
+
+    if not metrics:
+        await update.effective_message.reply_text(
+            "Belum ada catatan metrik eksperimen.\n\n"
+            "Cara mencatat metrik eksperimen:\n"
+            "<code>/metric BiLSTM-Attn Akurasi: 92.4%, F1: 91.8% | Epoch: 50, LR: 0.001</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    lines = ["🧪 <b>Riwayat Metrik Eksperimen Model</b>\n"]
+    for i, m in enumerate(metrics, start=1):
+        dt_str = m.created_at.astimezone(LOCAL_TZ).strftime("%d %b %H:%M")
+        param_str = f" <i>({html.escape(m.parameters)})</i>" if m.parameters else ""
+        lines.append(f"{i}. <b>[{dt_str}]</b> <code>{html.escape(m.model_name)}</code>: {html.escape(m.metrics_summary)}{param_str}")
+
+    lines.append("\nTambah metrik baru: <code>/metric [Model] [Hasil] | [Param]</code>")
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+
+async def paper_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    raw_args = " ".join(context.args).strip() if context.args else ""
+    async with SessionLocal() as session:
+        if raw_args:
+            note = Note(
+                user_id=profile.id,
+                content=raw_args,
+                source="paper",
+                tags=["paper", "literatur"],
+            )
+            session.add(note)
+            await session.commit()
+            await session.refresh(note)
+            await update.effective_message.reply_text(
+                f"📚 <b>Paper Tersimpan di Bank Literatur!</b>\n\n"
+                f"{html.escape(note.content)}\n\n"
+                "Tersimpan dengan tag <code>#paper</code> <code>#literatur</code> untuk bahan sitasi naskahmu.",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        notes_res = await session.execute(
+            select(Note)
+            .where(Note.user_id == profile.id)
+            .order_by(desc(Note.created_at))
+            .limit(20)
+        )
+        all_notes = notes_res.scalars().all()
+        paper_notes = [n for n in all_notes if n.tags and ("paper" in n.tags or "literatur" in n.tags)][:5]
+
+    if not paper_notes:
+        await update.effective_message.reply_text(
+            "Belum ada catatan paper/jurnal tersimpan.\n\n"
+            "Cara menyimpan intisari paper:\n"
+            "<code>/paper Vaswani et al. (2017) | Multi-head attention lebih cepat dari RNN</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    lines = ["📚 <b>Bank Literatur & Intisari Paper</b>\n"]
+    for i, n in enumerate(paper_notes, start=1):
+        dt_str = n.created_at.astimezone(LOCAL_TZ).strftime("%d %b")
+        lines.append(f"{i}. <b>[{dt_str}]</b> {html.escape(n.content)}")
+
+    lines.append("\nTambah intisari paper: <code>/paper [Judul/Sitasi] | [Insight]</code>")
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+
+async def matkul_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    async with SessionLocal() as session:
+        coursework = await get_coursework_tasks(session, profile.id, today)
+
+    if not coursework:
+        await update.effective_message.reply_text(
+            "🎉 <b>Tidak Ada Tugas Kuliah Pending!</b>\n\n"
+            "Semua tugas perkuliahan sudah selesai. Kamu bisa fokus penuh ke thesis!",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    lines = ["📚 <b>Daftar Tugas Perkuliahan & Countdown</b>\n"]
+    keyboard_buttons = []
+    for task, status_str, _ in coursework:
+        urgent_str = " [MENDESAK]" if task.is_urgent else ""
+        lines.append(f"• #{task.id} <b>{html.escape(task.title)}</b>{urgent_str}\n  👉 {status_str}")
+        short_title = task.title[:24] + "..." if len(task.title) > 24 else task.title
+        keyboard_buttons.append([
+            InlineKeyboardButton(f"✅ Selesai #{task.id}: {short_title}", callback_data=f"task:done:{task.id}")
+        ])
+
+    reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -1469,6 +1786,14 @@ ptb_app.add_handler(CommandHandler(["preset", "template"], preset_cmd, filters=p
 ptb_app.add_handler(CommandHandler("privacy", privacy_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["export", "backup"], export_cmd, filters=private))
 ptb_app.add_handler(CommandHandler("disconnect", disconnect_cmd, filters=private))
+
+# Kuliah & Riset Handlers
+ptb_app.add_handler(CommandHandler(["thesis", "skripsi"], thesis_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["bimbingan", "dospem"], bimbingan_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["metric", "metrik", "experiment"], metric_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["paper", "literatur"], paper_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["matkul", "kuliah"], matkul_cmd, filters=private))
+
 ptb_app.add_handler(
     CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
 )
@@ -1482,6 +1807,7 @@ ptb_app.add_handler(CallbackQueryHandler(habit_callback, pattern=r"^habit:"))
 ptb_app.add_handler(CallbackQueryHandler(timer_callback, pattern=r"^timer:"))
 ptb_app.add_handler(CallbackQueryHandler(preset_callback, pattern=r"^preset:"))
 ptb_app.add_handler(CallbackQueryHandler(disconnect_callback, pattern=r"^disconnect:"))
+ptb_app.add_handler(CallbackQueryHandler(thesis_callback, pattern=r"^thesis:"))
 
 ptb_app.add_handler(
     MessageHandler(

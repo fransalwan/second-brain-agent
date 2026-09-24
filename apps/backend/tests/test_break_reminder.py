@@ -19,7 +19,7 @@ class MockMessage:
     def __init__(self):
         self.replies = []
 
-    async def reply_text(self, text: str):
+    async def reply_text(self, text: str, *args, **kwargs):
         self.replies.append(text)
 
 
@@ -188,7 +188,8 @@ async def test_timer_and_stop_commands():
     u2 = MockUpdate(chat_id)
     await bot_module.timer_cmd(u2, MockContext())
     reply_timer = u2.effective_message.replies[-1]
-    assert "Timer Aktif: 'Deep Work Thesis'" in reply_timer
+    assert "Deep Work Thesis" in reply_timer
+    assert "Timer Aktif" in reply_timer
     assert "45 menit" in reply_timer
     print("Test 5 PASSED: /timer menampilkan timer aktif dan durasi berjalan.")
 

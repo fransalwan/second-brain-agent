@@ -87,6 +87,7 @@ Prinsip yang dipegang:
 | Windows Native Toast Notification (*Bedtime Guardian Live Alert*) | ✅ |
 | Global Quick Capture keyboard shortcut (`Ctrl + Shift + Space`) | ✅ |
 | Git Commit Hook (otomatis menyelesaikan tugas & sinkron habit via commit) | ✅ |
+| Modul Kuliah & Riset (Pelacak Bab Thesis, Dospem Log, Logger Metrik, Bank Paper, Countdown Matkul) | ✅ |
 
 ---
 
@@ -131,6 +132,11 @@ Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya ins
 | `/export` | Mengunduh backup seluruh catatan dan tugas dalam format Markdown (.md) |
 | `/privacy` | Penjelasan jaminan keamanan, privasi data (RLS), dan hak portabilitas |
 | `/disconnect` | Memutuskan tautan akun Telegram secara mandiri |
+| `/thesis` | Visual progress bar status penulisan naskah Bab 1–5 dengan tombol update 1-tap |
+| `/bimbingan [catatan]` | Mencatat notulensi bimbingan dosen pembimbing + peringatan anti-ghosting (> 14 hari) |
+| `/metric [model] [hasil] \| [param]` | Mencatat metrik evaluasi eksperimen model AI untuk tabel Bab 4 naskah |
+| `/paper [judul/sitasi] \| [insight]` | Menyimpan intisari paper ke Bank Literatur dengan tag `#paper` `#literatur` |
+| `/matkul` | Countdown deadline tugas kuliah (Hari Ini, Besok, H-X) + tombol selesai 1-tap |
 | `/connect <email atau kode>` | Menghubungkan akun Telegram dengan email web atau kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 
