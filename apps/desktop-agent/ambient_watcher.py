@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -105,6 +106,8 @@ class AmbientWatcher:
         self.is_idle: bool = False
         self.away_start_time: float | None = None
         self.running = True
+        self.quick_capture_thread: threading.Thread | None = None
+        self.quick_capture_enabled = self.config.get("enable_quick_capture", True)
 
     def load_config(self) -> dict:
         if not self.config_file.exists():
@@ -156,6 +159,26 @@ class AmbientWatcher:
 
         # Jika jendela adalah VS Code tapi folder tidak terdaftar khusus
         return mappings.get("default", None)
+
+    def start_quick_capture_listener(self):
+        """Start quick capture hotkey listener di background thread."""
+        if not self.quick_capture_enabled:
+            return
+
+        try:
+            from quick_capture_ui import QuickCaptureUI
+
+            ui = QuickCaptureUI(self.config)
+            listener = ui.start_hotkey_listener()
+
+            if listener:
+                logger.info("✅ Global Quick Capture aktif (Ctrl+Shift+Space)")
+            else:
+                logger.warning("⚠️ Quick Capture hotkey listener gagal distart")
+        except ImportError:
+            logger.warning("Quick Capture module tidak ditemukan, skip initialization")
+        except Exception as e:
+            logger.error(f"Error starting Quick Capture: {e}")
 
     def detect_active_vscode_project(self) -> str | None:
         """Deteksi project VS Code yang sedang dikerjakan.
@@ -240,6 +263,9 @@ class AmbientWatcher:
         )
         logger.info("Tekan Ctrl+C untuk berhenti.")
         logger.info("=" * 60)
+
+        # Start Global Quick Capture listener
+        self.start_quick_capture_listener()
 
         while self.running:
             try:

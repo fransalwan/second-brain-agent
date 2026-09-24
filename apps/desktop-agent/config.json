@@ -5,6 +5,8 @@
   "poll_interval_seconds": 3,
   "idle_threshold_seconds": 600,
   "notify_telegram": true,
+  "enable_quick_capture": true,
+  "quick_capture_hotkey": "<ctrl>+<shift>+space",
   "project_mappings": {
     "second-brain-agent": "Second Brain Agent",
     "scrap-yard-dashboard": "Usaha & Karir",

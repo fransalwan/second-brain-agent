@@ -14,6 +14,14 @@ from telegram import Update
 from .bot import ptb_app
 from .database import engine, get_session
 from .models import Note
+from .ambient import (
+    check_habit_by_keyword,
+    get_ambient_status,
+    handle_git_commit_event,
+    handle_quick_capture,
+    start_ambient_timer,
+    stop_ambient_timer,
+)
 
 
 @asynccontextmanager
@@ -91,13 +99,6 @@ async def test_db_connection(session: AsyncSession = Depends(get_session)):
 # AMBIENT TRACKING ENDPOINTS (OS / VS Code)
 # ==========================================
 from pydantic import BaseModel
-from .ambient import (
-    check_habit_by_keyword,
-    get_ambient_status,
-    handle_git_commit_event,
-    start_ambient_timer,
-    stop_ambient_timer,
-)
 
 
 class AmbientStartRequest(BaseModel):
@@ -244,3 +245,30 @@ async def api_ambient_git_commit(
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
 
+
+class QuickCaptureRequest(BaseModel):
+    email: str
+    text: str
+    source: str = "global_hotkey"
+    notify_telegram: bool = True
+
+
+@app.post("/api/v1/ambient/quick-capture")
+async def api_quick_capture(
+    payload: QuickCaptureRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Menerima tangkapan ide/tugas cepat dari Global Desktop Quick Capture."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await handle_quick_capture(
+        session=session,
+        email=payload.email,
+        text=payload.text,
+        source=payload.source,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result

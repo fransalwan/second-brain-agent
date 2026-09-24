@@ -15,7 +15,7 @@ from telegram.constants import ParseMode
 
 from .config import settings
 from .habits import check_habit_for_today, get_user_habits_status
-from .models import Area, Habit, HabitLog, Profile, Task, TimeLog, utcnow
+from .models import Area, Habit, HabitLog, Note, Profile, Task, TimeLog, utcnow
 from .scheduler import is_past_night_cutoff
 
 logger = logging.getLogger(__name__)
@@ -431,7 +431,10 @@ async def handle_git_commit_event(
     """Memproses event git commit: otomatis menyelesaikan task terkait dan mencentang habit coding."""
     profile = await get_profile_by_email(session, email)
     if not profile:
-        return {"status": "error", "message": f"User dengan email '{email}' tidak ditemukan"}
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
 
     clean_msg = commit_message.strip()
     if not clean_msg:
@@ -441,7 +444,10 @@ async def handle_git_commit_event(
     explicit_ids = set()
     for m in re.finditer(r"#(\d+)", clean_msg):
         explicit_ids.add(int(m.group(1)))
-    for m in re.finditer(r"(?i)\b(?:tugas|task|id:?|fix|fixes|fixed|closes?|closed|done)\s*#?(\d+)\b", clean_msg):
+    for m in re.finditer(
+        r"(?i)\b(?:tugas|task|id:?|fix|fixes|fixed|closes?|closed|done)\s*#?(\d+)\b",
+        clean_msg,
+    ):
         explicit_ids.add(int(m.group(1)))
 
     completed_tasks = []
@@ -476,21 +482,42 @@ async def handle_git_commit_event(
         pending_tasks = res_all_pending.scalars().all()
 
         git_stop_words = {
-            "feat", "fix", "chore", "refactor", "docs", "test", "style", "perf",
-            "merge", "branch", "update", "wip", "selesaikan", "beres", "kelar", "done",
-            "tambah", "ubah", "hapus", "add", "remove", "dan", "yang", "di", "ke", "dari", "ini", "itu"
+            "feat",
+            "fix",
+            "chore",
+            "refactor",
+            "docs",
+            "test",
+            "style",
+            "perf",
+            "merge",
+            "branch",
+            "update",
+            "wip",
+            "selesaikan",
+            "beres",
+            "kelar",
+            "done",
+            "tambah",
+            "ubah",
+            "hapus",
+            "add",
+            "remove",
+            "dan",
+            "yang",
+            "di",
+            "ke",
+            "dari",
+            "ini",
+            "itu",
         }
         msg_words = {
-            w.lower().strip(".,:;!()[]{}'\"")
-            for w in clean_msg.split()
-            if len(w) > 2
+            w.lower().strip(".,:;!()[]{}'\"") for w in clean_msg.split() if len(w) > 2
         } - git_stop_words
 
         for t in pending_tasks:
             t_words = {
-                w.lower().strip(".,:;!()[]{}'\"")
-                for w in t.title.split()
-                if len(w) > 2
+                w.lower().strip(".,:;!()[]{}'\"") for w in t.title.split() if len(w) > 2
             } - git_stop_words
             overlap = t_words.intersection(msg_words)
             # Jika ada minimal 2 kata kunci spesifik yang cocok atau seluruh kata kunci pendek tugas ada di commit
@@ -512,14 +539,19 @@ async def handle_git_commit_event(
     )
 
     # 4. Kirim notifikasi Telegram pasif
-    if notify_telegram and profile.telegram_chat_id and bot and (completed_tasks or auto_habits):
+    if (
+        notify_telegram
+        and profile.telegram_chat_id
+        and bot
+        and (completed_tasks or auto_habits)
+    ):
         try:
             repo_display = html.escape(repo_name) if repo_name else "local-repo"
             branch_display = f" ({html.escape(branch)})" if branch else ""
             msg = (
                 f"🎯 <b>[Git Auto-Sync]</b> Commit terdeteksi!\n"
                 f"📦 <code>{repo_display}</code>{branch_display}\n"
-                f"💬 <i>\"{html.escape(clean_msg[:120])}\"</i>\n\n"
+                f'💬 <i>"{html.escape(clean_msg[:120])}"</i>\n\n'
             )
             if completed_tasks:
                 msg += "✅ <b>Tugas Berhasil Diselesaikan:</b>\n"
@@ -546,3 +578,86 @@ async def handle_git_commit_event(
         "branch": branch,
     }
 
+
+async def handle_quick_capture(
+    session: AsyncSession,
+    email: str,
+    text: str,
+    source: str = "quick_capture",
+    notify_telegram: bool = True,
+    bot: Optional[Any] = None,
+) -> dict:
+    """Memproses tangkapan ide/tugas cepat dari Global Desktop Quick Capture."""
+    import asyncio
+
+    profile = await get_profile_by_email(session, email)
+    if not profile:
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
+
+    clean_text = text.strip()
+    if not clean_text:
+        return {"status": "error", "message": "Teks tangkapan tidak boleh kosong"}
+
+    reply = ""
+    processed_by = "agent_ai"
+    try:
+        from .agent import run_agent
+
+        chat_id = profile.telegram_chat_id or 0
+        # Timeout 10s untuk agent processing (fallback jika hang)
+        reply = await asyncio.wait_for(
+            run_agent(profile.id, chat_id, clean_text), timeout=10.0
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Agent processing timeout, using Zero Data Loss fallback (note)"
+        )
+        new_note = Note(
+            user_id=profile.id,
+            content=clean_text,
+            source=source,
+            tags=["quick_capture", "inbox"],
+        )
+        session.add(new_note)
+        await session.commit()
+        reply = "⏱️ Ide disimpan ke Inbox (agent timeout)"
+        processed_by = "note_fallback_timeout"
+    except Exception as e:
+        logger.warning(
+            f"Gagal memproses via AI agent ({type(e).__name__}), fallback: {e}"
+        )
+        new_note = Note(
+            user_id=profile.id,
+            content=clean_text,
+            source=source,
+            tags=["quick_capture", "inbox"],
+        )
+        session.add(new_note)
+        await session.commit()
+        reply = "Ide disimpan ke Inbox."
+        processed_by = "note_fallback"
+
+    if notify_telegram and profile.telegram_chat_id and bot:
+        try:
+            msg = (
+                f"💡 <b>[Quick Capture]</b> Tangkapan baru diterima:\n"
+                f'📝 <i>"{html.escape(clean_text)}"</i>\n\n'
+                f"🤖 <b>Respon:</b> {html.escape(reply)}"
+            )
+            await bot.send_message(
+                chat_id=profile.telegram_chat_id,
+                text=msg,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.warning(f"Gagal mengirim notif Telegram quick capture: {e}")
+
+    return {
+        "status": "success",
+        "processed_by": processed_by,
+        "reply": reply,
+        "text": clean_text,
+    }
