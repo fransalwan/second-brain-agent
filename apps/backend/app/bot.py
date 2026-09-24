@@ -30,9 +30,12 @@ from .models import (
     ExperimentMetric,
     Habit,
     HabitLog,
+    HealthCheckLog,
+    HydrationLog,
     InviteCode,
     Note,
     Profile,
+    SleepLog,
     SupervisionLog,
     Task,
     ThesisChapter,
@@ -49,6 +52,19 @@ from .thesis import (
     get_recent_metrics,
     get_supervision_summary,
     update_thesis_chapter,
+)
+from .health import (
+    calculate_burnout_risk,
+    format_health_dashboard_html,
+    get_hydration,
+    get_or_create_health_check,
+    get_sleep_summary,
+    get_stretching_guide_html,
+    log_hydration,
+    log_sleep,
+    log_stretch_check,
+    log_vitamin_check,
+    render_water_bar,
 )
 from .recharge import (
     build_chill_menu_keyboard,
@@ -1462,15 +1478,17 @@ async def disconnect_callback(
 # MODUL KULIAH & RISET (THESIS, BIMBINGAN, METRIK, MATKUL)
 # ==========================================
 def build_thesis_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("Bab 1", callback_data="thesis:select:1"),
-            InlineKeyboardButton("Bab 2", callback_data="thesis:select:2"),
-            InlineKeyboardButton("Bab 3", callback_data="thesis:select:3"),
-            InlineKeyboardButton("Bab 4", callback_data="thesis:select:4"),
-            InlineKeyboardButton("Bab 5", callback_data="thesis:select:5"),
+            [
+                InlineKeyboardButton("Bab 1", callback_data="thesis:select:1"),
+                InlineKeyboardButton("Bab 2", callback_data="thesis:select:2"),
+                InlineKeyboardButton("Bab 3", callback_data="thesis:select:3"),
+                InlineKeyboardButton("Bab 4", callback_data="thesis:select:4"),
+                InlineKeyboardButton("Bab 5", callback_data="thesis:select:5"),
+            ]
         ]
-    ])
+    )
 
 
 async def thesis_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1507,14 +1525,40 @@ async def thesis_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if data.startswith("thesis:select:"):
         ch_num = int(data.split("thesis:select:")[-1])
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚪ Belum Mulai (0%)", callback_data=f"thesis:set:{ch_num}:Belum Mulai:0")],
-            [InlineKeyboardButton("📝 Drafting (35%)", callback_data=f"thesis:set:{ch_num}:Drafting:35")],
-            [InlineKeyboardButton("✍️ Revisi (65%)", callback_data=f"thesis:set:{ch_num}:Revisi:65")],
-            [InlineKeyboardButton("👀 Review Dospem (85%)", callback_data=f"thesis:set:{ch_num}:Review Dospem:85")],
-            [InlineKeyboardButton("✅ Selesai / Acc (100%)", callback_data=f"thesis:set:{ch_num}:Selesai:100")],
-            [InlineKeyboardButton("◀️ Kembali", callback_data="thesis:main")],
-        ])
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "⚪ Belum Mulai (0%)",
+                        callback_data=f"thesis:set:{ch_num}:Belum Mulai:0",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📝 Drafting (35%)",
+                        callback_data=f"thesis:set:{ch_num}:Drafting:35",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✍️ Revisi (65%)", callback_data=f"thesis:set:{ch_num}:Revisi:65"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "👀 Review Dospem (85%)",
+                        callback_data=f"thesis:set:{ch_num}:Review Dospem:85",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✅ Selesai / Acc (100%)",
+                        callback_data=f"thesis:set:{ch_num}:Selesai:100",
+                    )
+                ],
+                [InlineKeyboardButton("◀️ Kembali", callback_data="thesis:main")],
+            ]
+        )
         await query.answer()
         await query.edit_message_text(
             f"🎯 <b>Update Status Bab {ch_num}</b>\n\nPilih status terbaru pengerjaan bab ini:",
@@ -1533,7 +1577,9 @@ async def thesis_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update_thesis_chapter(session, profile.id, ch_num, status, progress)
             chapters = await get_or_create_thesis_chapters(session, profile.id)
 
-        await query.answer(f"Bab {ch_num} diperbarui: {status} ({progress}%)!", show_alert=False)
+        await query.answer(
+            f"Bab {ch_num} diperbarui: {status} ({progress}%)!", show_alert=False
+        )
         text_html = format_thesis_progress_html(chapters)
         await query.edit_message_text(
             text_html,
@@ -1606,7 +1652,9 @@ async def bimbingan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         lines.append(f"{i}. <b>[{dt_str}]</b> {html.escape(log.notes)}")
 
     lines.append("\nTambah catatan baru: <code>/bimbingan [catatan revisi]</code>")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+    await update.effective_message.reply_text(
+        "\n".join(lines), parse_mode=ParseMode.HTML
+    )
 
 
 async def metric_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1637,7 +1685,11 @@ async def metric_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 metrics_summary=summary,
                 parameters=params,
             )
-            param_str = f"\n• <b>Parameter:</b> {html.escape(metric.parameters)}" if metric.parameters else ""
+            param_str = (
+                f"\n• <b>Parameter:</b> {html.escape(metric.parameters)}"
+                if metric.parameters
+                else ""
+            )
             await update.effective_message.reply_text(
                 f"🧪 <b>Metrik Eksperimen Berhasil Dicatat!</b>\n\n"
                 f"• <b>Model:</b> <code>{html.escape(metric.model_name)}</code>\n"
@@ -1663,10 +1715,14 @@ async def metric_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     for i, m in enumerate(metrics, start=1):
         dt_str = m.created_at.astimezone(LOCAL_TZ).strftime("%d %b %H:%M")
         param_str = f" <i>({html.escape(m.parameters)})</i>" if m.parameters else ""
-        lines.append(f"{i}. <b>[{dt_str}]</b> <code>{html.escape(m.model_name)}</code>: {html.escape(m.metrics_summary)}{param_str}")
+        lines.append(
+            f"{i}. <b>[{dt_str}]</b> <code>{html.escape(m.model_name)}</code>: {html.escape(m.metrics_summary)}{param_str}"
+        )
 
     lines.append("\nTambah metrik baru: <code>/metric [Model] [Hasil] | [Param]</code>")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+    await update.effective_message.reply_text(
+        "\n".join(lines), parse_mode=ParseMode.HTML
+    )
 
 
 async def paper_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1706,7 +1762,11 @@ async def paper_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             .limit(20)
         )
         all_notes = notes_res.scalars().all()
-        paper_notes = [n for n in all_notes if n.tags and ("paper" in n.tags or "literatur" in n.tags)][:5]
+        paper_notes = [
+            n
+            for n in all_notes
+            if n.tags and ("paper" in n.tags or "literatur" in n.tags)
+        ][:5]
 
     if not paper_notes:
         await update.effective_message.reply_text(
@@ -1722,8 +1782,12 @@ async def paper_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         dt_str = n.created_at.astimezone(LOCAL_TZ).strftime("%d %b")
         lines.append(f"{i}. <b>[{dt_str}]</b> {html.escape(n.content)}")
 
-    lines.append("\nTambah intisari paper: <code>/paper [Judul/Sitasi] | [Insight]</code>")
-    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+    lines.append(
+        "\nTambah intisari paper: <code>/paper [Judul/Sitasi] | [Insight]</code>"
+    )
+    await update.effective_message.reply_text(
+        "\n".join(lines), parse_mode=ParseMode.HTML
+    )
 
 
 async def matkul_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1752,14 +1816,320 @@ async def matkul_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     keyboard_buttons = []
     for task, status_str, _ in coursework:
         urgent_str = " [MENDESAK]" if task.is_urgent else ""
-        lines.append(f"• #{task.id} <b>{html.escape(task.title)}</b>{urgent_str}\n  👉 {status_str}")
+        lines.append(
+            f"• #{task.id} <b>{html.escape(task.title)}</b>{urgent_str}\n  👉 {status_str}"
+        )
         short_title = task.title[:24] + "..." if len(task.title) > 24 else task.title
-        keyboard_buttons.append([
-            InlineKeyboardButton(f"✅ Selesai #{task.id}: {short_title}", callback_data=f"task:done:{task.id}")
-        ])
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"✅ Selesai #{task.id}: {short_title}",
+                    callback_data=f"task:done:{task.id}",
+                )
+            ]
+        )
 
     reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
-    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+    await update.effective_message.reply_text(
+        "\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=reply_markup
+    )
+
+
+# ==========================================
+# MODUL KESEHATAN (TIDUR, MINUM, STRETCH, VITAMIN, BURNOUT)
+# ==========================================
+def build_sleep_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("😫 < 6 Jam (5h)", callback_data="health:sleep:5.0:Kurang"),
+            InlineKeyboardButton("😊 7 Jam (Cukup)", callback_data="health:sleep:7.0:Cukup"),
+            InlineKeyboardButton("😴 > 8 Jam (Nyenyak)", callback_data="health:sleep:8.5:Nyenyak"),
+        ]
+    ])
+
+
+def build_water_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("+1 Gelas 🥤", callback_data="health:water:add1"),
+            InlineKeyboardButton("+2 Gelas 🥛", callback_data="health:water:add2"),
+            InlineKeyboardButton("🔄 Reset", callback_data="health:water:reset"),
+        ]
+    ])
+
+
+async def tidur_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    raw_args = " ".join(context.args).strip() if context.args else ""
+
+    async with SessionLocal() as session:
+        if raw_args:
+            import re
+            match = re.search(r"(\d+(\.\d+)?)", raw_args)
+            if match:
+                hours = float(match.group(1))
+                quality = None
+                raw_lower = raw_args.lower()
+                if "kurang" in raw_lower or "buruk" in raw_lower or "capek" in raw_lower:
+                    quality = "Kurang"
+                elif "nyenyak" in raw_lower or "pulas" in raw_lower or "segar" in raw_lower:
+                    quality = "Nyenyak"
+                elif "cukup" in raw_lower:
+                    quality = "Cukup"
+
+                log = await log_sleep(session, profile.id, today, hours, quality)
+                await update.effective_message.reply_text(
+                    f"🛌 <b>Tidur Berhasil Dicatat!</b>\n\n"
+                    f"• <b>Durasi:</b> {log.hours} Jam ({log.quality})\n"
+                    f"• <b>Tanggal:</b> {today.strftime('%d %b %Y')}\n\n"
+                    "<i>Tidur yang cukup menjaga fokus dan ketajaman analisismu!</i>",
+                    parse_mode=ParseMode.HTML,
+                )
+                return
+
+        today_log, avg_sleep, count = await get_sleep_summary(session, profile.id, today, days=7)
+
+    today_str = f"<b>{today_log.hours} Jam</b> ({today_log.quality})" if today_log else "<i>Belum dicatat</i>"
+    avg_str = f"<b>{avg_sleep} Jam/hari</b> (dari {count} catatan)" if count > 0 else "<i>Belum ada data</i>"
+
+    lines = [
+        "🛌 <b>Pelacak Tidur & Pemulihan (Sleep Tracker)</b>",
+        "<i>Prioritas #1: Menjaga fisik & daya analitis tetap prima.</i>\n",
+        f"📅 <b>Tidur Semalam:</b> {today_str}",
+        f"📊 <b>Rata-rata 7 Hari:</b> {avg_str}\n",
+        "<i>Berapa jam kamu beristirahat semalam? Tap pilihan cepat:</i>",
+    ]
+    await update.effective_message.reply_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_sleep_keyboard(),
+    )
+
+
+async def minum_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    raw_args = " ".join(context.args).lower().strip() if context.args else ""
+
+    async with SessionLocal() as session:
+        if raw_args in ["status", "cek", "info"]:
+            glasses, target = await get_hydration(session, profile.id, today)
+        else:
+            log = await log_hydration(session, profile.id, today, delta_glasses=1)
+            glasses, target = log.glasses, log.target_glasses
+
+    water_bar = render_water_bar(glasses, target)
+    text = (
+        f"💧 <b>Pencatat Hidrasi Tubuh</b>\n\n"
+        f"{water_bar}\n\n"
+        f"💡 <i>Target: 8 gelas (2.000 ml) per hari untuk mencegah dehidrasi & mata lelah.</i>\n\n"
+        f"<i>Tap tombol di bawah untuk menambah atau mengatur ulang:</i>"
+    )
+    await update.effective_message.reply_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_water_keyboard(),
+    )
+
+
+async def stretch_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Selesai Peregangan", callback_data="health:stretch:done")]
+    ])
+    text = get_stretching_guide_html()
+    await update.effective_message.reply_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=keyboard,
+    )
+
+
+async def vitamin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    async with SessionLocal() as session:
+        log, habit_checked = await log_vitamin_check(session, profile.id, today)
+
+    habit_str = "\n🎯 Habit <i>'Minum Vitamin'</i> otomatis dicentang untuk hari ini!" if habit_checked else ""
+    await update.effective_message.reply_text(
+        f"💊 <b>Check-in Vitamin & Suplemen</b>\n\n"
+        f"✅ Kamu sudah mencatat konsumsi vitamin hari ini!{habit_str}\n\n"
+        "<i>Tubuh sehat, imunitas kuat, fokus maksimal! 💪</i>",
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def kesehatan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    async with SessionLocal() as session:
+        sleep_log, avg_sleep, _ = await get_sleep_summary(session, profile.id, today, days=7)
+        glasses, target = await get_hydration(session, profile.id, today)
+        check_log = await get_or_create_health_check(session, profile.id, today)
+        burnout = await calculate_burnout_risk(session, profile.id, today)
+
+    text = format_health_dashboard_html(
+        sleep_log=sleep_log,
+        avg_sleep=avg_sleep,
+        glasses=glasses,
+        target_glasses=target,
+        health_check=check_log,
+        burnout_data=burnout,
+    )
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🛌 Catat Tidur", callback_data="health:sleep:prompt"),
+            InlineKeyboardButton("🥤 +1 Minum", callback_data="health:water:add1"),
+        ],
+        [
+            InlineKeyboardButton("🧘 Peregangan", callback_data="health:stretch:info"),
+            InlineKeyboardButton("💊 Minum Vitamin", callback_data="health:vitamin:done"),
+        ]
+    ])
+    await update.effective_message.reply_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=keyboard,
+    )
+
+
+async def health_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+
+    if data.startswith("health:sleep:"):
+        parts = data.split(":")
+        if parts[2] == "prompt":
+            await query.answer()
+            await query.edit_message_text(
+                "🛌 <b>Pilih Durasi Istirahat Semalam:</b>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=build_sleep_keyboard(),
+            )
+            return
+
+        hours = float(parts[2])
+        quality = parts[3]
+        async with SessionLocal() as session:
+            await log_sleep(session, profile.id, today, hours, quality)
+            sleep_log, avg_sleep, _ = await get_sleep_summary(session, profile.id, today, days=7)
+            glasses, target = await get_hydration(session, profile.id, today)
+            check_log = await get_or_create_health_check(session, profile.id, today)
+            burnout = await calculate_burnout_risk(session, profile.id, today)
+
+        await query.answer(f"Tidur {hours} jam ({quality}) berhasil dicatat!", show_alert=False)
+        text = format_health_dashboard_html(sleep_log, avg_sleep, glasses, target, check_log, burnout)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML)
+        return
+
+    if data.startswith("health:water:"):
+        action = data.split(":")[-1]
+        async with SessionLocal() as session:
+            if action == "add1":
+                log = await log_hydration(session, profile.id, today, delta_glasses=1)
+                ans = f"+1 Gelas dicatat ({log.glasses}/8 gelas)!"
+            elif action == "add2":
+                log = await log_hydration(session, profile.id, today, delta_glasses=2)
+                ans = f"+2 Gelas dicatat ({log.glasses}/8 gelas)!"
+            elif action == "reset":
+                log = await log_hydration(session, profile.id, today, set_glasses=0)
+                ans = "Hitungan air di-reset ke 0."
+            else:
+                log = await log_hydration(session, profile.id, today, delta_glasses=0)
+                ans = ""
+
+        await query.answer(ans, show_alert=False)
+        water_bar = render_water_bar(log.glasses, log.target_glasses)
+        text = (
+            f"💧 <b>Pencatat Hidrasi Tubuh</b>\n\n"
+            f"{water_bar}\n\n"
+            f"💡 <i>Target: 8 gelas (2.000 ml) per hari untuk mencegah dehidrasi & mata lelah.</i>\n\n"
+            f"<i>Tap tombol di bawah untuk menambah atau mengatur ulang:</i>"
+        )
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=build_water_keyboard())
+        return
+
+    if data == "health:stretch:info":
+        await query.answer()
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Selesai Peregangan", callback_data="health:stretch:done")]
+        ])
+        await query.edit_message_text(get_stretching_guide_html(), parse_mode=ParseMode.HTML, reply_markup=keyboard)
+        return
+
+    if data == "health:stretch:done":
+        async with SessionLocal() as session:
+            await log_stretch_check(session, profile.id, today)
+        await query.answer("🎉 Peregangan selesai! Tubuhmu berterima kasih 👍", show_alert=False)
+        await query.edit_message_text(
+            "🧘 <b>Peregangan Berhasil Dicatat!</b>\n\n"
+            "Otot leher dan punggungmu kini lebih rileks. Siap melanjutkan aktivitas! 💪",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    if data == "health:vitamin:done":
+        async with SessionLocal() as session:
+            _, habit_checked = await log_vitamin_check(session, profile.id, today)
+        habit_str = " (Habit 'Minum Vitamin' dicentang!)" if habit_checked else ""
+        await query.answer(f"Vitamin dicatat!{habit_str}", show_alert=False)
+        await query.edit_message_text(
+            f"💊 <b>Vitamin Hari Ini Selesai!</b>\n\n"
+            f"Asupan suplemenmu sudah dicatat.{habit_str}\nTetap jaga daya tahan tubuhmu!",
+            parse_mode=ParseMode.HTML,
+        )
+        return
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1789,10 +2159,21 @@ ptb_app.add_handler(CommandHandler("disconnect", disconnect_cmd, filters=private
 
 # Kuliah & Riset Handlers
 ptb_app.add_handler(CommandHandler(["thesis", "skripsi"], thesis_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["bimbingan", "dospem"], bimbingan_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["metric", "metrik", "experiment"], metric_cmd, filters=private))
+ptb_app.add_handler(
+    CommandHandler(["bimbingan", "dospem"], bimbingan_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["metric", "metrik", "experiment"], metric_cmd, filters=private)
+)
 ptb_app.add_handler(CommandHandler(["paper", "literatur"], paper_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["matkul", "kuliah"], matkul_cmd, filters=private))
+
+# Health Handlers
+ptb_app.add_handler(CommandHandler(["tidur", "sleep"], tidur_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["minum", "water", "hidrasi"], minum_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["stretch", "peregangan"], stretch_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["vitamin", "suplemen"], vitamin_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["kesehatan", "health"], kesehatan_cmd, filters=private))
 
 ptb_app.add_handler(
     CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
@@ -1808,6 +2189,7 @@ ptb_app.add_handler(CallbackQueryHandler(timer_callback, pattern=r"^timer:"))
 ptb_app.add_handler(CallbackQueryHandler(preset_callback, pattern=r"^preset:"))
 ptb_app.add_handler(CallbackQueryHandler(disconnect_callback, pattern=r"^disconnect:"))
 ptb_app.add_handler(CallbackQueryHandler(thesis_callback, pattern=r"^thesis:"))
+ptb_app.add_handler(CallbackQueryHandler(health_callback, pattern=r"^health:"))
 
 ptb_app.add_handler(
     MessageHandler(

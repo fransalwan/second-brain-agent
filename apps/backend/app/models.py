@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, time, timezone
+from datetime import date, date as dt_date, datetime, time, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -188,3 +188,46 @@ class ExperimentMetric(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
+
+
+class SleepLog(SQLModel, table=True):
+    __tablename__ = "sleep_logs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    date: dt_date = Field(sa_type=Date, index=True)
+    hours: float
+    quality: str = Field(default="Cukup")  # "Kurang", "Cukup", "Nyenyak"
+    notes: Optional[str] = None
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class HydrationLog(SQLModel, table=True):
+    __tablename__ = "hydration_logs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    date: dt_date = Field(sa_type=Date, index=True)
+    glasses: int = Field(default=1)  # 1 gelas = 250ml
+    target_glasses: int = Field(default=8)  # 8 gelas = 2000ml
+    updated_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class HealthCheckLog(SQLModel, table=True):
+    __tablename__ = "health_check_logs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    date: dt_date = Field(sa_type=Date, index=True)
+    took_vitamin: bool = Field(default=False)
+    did_stretch: bool = Field(default=False)
+    burnout_score: int = Field(default=0)  # 0 - 100
+    notes: Optional[str] = None
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+

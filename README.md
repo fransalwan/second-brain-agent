@@ -88,6 +88,7 @@ Prinsip yang dipegang:
 | Global Quick Capture keyboard shortcut (`Ctrl + Shift + Space`) | ✅ |
 | Git Commit Hook (otomatis menyelesaikan tugas & sinkron habit via commit) | ✅ |
 | Modul Kuliah & Riset (Pelacak Bab Thesis, Dospem Log, Logger Metrik, Bank Paper, Countdown Matkul) | ✅ |
+| Modul Kesehatan & Vitalitas (Sleep Tracker, Hydration Tracker, Micro-Stretching, Vitamin Check, Burnout Risk Index) | ✅ |
 
 ---
 
@@ -137,6 +138,11 @@ Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya ins
 | `/metric [model] [hasil] \| [param]` | Mencatat metrik evaluasi eksperimen model AI untuk tabel Bab 4 naskah |
 | `/paper [judul/sitasi] \| [insight]` | Menyimpan intisari paper ke Bank Literatur dengan tag `#paper` `#literatur` |
 | `/matkul` | Countdown deadline tugas kuliah (Hari Ini, Besok, H-X) + tombol selesai 1-tap |
+| `/tidur [jam]` | Pelacak durasi tidur semalam & rata-rata 7 hari dengan tombol cepat 1-tap |
+| `/minum [status]` | Pencatat hidrasi harian (+1 gelas / 250ml) dengan progress bar visual |
+| `/stretch` | Panduan micro-stretching 3 menit (leher, pergelangan, punggung) anti lelah |
+| `/vitamin` | Check-in harian konsumsi vitamin/suplemen (auto-centang habit terkait) |
+| `/kesehatan` | Dashboard vitalitas & Burnout Risk Index (0-100) serta rekomendasi pemulihan |
 | `/connect <email atau kode>` | Menghubungkan akun Telegram dengan email web atau kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 

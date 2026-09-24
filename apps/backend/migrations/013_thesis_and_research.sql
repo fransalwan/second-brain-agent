@@ -58,3 +58,4 @@ BEGIN
             FOR ALL USING (auth.uid() = user_id);
     END IF;
 END $$;
+

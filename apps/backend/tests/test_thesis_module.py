@@ -18,7 +18,16 @@ from sqlmodel import SQLModel, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.models import Area, ExperimentMetric, Note, Profile, SupervisionLog, Task, ThesisChapter, utcnow
+from app.models import (
+    Area,
+    ExperimentMetric,
+    Note,
+    Profile,
+    SupervisionLog,
+    Task,
+    ThesisChapter,
+    utcnow,
+)
 import app.bot as bot_module
 
 
@@ -162,13 +171,17 @@ async def test_bimbingan_cmd(setup_test_db):
     # 1. /bimbingan saat masih kosong
     update1 = MockUpdate(chat_id)
     await bot_module.bimbingan_cmd(update1, MockContext())
-    assert "Belum ada catatan bimbingan tersimpan" in update1.effective_message.replies[0]
+    assert (
+        "Belum ada catatan bimbingan tersimpan" in update1.effective_message.replies[0]
+    )
 
     # 2. Catat notulensi bimbingan
     notes_text = "Dospem minta perjelas batasan masalah Bab 1 dan perbandingan model F1"
     update2 = MockUpdate(chat_id)
     await bot_module.bimbingan_cmd(update2, MockContext(args=notes_text.split()))
-    assert "Notulensi Bimbingan Berhasil Dicatat" in update2.effective_message.replies[0]
+    assert (
+        "Notulensi Bimbingan Berhasil Dicatat" in update2.effective_message.replies[0]
+    )
     assert "batasan masalah Bab 1" in update2.effective_message.replies[0]
 
     # 3. Cek kembali riwayat bimbingan
@@ -235,7 +248,10 @@ async def test_paper_cmd(setup_test_db):
     # 1. Saat belum ada paper
     update1 = MockUpdate(chat_id)
     await bot_module.paper_cmd(update1, MockContext())
-    assert "Belum ada catatan paper/jurnal tersimpan" in update1.effective_message.replies[0]
+    assert (
+        "Belum ada catatan paper/jurnal tersimpan"
+        in update1.effective_message.replies[0]
+    )
 
     # 2. Simpan paper baru
     args = "Vaswani et al. (2017) Attention Is All You Need | Multi-head self-attention".split()
@@ -247,9 +263,7 @@ async def test_paper_cmd(setup_test_db):
 
     # 3. Verifikasi tersimpan sebagai Note dengan tags
     async with Session() as session:
-        res = await session.execute(
-            select(Note).where(Note.user_id == user_id)
-        )
+        res = await session.execute(select(Note).where(Note.user_id == user_id))
         notes = res.scalars().all()
         assert len(notes) == 1
         assert "Vaswani" in notes[0].content

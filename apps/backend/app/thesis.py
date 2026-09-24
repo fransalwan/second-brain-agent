@@ -116,7 +116,9 @@ async def update_thesis_chapter(
 
 def format_thesis_progress_html(chapters: List[ThesisChapter]) -> str:
     """Format visual ringkasan bab thesis dalam HTML Telegram."""
-    total_progress = sum(c.progress for c in chapters) // len(chapters) if chapters else 0
+    total_progress = (
+        sum(c.progress for c in chapters) // len(chapters) if chapters else 0
+    )
     overall_bar = render_progress_bar(total_progress, length=12)
 
     lines = [
