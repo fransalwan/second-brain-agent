@@ -128,6 +128,8 @@ async def start_ambient_timer(
                 f"⏱️ <b>[Auto-Timer]</b> Sesi fokus dimulai untuk: "
                 f"<b>{html.escape(clean_project)}</b> (via {html.escape(source)})"
             )
+            if context:
+                msg += f"\n🎯 <i>Aktivitas: {html.escape(context)}</i>"
             if switched_from:
                 msg += f"\n<i>(Menggantikan sesi sebelumnya: {html.escape(switched_from)})</i>"
             if is_late_night:
@@ -604,7 +606,9 @@ async def check_bedtime_status(session: AsyncSession, email: str) -> dict:
             f"Waktunya istirahat dan simpan pekerjaanmu!"
         )
     else:
-        message = f"✅ Masih dalam jam kerja ({current_str}). Batas malam: {cutoff_str}."
+        message = (
+            f"✅ Masih dalam jam kerja ({current_str}). Batas malam: {cutoff_str}."
+        )
 
     return {
         "status": "ok",
@@ -648,9 +652,7 @@ async def handle_quick_capture(
             run_agent(profile.id, chat_id, clean_text), timeout=10.0
         )
     except asyncio.TimeoutError:
-        logger.warning(
-            "Agent processing timeout, using Zero Data Loss fallback (note)"
-        )
+        logger.warning("Agent processing timeout, using Zero Data Loss fallback (note)")
         new_note = Note(
             user_id=profile.id,
             content=clean_text,

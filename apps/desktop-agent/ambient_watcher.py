@@ -194,6 +194,61 @@ def parse_cutoff_time(cutoff_str: str) -> dt_time:
         return dt_time(23, 0)
 
 
+def extract_activity_context(title: str, project_name: str) -> str:
+    """Ekstraksi detail aktivitas/file dari judul jendela VS Code secara cerdas."""
+    if "Visual Studio Code" not in title:
+        return ""
+
+    # Bersihkan sufiks " - Visual Studio Code"
+    clean_title = title.split(" - Visual Studio Code")[0].strip()
+    parts = [p.strip().lstrip("● ") for p in clean_title.split(" - ") if p.strip()]
+
+    file_name = ""
+    if len(parts) > 1:
+        file_name = parts[0]
+    elif len(parts) == 1 and "." in parts[0]:
+        file_name = parts[0]
+
+    title_lower = title.lower()
+
+    # 1. Deteksi Naskah Thesis
+    if "thesis-manuscript" in title_lower or "penulisan" in project_name.lower():
+        if any(
+            file_name.lower().endswith(ext)
+            for ext in [".md", ".tex", ".docx", ".txt", ".typ"]
+        ):
+            return (
+                f"Perbaikan Penulisan & Draft ({file_name})"
+                if file_name
+                else "Perbaikan Penulisan & Draft Naskah"
+            )
+        elif file_name.lower().endswith(".bib"):
+            return f"Manajemen Sitasi & Pustaka ({file_name})"
+        elif any(
+            file_name.lower().endswith(ext) for ext in [".png", ".jpg", ".svg", ".pdf"]
+        ):
+            return f"Penyusunan Grafik / Gambar ({file_name})"
+        return (
+            f"Pengerjaan Naskah ({file_name})"
+            if file_name
+            else "Pengerjaan Naskah Thesis"
+        )
+
+    # 2. Deteksi Eksperimen Thesis
+    if "thesis-experiment" in title_lower or "eksperimen" in project_name.lower():
+        if file_name.lower().endswith(".py"):
+            return f"Pengembangan Model & Coding ({file_name})"
+        elif file_name.lower().endswith(".ipynb"):
+            return f"Eksplorasi Notebook & Analisis Data ({file_name})"
+        elif any(file_name.lower().endswith(ext) for ext in [".yaml", ".yml", ".json"]):
+            return f"Konfigurasi Parameter Eksperimen ({file_name})"
+        return f"Eksperimen Thesis ({file_name})" if file_name else "Eksperimen Thesis"
+
+    if file_name:
+        return f"Menyunting {file_name}"
+    return ""
+
+
 # ==========================================
 # AMBIENT WATCHER CLIENT
 # ==========================================
@@ -202,6 +257,7 @@ class AmbientWatcher:
         self.config_file = config_file
         self.config = self.load_config()
         self.current_project: str | None = None
+        self.current_context: str = ""
         self.is_idle: bool = False
         self.away_start_time: float | None = None
         self.running = True
@@ -290,8 +346,8 @@ class AmbientWatcher:
         except Exception as e:
             logger.error(f"Error starting Quick Capture: {e}")
 
-    def detect_active_vscode_project(self) -> str | None:
-        """Deteksi project VS Code yang sedang dikerjakan.
+    def detect_active_vscode_project(self) -> tuple[str | None, str]:
+        """Deteksi project VS Code dan sub-aktivitas file yang sedang dikerjakan.
 
         Prioritas 1: Foreground Window (sedang aktif diketik).
         Prioritas 2: Jika user sedang buka browser/terminal tapi VS Code tetap terbuka di latar,
@@ -301,27 +357,30 @@ class AmbientWatcher:
         fg_project = self.match_project_name(fg_title)
 
         if fg_project:
-            return fg_project
+            context = extract_activity_context(fg_title, fg_project)
+            return fg_project, context
 
         # Jika foreground bukan VS Code, cek apakah jendela VS Code masih ada yang terbuka
         open_vscode = get_all_open_vscode_window_titles()
         if not open_vscode:
             # VS Code benar-benar ditutup
-            return None
+            return None, ""
 
         # Jika VS Code masih terbuka dan kita sedang melacak project, periksa apakah project tsb masih ada di daftar jendela
         if self.current_project:
             for title in open_vscode:
                 if self.match_project_name(title) == self.current_project:
-                    return self.current_project
+                    context = extract_activity_context(title, self.current_project)
+                    return self.current_project, context
 
         # Jika ada jendela VS Code terbuka lainnya
         for title in open_vscode:
             p = self.match_project_name(title)
             if p:
-                return p
+                context = extract_activity_context(title, p)
+                return p, context
 
-        return None
+        return None, ""
 
     def start_timer(self, project_name: str, context: str = ""):
         payload = {
@@ -334,9 +393,11 @@ class AmbientWatcher:
         res = self.send_api_request("/api/v1/ambient/timer/start", payload)
         if res and res.get("status") in ("started", "already_running"):
             self.current_project = project_name
+            self.current_context = context
             self.is_idle = False
+            ctx_msg = f" | Aktivitas: {context}" if context else ""
             logger.info(
-                f"[TIMER START] Fokus dimulai: '{project_name}' (Status: {res.get('status')})"
+                f"[TIMER START] Fokus dimulai: '{project_name}' (Status: {res.get('status')}){ctx_msg}"
             )
 
     def stop_timer(self, reason: str = "window_closed"):
@@ -450,18 +511,24 @@ class AmbientWatcher:
                     self.is_idle = False
 
                 # 2. Deteksi Project VS Code
-                detected_project = self.detect_active_vscode_project()
+                detected_project, detected_context = self.detect_active_vscode_project()
 
                 if detected_project:
                     if self.current_project is None:
                         # Baru membuka VS Code
-                        self.start_timer(detected_project)
+                        self.start_timer(detected_project, context=detected_context)
                     elif self.current_project != detected_project:
                         # Beralih ke project lain di VS Code (Context Switching)
                         logger.info(
                             f"[CONTEXT SWITCH] Beralih dari '{self.current_project}' ke '{detected_project}'"
                         )
-                        self.start_timer(detected_project)
+                        self.start_timer(detected_project, context=detected_context)
+                    elif detected_context and detected_context != self.current_context:
+                        # Tetap di project yang sama tapi berganti file/sub-aktivitas
+                        self.current_context = detected_context
+                        logger.info(
+                            f"[{detected_project}] 📌 Aktivitas: {detected_context}"
+                        )
                 else:
                     # VS Code ditutup
                     if self.current_project is not None:

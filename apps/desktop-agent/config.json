@@ -11,6 +11,8 @@
   "bedtime_cutoff": "22:30",
   "bedtime_reminder_interval_minutes": 15,
   "project_mappings": {
+    "thesis-manuscripts": "Thesis: Penulisan & Naskah",
+    "thesis-experiments": "Thesis: Eksperimen & Model",
     "second-brain-agent": "Second Brain Agent",
     "scrap-yard-dashboard": "Usaha & Karir",
     "CV PELANGI EFRATA": "Usaha & Karir",

@@ -99,12 +99,16 @@ def main():
             auto_habits = resp_data.get("auto_checked_habits", [])
 
             if completed_tasks:
-                print(f"[Second Brain] [DONE] {len(completed_tasks)} tugas otomatis diselesaikan via commit:")
+                print(
+                    f"[Second Brain] [DONE] {len(completed_tasks)} tugas otomatis diselesaikan via commit:"
+                )
                 for t in completed_tasks:
                     print(f"  - #{t['id']} {t['title']}")
             if auto_habits:
                 for h in auto_habits:
-                    print(f"[Second Brain] [HABIT] '{h['name']}' dicentang! (Streak: {h['streak']} hari)")
+                    print(
+                        f"[Second Brain] [HABIT] '{h['name']}' dicentang! (Streak: {h['streak']} hari)"
+                    )
     except urllib.error.URLError:
         # Backend offline atau tidak terjangkau -> lewati tanpa error agar git commit tetap sukses
         pass

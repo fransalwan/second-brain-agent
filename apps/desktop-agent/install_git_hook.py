@@ -20,7 +20,9 @@ HOOK_SCRIPT = Path(__file__).resolve().parent / "post_commit_hook.py"
 def install_hook(target_repo_path: Path):
     git_dir = target_repo_path / ".git"
     if not git_dir.exists() or not git_dir.is_dir():
-        print(f"[ERROR] '{target_repo_path}' bukan repository Git (.git tidak ditemukan)!")
+        print(
+            f"[ERROR] '{target_repo_path}' bukan repository Git (.git tidak ditemukan)!"
+        )
         return False
 
     hooks_dir = git_dir / "hooks"
@@ -40,7 +42,9 @@ python "{hook_script_posix}"
     # Berikan izin execute (chmod +x)
     try:
         current_mode = os.stat(post_commit_file).st_mode
-        os.chmod(post_commit_file, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(
+            post_commit_file, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        )
     except Exception:
         pass
 
