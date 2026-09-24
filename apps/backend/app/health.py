@@ -313,7 +313,9 @@ async def calculate_burnout_risk(
 
     if short_sleep_days >= 2:
         score += 35
-        reasons.append(f"Kurang tidur (< 6 jam) selama {short_sleep_days} hari terakhir")
+        reasons.append(
+            f"Kurang tidur (< 6 jam) selama {short_sleep_days} hari terakhir"
+        )
     elif short_sleep_days == 1:
         score += 15
         reasons.append("Tidur kurang dari 6 jam semalam")
@@ -324,7 +326,11 @@ async def calculate_burnout_risk(
     for offset in range(1, 4):
         check_d = current_date - timedelta(days=offset)
         # Ambil time_logs yang berjalan melewati cutoff
-        start_check = datetime.combine(check_d, cutoff).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc)
+        start_check = (
+            datetime.combine(check_d, cutoff)
+            .replace(tzinfo=LOCAL_TZ)
+            .astimezone(timezone.utc)
+        )
         end_check = start_check + timedelta(hours=6)
         logs_res = await session.execute(
             select(TimeLog).where(
@@ -338,13 +344,19 @@ async def calculate_burnout_risk(
 
     if late_night_count >= 2:
         score += 30
-        reasons.append(f"Lembur malam melewati jam {cutoff.strftime('%H:%M')} selama {late_night_count} hari")
+        reasons.append(
+            f"Lembur malam melewati jam {cutoff.strftime('%H:%M')} selama {late_night_count} hari"
+        )
     elif late_night_count == 1:
         score += 15
         reasons.append(f"Lembur melewati jam {cutoff.strftime('%H:%M')} tadi malam")
 
     # 3. Intensitas Fokus Hari Ini
-    start_today = datetime.combine(current_date, time(0, 0)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc)
+    start_today = (
+        datetime.combine(current_date, time(0, 0))
+        .replace(tzinfo=LOCAL_TZ)
+        .astimezone(timezone.utc)
+    )
     today_logs_res = await session.execute(
         select(TimeLog).where(
             TimeLog.user_id == user_id,
@@ -361,10 +373,14 @@ async def calculate_burnout_risk(
 
     if today_minutes >= 480:  # > 8 jam
         score += 35
-        reasons.append(f"Fokus intensif sangat tinggi hari ini ({today_minutes // 60} jam {today_minutes % 60} m)")
+        reasons.append(
+            f"Fokus intensif sangat tinggi hari ini ({today_minutes // 60} jam {today_minutes % 60} m)"
+        )
     elif today_minutes >= 360:  # > 6 jam
         score += 20
-        reasons.append(f"Fokus kerja hari ini melebihi 6 jam ({today_minutes // 60} jam)")
+        reasons.append(
+            f"Fokus kerja hari ini melebihi 6 jam ({today_minutes // 60} jam)"
+        )
 
     score = min(100, max(0, score))
 
@@ -409,8 +425,16 @@ def format_health_dashboard_html(
     water_bar = render_water_bar(glasses, target_glasses, length=8)
 
     # Vitamin & Stretch
-    vit_status = "✅ Sudah" if (health_check and health_check.took_vitamin) else "⚪ Belum (/vitamin)"
-    stretch_status = "✅ Sudah" if (health_check and health_check.did_stretch) else "⚪ Belum (/stretch)"
+    vit_status = (
+        "✅ Sudah"
+        if (health_check and health_check.took_vitamin)
+        else "⚪ Belum (/vitamin)"
+    )
+    stretch_status = (
+        "✅ Sudah"
+        if (health_check and health_check.did_stretch)
+        else "⚪ Belum (/stretch)"
+    )
 
     # Burnout
     burnout_score = burnout_data["score"]

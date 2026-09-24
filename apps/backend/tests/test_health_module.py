@@ -18,7 +18,16 @@ from sqlmodel import SQLModel, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.models import Habit, HabitLog, HealthCheckLog, HydrationLog, Profile, SleepLog, TimeLog, utcnow
+from app.models import (
+    Habit,
+    HabitLog,
+    HealthCheckLog,
+    HydrationLog,
+    Profile,
+    SleepLog,
+    TimeLog,
+    utcnow,
+)
 import app.bot as bot_module
 import app.health as health_module
 
@@ -120,7 +129,10 @@ async def test_tidur_cmd_and_interactive_callback(setup_test_db):
     update_cb = MockUpdate(chat_id, callback_data="health:sleep:7.0:Cukup")
     await bot_module.health_callback(update_cb, MockContext())
     assert update_cb.callback_query.answered is True
-    assert "Tidur 7.0 jam (Cukup) berhasil dicatat!" in update_cb.callback_query.answer_text
+    assert (
+        "Tidur 7.0 jam (Cukup) berhasil dicatat!"
+        in update_cb.callback_query.answer_text
+    )
 
     # Verifikasi di database
     async with Session() as session:
@@ -258,7 +270,9 @@ async def test_kesehatan_dashboard_and_burnout_calculation(setup_test_db):
     # 1. Catat tidur kurang (< 6 jam) selama 2 hari terakhir
     today = date.today()
     async with Session() as session:
-        s1 = SleepLog(user_id=user_id, date=today - timedelta(days=1), hours=4.5, quality="Kurang")
+        s1 = SleepLog(
+            user_id=user_id, date=today - timedelta(days=1), hours=4.5, quality="Kurang"
+        )
         s2 = SleepLog(user_id=user_id, date=today, hours=5.0, quality="Kurang")
         # Catat hidrasi 5 gelas
         hyd = HydrationLog(user_id=user_id, date=today, glasses=5, target_glasses=8)

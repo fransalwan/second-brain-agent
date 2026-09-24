@@ -1839,23 +1839,33 @@ async def matkul_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 # MODUL KESEHATAN (TIDUR, MINUM, STRETCH, VITAMIN, BURNOUT)
 # ==========================================
 def build_sleep_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("😫 < 6 Jam (5h)", callback_data="health:sleep:5.0:Kurang"),
-            InlineKeyboardButton("😊 7 Jam (Cukup)", callback_data="health:sleep:7.0:Cukup"),
-            InlineKeyboardButton("😴 > 8 Jam (Nyenyak)", callback_data="health:sleep:8.5:Nyenyak"),
+            [
+                InlineKeyboardButton(
+                    "😫 < 6 Jam (5h)", callback_data="health:sleep:5.0:Kurang"
+                ),
+                InlineKeyboardButton(
+                    "😊 7 Jam (Cukup)", callback_data="health:sleep:7.0:Cukup"
+                ),
+                InlineKeyboardButton(
+                    "😴 > 8 Jam (Nyenyak)", callback_data="health:sleep:8.5:Nyenyak"
+                ),
+            ]
         ]
-    ])
+    )
 
 
 def build_water_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("+1 Gelas 🥤", callback_data="health:water:add1"),
-            InlineKeyboardButton("+2 Gelas 🥛", callback_data="health:water:add2"),
-            InlineKeyboardButton("🔄 Reset", callback_data="health:water:reset"),
+            [
+                InlineKeyboardButton("+1 Gelas 🥤", callback_data="health:water:add1"),
+                InlineKeyboardButton("+2 Gelas 🥛", callback_data="health:water:add2"),
+                InlineKeyboardButton("🔄 Reset", callback_data="health:water:reset"),
+            ]
         ]
-    ])
+    )
 
 
 async def tidur_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1874,14 +1884,23 @@ async def tidur_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     async with SessionLocal() as session:
         if raw_args:
             import re
+
             match = re.search(r"(\d+(\.\d+)?)", raw_args)
             if match:
                 hours = float(match.group(1))
                 quality = None
                 raw_lower = raw_args.lower()
-                if "kurang" in raw_lower or "buruk" in raw_lower or "capek" in raw_lower:
+                if (
+                    "kurang" in raw_lower
+                    or "buruk" in raw_lower
+                    or "capek" in raw_lower
+                ):
                     quality = "Kurang"
-                elif "nyenyak" in raw_lower or "pulas" in raw_lower or "segar" in raw_lower:
+                elif (
+                    "nyenyak" in raw_lower
+                    or "pulas" in raw_lower
+                    or "segar" in raw_lower
+                ):
                     quality = "Nyenyak"
                 elif "cukup" in raw_lower:
                     quality = "Cukup"
@@ -1896,10 +1915,20 @@ async def tidur_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
                 return
 
-        today_log, avg_sleep, count = await get_sleep_summary(session, profile.id, today, days=7)
+        today_log, avg_sleep, count = await get_sleep_summary(
+            session, profile.id, today, days=7
+        )
 
-    today_str = f"<b>{today_log.hours} Jam</b> ({today_log.quality})" if today_log else "<i>Belum dicatat</i>"
-    avg_str = f"<b>{avg_sleep} Jam/hari</b> (dari {count} catatan)" if count > 0 else "<i>Belum ada data</i>"
+    today_str = (
+        f"<b>{today_log.hours} Jam</b> ({today_log.quality})"
+        if today_log
+        else "<i>Belum dicatat</i>"
+    )
+    avg_str = (
+        f"<b>{avg_sleep} Jam/hari</b> (dari {count} catatan)"
+        if count > 0
+        else "<i>Belum ada data</i>"
+    )
 
     lines = [
         "🛌 <b>Pelacak Tidur & Pemulihan (Sleep Tracker)</b>",
@@ -1959,9 +1988,15 @@ async def stretch_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Selesai Peregangan", callback_data="health:stretch:done")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "✅ Selesai Peregangan", callback_data="health:stretch:done"
+                )
+            ]
+        ]
+    )
     text = get_stretching_guide_html()
     await update.effective_message.reply_text(
         text,
@@ -1984,7 +2019,11 @@ async def vitamin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     async with SessionLocal() as session:
         log, habit_checked = await log_vitamin_check(session, profile.id, today)
 
-    habit_str = "\n🎯 Habit <i>'Minum Vitamin'</i> otomatis dicentang untuk hari ini!" if habit_checked else ""
+    habit_str = (
+        "\n🎯 Habit <i>'Minum Vitamin'</i> otomatis dicentang untuk hari ini!"
+        if habit_checked
+        else ""
+    )
     await update.effective_message.reply_text(
         f"💊 <b>Check-in Vitamin & Suplemen</b>\n\n"
         f"✅ Kamu sudah mencatat konsumsi vitamin hari ini!{habit_str}\n\n"
@@ -2005,7 +2044,9 @@ async def kesehatan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     today = datetime.now(LOCAL_TZ).date()
     async with SessionLocal() as session:
-        sleep_log, avg_sleep, _ = await get_sleep_summary(session, profile.id, today, days=7)
+        sleep_log, avg_sleep, _ = await get_sleep_summary(
+            session, profile.id, today, days=7
+        )
         glasses, target = await get_hydration(session, profile.id, today)
         check_log = await get_or_create_health_check(session, profile.id, today)
         burnout = await calculate_burnout_risk(session, profile.id, today)
@@ -2018,16 +2059,24 @@ async def kesehatan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         health_check=check_log,
         burnout_data=burnout,
     )
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("🛌 Catat Tidur", callback_data="health:sleep:prompt"),
-            InlineKeyboardButton("🥤 +1 Minum", callback_data="health:water:add1"),
-        ],
-        [
-            InlineKeyboardButton("🧘 Peregangan", callback_data="health:stretch:info"),
-            InlineKeyboardButton("💊 Minum Vitamin", callback_data="health:vitamin:done"),
+            [
+                InlineKeyboardButton(
+                    "🛌 Catat Tidur", callback_data="health:sleep:prompt"
+                ),
+                InlineKeyboardButton("🥤 +1 Minum", callback_data="health:water:add1"),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🧘 Peregangan", callback_data="health:stretch:info"
+                ),
+                InlineKeyboardButton(
+                    "💊 Minum Vitamin", callback_data="health:vitamin:done"
+                ),
+            ],
         ]
-    ])
+    )
     await update.effective_message.reply_text(
         text,
         parse_mode=ParseMode.HTML,
@@ -2063,13 +2112,19 @@ async def health_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         quality = parts[3]
         async with SessionLocal() as session:
             await log_sleep(session, profile.id, today, hours, quality)
-            sleep_log, avg_sleep, _ = await get_sleep_summary(session, profile.id, today, days=7)
+            sleep_log, avg_sleep, _ = await get_sleep_summary(
+                session, profile.id, today, days=7
+            )
             glasses, target = await get_hydration(session, profile.id, today)
             check_log = await get_or_create_health_check(session, profile.id, today)
             burnout = await calculate_burnout_risk(session, profile.id, today)
 
-        await query.answer(f"Tidur {hours} jam ({quality}) berhasil dicatat!", show_alert=False)
-        text = format_health_dashboard_html(sleep_log, avg_sleep, glasses, target, check_log, burnout)
+        await query.answer(
+            f"Tidur {hours} jam ({quality}) berhasil dicatat!", show_alert=False
+        )
+        text = format_health_dashboard_html(
+            sleep_log, avg_sleep, glasses, target, check_log, burnout
+        )
         await query.edit_message_text(text, parse_mode=ParseMode.HTML)
         return
 
@@ -2097,21 +2152,35 @@ async def health_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"💡 <i>Target: 8 gelas (2.000 ml) per hari untuk mencegah dehidrasi & mata lelah.</i>\n\n"
             f"<i>Tap tombol di bawah untuk menambah atau mengatur ulang:</i>"
         )
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=build_water_keyboard())
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=build_water_keyboard()
+        )
         return
 
     if data == "health:stretch:info":
         await query.answer()
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Selesai Peregangan", callback_data="health:stretch:done")]
-        ])
-        await query.edit_message_text(get_stretching_guide_html(), parse_mode=ParseMode.HTML, reply_markup=keyboard)
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "✅ Selesai Peregangan", callback_data="health:stretch:done"
+                    )
+                ]
+            ]
+        )
+        await query.edit_message_text(
+            get_stretching_guide_html(),
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
+        )
         return
 
     if data == "health:stretch:done":
         async with SessionLocal() as session:
             await log_stretch_check(session, profile.id, today)
-        await query.answer("🎉 Peregangan selesai! Tubuhmu berterima kasih 👍", show_alert=False)
+        await query.answer(
+            "🎉 Peregangan selesai! Tubuhmu berterima kasih 👍", show_alert=False
+        )
         await query.edit_message_text(
             "🧘 <b>Peregangan Berhasil Dicatat!</b>\n\n"
             "Otot leher dan punggungmu kini lebih rileks. Siap melanjutkan aktivitas! 💪",
@@ -2170,10 +2239,18 @@ ptb_app.add_handler(CommandHandler(["matkul", "kuliah"], matkul_cmd, filters=pri
 
 # Health Handlers
 ptb_app.add_handler(CommandHandler(["tidur", "sleep"], tidur_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["minum", "water", "hidrasi"], minum_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["stretch", "peregangan"], stretch_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["vitamin", "suplemen"], vitamin_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["kesehatan", "health"], kesehatan_cmd, filters=private))
+ptb_app.add_handler(
+    CommandHandler(["minum", "water", "hidrasi"], minum_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["stretch", "peregangan"], stretch_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["vitamin", "suplemen"], vitamin_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["kesehatan", "health"], kesehatan_cmd, filters=private)
+)
 
 ptb_app.add_handler(
     CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
