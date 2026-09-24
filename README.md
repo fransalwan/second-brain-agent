@@ -109,6 +109,16 @@ Kirim pesan ke bot seperti biasa. Agent yang menentukan aksinya.
 | `rekap hari ini` | Ringkasan waktu fokus dan catatan hari ini |
 | `cari catatan soal vue` | Mencari catatan berdasarkan kata kunci |
 | `jenuh nih, butuh rehat` | Membuka Mode Jeda dengan rekomendasi musik, kopi, film, atau hangout |
+| `/thesis` | Membuka pelacak progres Bab 1–5 naskah thesis dengan tombol status 1-tap |
+| `/bimbingan revisi bab 1 & perbandingan F1` | Mencatat notulensi dospem & mencegah ghosting bimbingan |
+| `/metric BiLSTM Akurasi: 93% \| Epoch: 50` | Mencatat metrik evaluasi model AI untuk tabel Bab 4 naskah |
+| `/paper Vaswani (2017) \| Self-attention` | Menyimpan intisari paper ke Bank Literatur dengan tag `#paper` |
+| `/matkul` | Melihat countdown deadline tugas kuliah (Hari Ini, Besok, H-X) |
+| `/tidur 7 jam cukup` | Mencatat durasi tidur semalam & rata-rata 7 hari |
+| `/minum` | Menambah 1 gelas hidrasi (+250ml) dengan progress bar visual |
+| `/stretch` | Membuka panduan peregangan 3 menit leher, pergelangan, & punggung |
+| `/vitamin` | Mencatat asupan suplemen harian & auto-centang habit terkait |
+| `/kesehatan` | Menampilkan Burnout Risk Index (0-100) dan status vitalitas |
 | *(Kirim Voice Note)* | Ditranskripsikan otomatis via Gemini dan langsung dieksekusi sebagai tugas/catatan/timer |
 
 ### Perintah cepat
@@ -229,6 +239,8 @@ Jalankan file di `apps/backend/migrations/` secara berurutan di **Supabase → S
 10. `010_night_cutoff.sql`
 11. `011_weekly_report.sql`
 12. `012_allow_user_profile_management.sql`
+13. `013_thesis_and_research.sql`
+14. `014_health_module.sql`
 
 Semua file migrasi dan file inisialisasi aman dijalankan ulang (*idempotent*).
 
