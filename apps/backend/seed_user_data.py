@@ -1,23 +1,49 @@
 # apps/backend/seed_user_data.py
 """Script seeding data komprehensif untuk pengguna fransalwan55@gmail.com.
 
-Mengisi data realistis di seluruh modul:
-- Area hidup (Areas) terurut prioritas
-- Tugas pending berbagai tier (Urgent, Near Deadline, Backlog Area) & Tugas completed
-- Habit aktif dengan riwayat centang (streaks aktif)
-- Sesi fokus (Time Logs) harian & pekanan
-- Catatan & ide dengan tags saling terhubung untuk Knowledge Graph
+Mengisi data realistis di SELURUH modul dan fitur:
+1. Profile: Konfigurasi brief time & bedtime cutoff
+2. Areas: 4 Area hidup terurut (1. Kesehatan, 2. Kuliah dan Riset, 3. Karir, 4. Usaha)
+3. Tasks: Tugas pending berbagai tier (Urgent, Hari Ini, Besok, Sisa Hari) & Tugas Completed
+4. Habits & HabitLogs: Habit aktif dengan streak berjalan (termasuk habit terkait kesehatan)
+5. TimeLogs: Sesi fokus kerja harian & mingguan untuk visualisasi grafik & laporan /weekly
+6. Notes: Catatan ide & bank literatur paper (#paper, #literatur) yang saling terhubung untuk Knowledge Graph
+7. ThesisChapters: Status progres naskah Bab 1 s/d Bab 5 untuk /thesis
+8. SupervisionLogs: Riwayat bimbingan dospem & tracking anti-ghosting untuk /bimbingan
+9. ExperimentMetrics: Log metrik benchmark eksperimen model AI untuk /metric
+10. SleepLogs: Riwayat tidur 7 hari terakhir untuk /tidur & korelasi produktivitas
+11. HydrationLogs: Catatan asupan air minum hari ini (5/8 gelas) untuk /minum
+12. HealthCheckLogs: Status check-in vitamin & peregangan untuk /kesehatan
 """
 
 import asyncio
+import sys
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 from sqlmodel import col, delete, select
 
 from app.config import settings
 from app.database import SessionLocal
-from app.models import Area, Habit, HabitLog, Note, Profile, Task, TimeLog, utcnow
+from app.models import (
+    Area,
+    ExperimentMetric,
+    Habit,
+    HabitLog,
+    HealthCheckLog,
+    HydrationLog,
+    Note,
+    Profile,
+    SleepLog,
+    SupervisionLog,
+    Task,
+    ThesisChapter,
+    TimeLog,
+    utcnow,
+)
 
 TARGET_EMAIL = "fransalwan55@gmail.com"
 LOCAL_TZ = ZoneInfo(settings.APP_TIMEZONE)
@@ -27,7 +53,9 @@ async def seed_data():
     today = datetime.now(LOCAL_TZ).date()
 
     async with SessionLocal() as session:
-        # 1. Cari Profil Pengguna
+        # ==========================================
+        # 1. CARI PROFIL PENGGUNA
+        # ==========================================
         prof_res = await session.execute(
             select(Profile).where(Profile.email == TARGET_EMAIL)
         )
@@ -38,17 +66,23 @@ async def seed_data():
             return
 
         user_id = profile.id
-        print(
-            f"Mempersiapkan data seed untuk user: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]"
-        )
+        print(f"Mempersiapkan data seed untuk: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]")
 
-        # Pastikan konfigurasi profil optimal
+        # Konfigurasi profil optimal
         profile.brief_time = time(7, 0)
         profile.night_cutoff_time = time(22, 30)
         session.add(profile)
         await session.commit()
 
-        # 2. Bersihkan data dummy lama (kecuali profil)
+        # ==========================================
+        # 2. BERSIHKAN DATA LAMA
+        # ==========================================
+        await session.execute(delete(SleepLog).where(SleepLog.user_id == user_id))
+        await session.execute(delete(HydrationLog).where(HydrationLog.user_id == user_id))
+        await session.execute(delete(HealthCheckLog).where(HealthCheckLog.user_id == user_id))
+        await session.execute(delete(ThesisChapter).where(ThesisChapter.user_id == user_id))
+        await session.execute(delete(SupervisionLog).where(SupervisionLog.user_id == user_id))
+        await session.execute(delete(ExperimentMetric).where(ExperimentMetric.user_id == user_id))
         await session.execute(delete(HabitLog).where(HabitLog.user_id == user_id))
         await session.execute(delete(Habit).where(Habit.user_id == user_id))
         await session.execute(delete(Task).where(Task.user_id == user_id))
@@ -56,9 +90,11 @@ async def seed_data():
         await session.execute(delete(TimeLog).where(TimeLog.user_id == user_id))
         await session.execute(delete(Note).where(Note.user_id == user_id))
         await session.commit()
-        print("Data lama berhasil dibersihkan untuk inisialisasi baru.")
+        print("Data lama berhasil dibersihkan untuk inisialisasi menyeluruh.")
 
-        # 3. Buat Area Hidup (4 Area Terurut Prioritas)
+        # ==========================================
+        # 3. AREA HIDUP (4 Area Sesuai Prioritas Utama)
+        # ==========================================
         areas_data = [
             Area(user_id=user_id, name="Kesehatan", position=1),
             Area(user_id=user_id, name="Kuliah dan Riset", position=2),
@@ -69,14 +105,12 @@ async def seed_data():
             session.add(a)
         await session.commit()
 
-        # Reload areas untuk mendapatkan ID
         areas_res = await session.execute(
             select(Area).where(Area.user_id == user_id).order_by(Area.position.asc())
         )
         areas = {a.name: a.id for a in areas_res.scalars().all()}
-        print(f"Berhasil membuat {len(areas)} Area Hidup.")
+        print(f"Berhasil membuat {len(areas)} Area Hidup (Kesehatan, Kuliah dan Riset, Karir, Usaha).")
 
-        # 4. Buat Tugas (Tasks: Tier 1 Urgent, Tier 2 Deadline, Tier 3 Backlog, & Completed)
         # Helper datetime UTC
         def local_dt(d: date, hour: int, minute: int) -> datetime:
             return (
@@ -85,205 +119,206 @@ async def seed_data():
                 .astimezone(timezone.utc)
             )
 
+        # ==========================================
+        # 4. TUGAS (TASKS: Tier 1, 2, 3 & Completed)
+        # ==========================================
         tasks_data = [
-            # TIER 1: Urgent (Mendesak)
+            # --- AREA 1: KESEHATAN (Prioritas #1) ---
+            Task(
+                user_id=user_id,
+                area_id=areas["Kesehatan"],
+                title="Medical checkup & periksa kesehatan gigi tahunan",
+                is_urgent=True,
+                deadline=today + timedelta(days=2),
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kesehatan"],
+                title="Restock multivitamin, Omega-3, & suplemen Vitamin D3",
+                is_urgent=False,
+                deadline=today + timedelta(days=4),
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kesehatan"],
+                title="Beli ergonomic wrist rest untuk keyboard & mouse",
+                is_urgent=False,
+                deadline=None,
+                status="completed",
+                completed_at=local_dt(today - timedelta(days=1), 16, 0),
+            ),
+
+            # --- AREA 2: KULIAH DAN RISET (Hit /matkul countdown!) ---
+            Task(
+                user_id=user_id,
+                area_id=areas["Kuliah dan Riset"],
+                title="Submit revisi proposal naskah Bab 3 ke Dospem",
+                is_urgent=True,
+                deadline=today,  # Countdown: HARI INI!
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kuliah dan Riset"],
+                title="Presentasi seminar mingguan progres model attention",
+                is_urgent=False,
+                deadline=today + timedelta(days=1),  # Countdown: BESOK!
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kuliah dan Riset"],
+                title="Kompilasi tabel metrik evaluasi eksperimen Bab 4",
+                is_urgent=False,
+                deadline=today + timedelta(days=3),  # Countdown: Sisa 3 hari
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kuliah dan Riset"],
+                title="Review 3 paper transformer arsitektur terbaru",
+                is_urgent=False,
+                deadline=today + timedelta(days=5),  # Countdown: Sisa 5 hari
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Kuliah dan Riset"],
+                title="Finalisasi batasan masalah & rumusan Bab 1",
+                is_urgent=False,
+                deadline=None,
+                status="completed",
+                completed_at=local_dt(today - timedelta(days=2), 15, 0),
+            ),
+
+            # --- AREA 3: KARIR ---
+            Task(
+                user_id=user_id,
+                area_id=areas["Karir"],
+                title="Rilis v1.1 Second Brain Agent & update showcase README",
+                is_urgent=False,
+                deadline=today + timedelta(days=3),
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Karir"],
+                title="Tulis artikel teknis: Autonomous AI Agent Architecture di Medium",
+                is_urgent=False,
+                deadline=today + timedelta(days=6),
+                status="pending",
+            ),
+            Task(
+                user_id=user_id,
+                area_id=areas["Karir"],
+                title="Setup automated testing pipeline di GitHub Actions",
+                is_urgent=False,
+                deadline=None,
+                status="completed",
+                completed_at=local_dt(today - timedelta(days=3), 17, 30),
+            ),
+
+            # --- AREA 4: USAHA ---
             Task(
                 user_id=user_id,
                 area_id=areas["Usaha"],
-                title="Kirim revisi invoice & konfirmasi pembayaran klien",
+                title="Kirim revisi invoice & konfirmasi pembayaran CV PELANGI EFRATA",
                 is_urgent=True,
                 deadline=today,
                 status="pending",
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Kuliah dan Riset"],
-                title="Submit bab 3 metodologi penelitian ke portal kampus",
-                is_urgent=True,
-                deadline=today + timedelta(days=1),
-                status="pending",
-            ),
-            # TIER 2: Mendekati Deadline (Dalam 2-3 hari ke depan)
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Review PR open source & buat rilis release v1.1.0",
+                area_id=areas["Usaha"],
+                title="Follow up penawaran proyek dashboard analitik klien baru",
                 is_urgent=False,
                 deadline=today + timedelta(days=2),
                 status="pending",
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Karir"],
-                title="Presentasi laporan performa triwulan ke stakeholder",
-                is_urgent=False,
-                deadline=today + timedelta(days=3),
-                status="pending",
-            ),
-            # TIER 3: Backlog Berdasarkan Bobot Area Hidup
-            Task(
-                user_id=user_id,
-                area_id=areas["Kuliah dan Riset"],
-                title="Membaca 2 paper jurnal internasional tentang Autonomous AI Agents",
-                is_urgent=False,
-                deadline=None,
-                status="pending",
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Eksplorasi integrasi export catatan ke format Markdown & PDF",
-                is_urgent=False,
-                deadline=None,
-                status="pending",
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Kesehatan"],
-                title="Beli biji kopi arabika fresh roast & vitamin harian",
-                is_urgent=False,
-                deadline=today + timedelta(days=4),
-                status="pending",
-            ),
-            # COMPLETED TASKS (Untuk metrik mingguan & dashboard)
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Implementasi fitur Voice Note Transcriber via Gemini Multimodal Audio",
-                is_urgent=True,
-                status="completed",
-                completed_at=local_dt(today - timedelta(days=1), 16, 30),
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Buat visualisasi relasi ide interaktif (Knowledge Graph Canvas)",
-                is_urgent=False,
-                status="completed",
-                completed_at=local_dt(today, 11, 45),
-            ),
-            Task(
-                user_id=user_id,
                 area_id=areas["Usaha"],
-                title="Setup sistem autentikasi kredensial login & registrasi mandiri",
+                title="Rekonsiliasi cashflow dan pencatatan buku kas operasional",
                 is_urgent=False,
+                deadline=None,
                 status="completed",
-                completed_at=local_dt(today, 14, 20),
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Kesehatan"],
-                title="Medical check-up rutin bulanan",
-                is_urgent=False,
-                status="completed",
-                completed_at=local_dt(today - timedelta(days=3), 10, 15),
+                completed_at=local_dt(today - timedelta(days=1), 18, 0),
             ),
         ]
         for t in tasks_data:
             session.add(t)
         await session.commit()
-        print(f"Berhasil membuat {len(tasks_data)} Tugas (Pending & Selesai).")
+        print(f"Berhasil membuat {len(tasks_data)} Tugas (Tasks) di 4 Area Hidup.")
 
-        # 5. Buat Habits & Riwayat Centang (Streaks)
-        habits_data = [
-            Habit(
-                user_id=user_id,
-                name="Olahraga Pagi 20 Menit",
-                position=1,
-                is_active=True,
-            ),
-            Habit(
-                user_id=user_id,
-                name="Membaca Buku 15 Menit",
-                position=2,
-                is_active=True,
-            ),
-            Habit(
-                user_id=user_id,
-                name="Review Prioritas & Rencana Harian",
-                position=3,
-                is_active=True,
-            ),
-            Habit(
-                user_id=user_id,
-                name="Minum Air Putih 2 Liter",
-                position=4,
-                is_active=True,
-            ),
+        # ==========================================
+        # 5. HABITS & HABIT LOGS (Streaks)
+        # ==========================================
+        habits_info = [
+            ("Minum 2L Air Putih", 6),
+            ("Peregangan 5 Menit", 4),
+            ("Minum Vitamin Harian", 5),
+            ("Deep Work Riset 90 Menit", 7),
+            ("Tidur Sebelum 22:30", 4),
+            ("Jalan Pagi 15 Menit", 3),
         ]
-        for h in habits_data:
+        created_habits = []
+        for h_name, streak in habits_info:
+            h = Habit(user_id=user_id, name=h_name, is_active=True)
             session.add(h)
+            created_habits.append((h, streak))
         await session.commit()
 
-        # Reload habits untuk ID
-        habits_res = await session.execute(
-            select(Habit).where(Habit.user_id == user_id).order_by(Habit.position.asc())
-        )
-        habits_list = habits_res.scalars().all()
-
-        # Buat logs centang streak
-        # Habit 1: centang 4 hari berturut-turut (termasuk hari ini) -> streak 4
-        # Habit 2: centang 3 hari berturut-turut -> streak 3
-        # Habit 3: centang hari ini -> streak 1
-        # Habit 4: belum dicentang hari ini (centang kemarin) -> streak 1 tapi siap dicentang hari ini
-        habit_logs = []
-        for day_offset in range(4):  # today, yesterday, -2, -3
-            habit_logs.append(
-                HabitLog(
+        # Buat habit logs untuk membentuk streak
+        total_habit_logs = 0
+        for h, streak in created_habits:
+            await session.refresh(h)
+            for day_offset in range(streak):
+                d = today - timedelta(days=day_offset)
+                hl = HabitLog(
+                    habit_id=h.id,
                     user_id=user_id,
-                    habit_id=habits_list[0].id,
-                    completed_date=today - timedelta(days=day_offset),
+                    completed_date=d,
+                    created_at=datetime.combine(d, time(8, 0)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
                 )
-            )
-        for day_offset in range(3):  # today, yesterday, -2
-            habit_logs.append(
-                HabitLog(
-                    user_id=user_id,
-                    habit_id=habits_list[1].id,
-                    completed_date=today - timedelta(days=day_offset),
-                )
-            )
-        habit_logs.append(
-            HabitLog(user_id=user_id, habit_id=habits_list[2].id, completed_date=today)
-        )
-        habit_logs.append(
-            HabitLog(
-                user_id=user_id,
-                habit_id=habits_list[3].id,
-                completed_date=today - timedelta(days=1),
-            )
-        )
-
-        for hl in habit_logs:
-            session.add(hl)
+                session.add(hl)
+                total_habit_logs += 1
         await session.commit()
-        print(f"Berhasil membuat {len(habits_list)} Habit aktif dengan streak logs.")
+        print(f"Berhasil membuat {len(created_habits)} Habit aktif dengan {total_habit_logs} Habit Logs (Streak aktif).")
 
-        # 6. Buat Sesi Fokus (Time Logs)
-        # Sesi hari ini: 60m dan 45m = 105m (1 jam 45 menit fokus)
-        # Sesi hari-hari sebelumnya dalam sepekan
+        # ==========================================
+        # 6. TIME LOGS (SESI FOKUS DEEP WORK)
         time_logs_data = [
-            # Hari ini
+            # Hari Ini
             TimeLog(
                 user_id=user_id,
-                project_name="Second Brain Agent",
+                project_name="Thesis Bab 3",
                 started_at=local_dt(today, 9, 30),
-                ended_at=local_dt(today, 10, 30),
-                duration_minutes=60,
-                break_reminder_sent=False,
+                ended_at=local_dt(today, 11, 30),
+                duration_minutes=120,
+                break_reminder_sent=True,
             ),
-            TimeLog(
-                user_id=user_id,
-                project_name="Usaha & Karir",
-                started_at=local_dt(today, 13, 15),
-                ended_at=local_dt(today, 14, 0),
-                duration_minutes=45,
-                break_reminder_sent=False,
-            ),
-            # Kemarin
             TimeLog(
                 user_id=user_id,
                 project_name="Second Brain Agent",
+                started_at=local_dt(today, 13, 30),
+                ended_at=local_dt(today, 15, 0),
+                duration_minutes=90,
+                break_reminder_sent=True,
+            ),
+            # 1 hari lalu
+            TimeLog(
+                user_id=user_id,
+                project_name="Eksperimen Model AI",
+                started_at=local_dt(today - timedelta(days=1), 10, 0),
+                ended_at=local_dt(today - timedelta(days=1), 12, 0),
+                duration_minutes=120,
+                break_reminder_sent=True,
+            ),
+            TimeLog(
+                user_id=user_id,
+                project_name="CV PELANGI EFRATA",
                 started_at=local_dt(today - timedelta(days=1), 14, 0),
                 ended_at=local_dt(today - timedelta(days=1), 15, 30),
                 duration_minutes=90,
@@ -292,38 +327,60 @@ async def seed_data():
             # 2 hari lalu
             TimeLog(
                 user_id=user_id,
-                project_name="Kuliah & Riset",
-                started_at=local_dt(today - timedelta(days=2), 10, 0),
-                ended_at=local_dt(today - timedelta(days=2), 11, 15),
-                duration_minutes=75,
-                break_reminder_sent=False,
+                project_name="Thesis Bab 2",
+                started_at=local_dt(today - timedelta(days=2), 9, 0),
+                ended_at=local_dt(today - timedelta(days=2), 11, 0),
+                duration_minutes=120,
+                break_reminder_sent=True,
             ),
             # 3 hari lalu
             TimeLog(
                 user_id=user_id,
-                project_name="Usaha & Karir",
-                started_at=local_dt(today - timedelta(days=3), 15, 0),
+                project_name="Second Brain Agent",
+                started_at=local_dt(today - timedelta(days=3), 14, 0),
                 ended_at=local_dt(today - timedelta(days=3), 16, 0),
-                duration_minutes=60,
-                break_reminder_sent=False,
+                duration_minutes=120,
+                break_reminder_sent=True,
             ),
             # 4 hari lalu
             TimeLog(
                 user_id=user_id,
-                project_name="Second Brain Agent",
-                started_at=local_dt(today - timedelta(days=4), 16, 0),
-                ended_at=local_dt(today - timedelta(days=4), 16, 45),
-                duration_minutes=45,
+                project_name="Riset Literatur Paper",
+                started_at=local_dt(today - timedelta(days=4), 10, 0),
+                ended_at=local_dt(today - timedelta(days=4), 11, 30),
+                duration_minutes=90,
                 break_reminder_sent=False,
             ),
         ]
         for tl in time_logs_data:
             session.add(tl)
         await session.commit()
-        print(f"Berhasil membuat {len(time_logs_data)} Sesi Fokus (Time Logs).")
+        print(f"Berhasil membuat {len(time_logs_data)} Sesi Fokus (Time Logs) harian & pekanan.")
 
-        # 7. Buat Catatan & Ide Saling Terhubung (Knowledge Graph)
+        # ==========================================
+        # 7. CATATAN & BANK LITERATUR (KNOWLEDGE GRAPH & /paper)
+        # ==========================================
         notes_data = [
+            # Bank Literatur Paper
+            Note(
+                user_id=user_id,
+                content="Vaswani et al. (2017) 'Attention Is All You Need': Arsitektur transformer murni berbasis self-attention mekanisme tanpa ketergantungan urutan recurrency, memungkinkan komputasi paralel masif pada GPU.",
+                tags=["paper", "literatur", "ai", "thesis"],
+                source="paper",
+            ),
+            Note(
+                user_id=user_id,
+                content="Devlin et al. (2018) 'BERT': Pre-training deep bidirectional representations from unlabeled text untuk transfer learning NLP dan representasi semantik tinggi.",
+                tags=["paper", "literatur", "ai", "nlp"],
+                source="paper",
+            ),
+            Note(
+                user_id=user_id,
+                content="Chung et al. (2014) 'Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling': Analisis perbandingan komputasi dan retensi memori antara LSTM dan GRU.",
+                tags=["paper", "literatur", "nlp", "arsitektur"],
+                source="paper",
+            ),
+            # Catatan Ide & Arsitektur Sistem
             Note(
                 user_id=user_id,
                 content="Arsitektur 3-tier priority queue: mendesak (Tier 1), deadline dekat (Tier 2), dan bobot area hidup (Tier 3) untuk menghindari cognitive overload.",
@@ -362,37 +419,152 @@ async def seed_data():
             ),
             Note(
                 user_id=user_id,
-                content="Strategi open-source launch: dokumentasi README yang ramah pemula, lisensi MIT, dan onboarding mandiri tanpa invite code manual.",
-                tags=["opensource", "bisnis", "agent"],
-                source="web",
-            ),
-            Note(
-                user_id=user_id,
-                content="Checklist optimasi Supabase: aktifkan Row Level Security (RLS) di semua tabel dan gunakan Session Pooler IPv4 untuk koneksi stabil.",
-                tags=["backend", "keamanan", "database"],
-                source="web",
-            ),
-            Note(
-                user_id=user_id,
                 content="Desain sistem Bedtime Guardian: pengingat lembut batas jam kerja malam agar ritme sirkadian tetap konsisten dan tidak begadang.",
                 tags=["produktivitas", "recharge", "fokus"],
-                source="telegram",
-            ),
-            Note(
-                user_id=user_id,
-                content="[Voice Note]: Ingatkan review metrik mingguan setiap Minggu malam jam 8 dan diskusikan rencana sprint berikutnya bersama tim.",
-                tags=["suara", "prioritas", "produktivitas"],
                 source="telegram",
             ),
         ]
         for n in notes_data:
             session.add(n)
         await session.commit()
-        print(
-            f"Berhasil membuat {len(notes_data)} Catatan dengan tags beririsan untuk Knowledge Graph."
-        )
+        print(f"Berhasil membuat {len(notes_data)} Catatan (termasuk Bank Literatur Paper & Knowledge Graph).")
 
-    print("\n[OK] DATA SEEDING SELESAI DENGAN SUKSES 100%!")
+        # ==========================================
+        # 8. THESIS CHAPTERS (/thesis)
+        # ==========================================
+        chapters_data = [
+            ThesisChapter(user_id=user_id, chapter_num=1, title="Pendahuluan", status="Selesai", progress=100),
+            ThesisChapter(user_id=user_id, chapter_num=2, title="Landasan Teori", status="Review Dospem", progress=85),
+            ThesisChapter(user_id=user_id, chapter_num=3, title="Metodologi Penelitian", status="Drafting", progress=50),
+            ThesisChapter(user_id=user_id, chapter_num=4, title="Hasil & Pembahasan", status="Drafting", progress=20),
+            ThesisChapter(user_id=user_id, chapter_num=5, title="Kesimpulan & Saran", status="Belum Mulai", progress=0),
+        ]
+        for ch in chapters_data:
+            session.add(ch)
+        await session.commit()
+        print(f"Berhasil membuat {len(chapters_data)} Bab Thesis (Progres gabungan ~51%).")
+
+        # ==========================================
+        # 9. SUPERVISION LOGS (/bimbingan)
+        # ==========================================
+        supervision_data = [
+            SupervisionLog(
+                user_id=user_id,
+                notes="Dospem menyetujui arsitektur Bab 3, minta perjelas batasan masalah & perbandingan F1 score",
+                action_items="Tambahkan tabel komparasi parameter baseline di Bab 4",
+                created_at=datetime.combine(today - timedelta(days=4), time(14, 30)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+            SupervisionLog(
+                user_id=user_id,
+                notes="Review outline Bab 2 & sitasi jurnal terbaru (Transformer-based NLP)",
+                action_items="Perbanyak sitasi jurnal internasional Q1/Q2 5 tahun terakhir",
+                created_at=datetime.combine(today - timedelta(days=12), time(10, 15)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+            SupervisionLog(
+                user_id=user_id,
+                notes="Pengajuan judul dan latar belakang penelitian disetujui",
+                action_items="Susun draft Bab 1 dan instrumen pengumpulan dataset",
+                created_at=datetime.combine(today - timedelta(days=25), time(11, 0)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+        ]
+        for s in supervision_data:
+            session.add(s)
+        await session.commit()
+        print(f"Berhasil membuat {len(supervision_data)} Riwayat Bimbingan Dospem.")
+
+        # ==========================================
+        # 10. EXPERIMENT METRICS (/metric)
+        # ==========================================
+        metrics_data = [
+            ExperimentMetric(
+                user_id=user_id,
+                model_name="Transformer-Encoder",
+                metrics_summary="Akurasi: 94.8%, F1: 94.2%, Loss: 0.089",
+                parameters="Epoch: 40, LR: 0.0005, Heads: 8, Warmup: 1000",
+                created_at=datetime.combine(today - timedelta(days=1), time(16, 20)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+            ExperimentMetric(
+                user_id=user_id,
+                model_name="BiLSTM-Attention",
+                metrics_summary="Akurasi: 92.4%, F1: 91.8%, Loss: 0.142",
+                parameters="Epoch: 50, LR: 0.001, Hidden: 256, Dropout: 0.3",
+                created_at=datetime.combine(today - timedelta(days=2), time(11, 45)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+            ExperimentMetric(
+                user_id=user_id,
+                model_name="Baseline-SVM",
+                metrics_summary="Akurasi: 84.1%, F1: 82.7%",
+                parameters="Kernel: RBF, C: 1.0, Gamma: scale",
+                created_at=datetime.combine(today - timedelta(days=4), time(15, 10)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            ),
+        ]
+        for em in metrics_data:
+            session.add(em)
+        await session.commit()
+        print(f"Berhasil membuat {len(metrics_data)} Log Metrik Eksperimen Model AI.")
+
+        # ==========================================
+        # 11. SLEEP LOGS (/tidur - 7 HARI TERAKHIR)
+        # ==========================================
+        sleep_history = [
+            (today, 7.0, "Cukup"),
+            (today - timedelta(days=1), 7.5, "Nyenyak"),
+            (today - timedelta(days=2), 6.5, "Cukup"),
+            (today - timedelta(days=3), 5.5, "Kurang"),
+            (today - timedelta(days=4), 7.0, "Cukup"),
+            (today - timedelta(days=5), 8.0, "Nyenyak"),
+            (today - timedelta(days=6), 6.0, "Cukup"),
+        ]
+        for s_date, hours, qual in sleep_history:
+            sl = SleepLog(
+                user_id=user_id,
+                date=s_date,
+                hours=hours,
+                quality=qual,
+                created_at=datetime.combine(s_date, time(7, 30)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+            )
+            session.add(sl)
+        await session.commit()
+        print(f"Berhasil membuat {len(sleep_history)} Log Tidur 7 hari terakhir (Rata-rata 6.8 jam).")
+
+        # ==========================================
+        # 12. HYDRATION & HEALTH CHECK (/minum, /vitamin, /kesehatan)
+        # ==========================================
+        hydration = HydrationLog(
+            user_id=user_id,
+            date=today,
+            glasses=5,
+            target_glasses=8,
+            updated_at=utcnow(),
+        )
+        session.add(hydration)
+
+        health_check = HealthCheckLog(
+            user_id=user_id,
+            date=today,
+            took_vitamin=True,
+            did_stretch=True,
+            burnout_score=20,
+            notes="Kondisi fisik prima, fokus terjaga",
+            created_at=utcnow(),
+        )
+        session.add(health_check)
+        await session.commit()
+        print("Berhasil membuat Log Hidrasi (5/8 gelas) dan Health Check (Vitamin & Peregangan Selesai).")
+
+    print("\n=======================================================")
+    print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
+    print("Seluruh modul kini terisi data nyata & siap diuji:")
+    print("• /thesis     -> Bab 1-5 dengan progres naskah 51%")
+    print("• /bimbingan  -> 3 riwayat catatan dospem & counter 4 hari")
+    print("• /metric     -> 3 benchmark model (Transformer, BiLSTM, SVM)")
+    print("• /paper      -> 3 intisari jurnal/paper terindeks")
+    print("• /matkul     -> 4 tugas kuliah dengan countdown (HARI INI, BESOK, H-3)")
+    print("• /tidur      -> Riwayat tidur 7 hari (rata-rata 6.8 jam)")
+    print("• /minum      -> 5/8 gelas (1250 / 2000 ml)")
+    print("• /kesehatan  -> Skor Burnout 20/100 (Rendah 🟢 Kondisi Prima)")
+    print("• /weekly     -> Waktu fokus ~10+ jam dan habit streaks aktif")
+    print("=======================================================")
 
 
 if __name__ == "__main__":
