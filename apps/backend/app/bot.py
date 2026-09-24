@@ -1,3 +1,5 @@
+import html
+import io
 import logging
 import secrets
 from datetime import datetime, time, timedelta, timezone
@@ -6,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from sqlmodel import col, func, select, text
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import (
     Application,
@@ -126,6 +128,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• /timer — lihat status timer aktif\n"
         "• /stop — hentikan timer aktif\n"
         "• /night [HH:MM] — atur batas jam kerja malam\n"
+        "• /preset — pilih template produktivitas instan (1-klik)\n"
+        "• /export — unduh backup catatan & tugas ke Markdown\n"
+        "• /privacy — info jaminan privasi & keamanan data\n"
+        "• /disconnect — putuskan tautan Telegram dari akun\n"
         "• /chill — menu mode jeda (YouTube Music, kopi, film, hangout)\n"
         "• /kopi — pesan kopi cepat di ShopeeFood\n"
         "• /weekly — laporan performa mingguan\n\n"
@@ -574,8 +580,20 @@ async def tasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         urgent_tag = "[MENDESAK] " if task.is_urgent else ""
         lines.append(f"#{task.id} {area_tag}{urgent_tag}{task.title} — {item.reason}")
 
-    lines.append("\nGunakan /done <id> untuk menandai selesai.")
-    await update.effective_message.reply_text("\n".join(lines))
+    keyboard_buttons = []
+    for item in prioritized[:5]:
+        t = item.task
+        short_title = t.title[:24] + "..." if len(t.title) > 24 else t.title
+        keyboard_buttons.append([
+            InlineKeyboardButton(
+                f"✅ #{t.id} {short_title}",
+                callback_data=f"task:done:{t.id}",
+            )
+        ])
+    reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
+
+    lines.append("\nTip: Ketik /done <id> atau klik tombol di bawah:")
+    await update.effective_message.reply_text("\n".join(lines), reply_markup=reply_markup)
 
 
 async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -663,8 +681,19 @@ async def habits_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         streak_str = f" 🔥 {h.streak} hari" if h.streak > 0 else ""
         lines.append(f"#{h.habit.id} {box} {h.habit.name}{streak_str}")
 
-    lines.append("\nCentang habit: /check <id>\nContoh: /check 1")
-    await update.effective_message.reply_text("\n".join(lines))
+    keyboard_buttons = []
+    for h in habits_status:
+        if not h.is_completed_today and h.habit.id is not None:
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    f"🔥 Centang: {h.habit.name}",
+                    callback_data=f"habit:check:{h.habit.id}",
+                )
+            ])
+    reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
+
+    lines.append("\nTip: Ketik /check <id> atau klik tombol di bawah:")
+    await update.effective_message.reply_text("\n".join(lines), reply_markup=reply_markup)
 
 
 async def check_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -748,10 +777,15 @@ async def timer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elapsed = int((now_utc - started_at).total_seconds() // 60)
     started_local = started_at.astimezone(LOCAL_TZ).strftime("%H:%M")
 
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛑 Hentikan Timer Sekarang", callback_data="timer:stop")]
+    ])
     await update.effective_message.reply_text(
-        f"⏱️ Timer Aktif: '{running.project_name}'\n"
+        f"⏱️ <b>Timer Aktif:</b> '{html.escape(running.project_name)}'\n"
         f"Mulai: pukul {started_local} (berjalan {elapsed} menit)\n\n"
-        "Ketik /stop untuk menghentikan timer."
+        "Ketik /stop atau klik tombol di bawah untuk menghentikan:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=keyboard,
     )
 
 
@@ -969,6 +1003,394 @@ async def weekly_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     )
 
 
+# ==========================================
+# INTERACTIVE CALLBACKS (TASKS, HABITS, TIMER)
+# ==========================================
+async def task_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data.startswith("task:done:"):
+        raw_id = data.split("task:done:")[-1]
+        if not raw_id.isdigit():
+            await query.answer("ID tugas tidak valid.", show_alert=True)
+            return
+        task_id = int(raw_id)
+        now_utc = utcnow()
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(Task).where(Task.user_id == profile.id, Task.id == task_id)
+            )
+            task = result.scalars().first()
+            if task is None:
+                await query.answer("Tugas tidak ditemukan.", show_alert=True)
+                return
+            if task.status == "completed":
+                await query.answer("Tugas sudah selesai sebelumnya.", show_alert=True)
+                return
+            task.status = "completed"
+            task.completed_at = now_utc
+            session.add(task)
+            await session.commit()
+            title = task.title
+
+        await query.answer(f"✅ Tugas #{task_id} selesai!", show_alert=False)
+        try:
+            await query.message.reply_text(f"✅ Selesai: #{task_id} - {title}")
+        except Exception:
+            pass
+
+
+async def habit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data.startswith("habit:check:"):
+        raw_id = data.split("habit:check:")[-1]
+        if not raw_id.isdigit():
+            await query.answer("ID habit tidak valid.", show_alert=True)
+            return
+        habit_id = int(raw_id)
+        today = datetime.now(LOCAL_TZ).date()
+        async with SessionLocal() as session:
+            habit, already_done, streak = await check_habit_for_today(
+                session, profile.id, habit_id, today
+            )
+
+        if habit is None:
+            await query.answer("Habit tidak ditemukan.", show_alert=True)
+            return
+
+        h_name = habit.name
+        if already_done:
+            await query.answer(f"Sudah dicentang hari ini! (Streak: {streak} hari)", show_alert=True)
+            return
+
+        streak_str = f" 🔥 Streak: {streak} hari!" if streak > 0 else ""
+        await query.answer(f"🔥 {h_name} dicentang!{streak_str}", show_alert=False)
+        try:
+            await query.message.reply_text(f"🔥 Habit dicentang: {h_name}{streak_str}")
+        except Exception:
+            pass
+
+
+async def timer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data == "timer:stop":
+        now_utc = utcnow()
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(TimeLog).where(
+                    TimeLog.user_id == profile.id, col(TimeLog.ended_at).is_(None)
+                )
+            )
+            running = result.scalars().first()
+            if running is None:
+                await query.answer("Tidak ada timer yang sedang berjalan.", show_alert=True)
+                return
+
+            started_at = running.started_at
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
+            duration = max(1, int((now_utc - started_at).total_seconds() // 60))
+            running.ended_at = now_utc
+            running.duration_minutes = duration
+            session.add(running)
+            await session.commit()
+            proj = running.project_name
+
+        await query.answer("⏱️ Timer dihentikan!", show_alert=False)
+        try:
+            await query.edit_message_text(
+                f"🛑 <b>Sesi Fokus Dihentikan:</b> '{html.escape(proj)}'\n"
+                f"Durasi: {duration} menit. Kerja bagus!",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            await query.message.reply_text(f"🛑 Timer '{proj}' dihentikan ({duration} menit).")
+
+
+# ==========================================
+# 1-CLICK PRESETS (/preset)
+# ==========================================
+PRESETS = {
+    "academic": {
+        "title": "🎓 Akademisi / Mahasiswa",
+        "areas": [
+            ("Kesehatan", 1),
+            ("Skripsi & Riset", 2),
+            ("Kuliah & Tugas", 3),
+            ("Karir", 4),
+        ],
+        "habits": ["Menulis Naskah 30 Menit", "Membaca Paper / Jurnal", "Olahraga Ringan"],
+    },
+    "dev": {
+        "title": "💻 Software Engineer / Tech",
+        "areas": [
+            ("Kesehatan", 1),
+            ("Core Project", 2),
+            ("Bugfix & Review", 3),
+            ("Belajar Teknologi", 4),
+        ],
+        "habits": ["Deep Work 90 Menit", "Daily Git Commit", "Review PR / Code"],
+    },
+    "biz": {
+        "title": "💼 Profesional / Bisnis",
+        "areas": [
+            ("Kesehatan", 1),
+            ("Klien & Sales", 2),
+            ("Operasional", 3),
+            ("Pengembangan Diri", 4),
+        ],
+        "habits": ["Review Prioritas Pagi", "Follow-up Klien", "Olahraga 20 Menit"],
+    },
+}
+
+
+async def preset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎓 Akademisi / Mahasiswa", callback_data="preset:academic")],
+        [InlineKeyboardButton("💻 Software Engineer / Tech", callback_data="preset:dev")],
+        [InlineKeyboardButton("💼 Profesional / Bisnis", callback_data="preset:biz")],
+    ])
+    text = (
+        "⚡ <b>Pilih Template Produktivitasmu (1-Klik Setup)</b>\n\n"
+        "Pilih template yang paling sesuai untuk membuat area dan kebiasaan awal secara instan:\n\n"
+        "🎓 <b>Akademisi / Mahasiswa:</b>\n"
+        "• Area: Kesehatan, Skripsi & Riset, Kuliah & Tugas, Karir\n"
+        "• Habit: Tulis Naskah 30m, Baca Paper, Olahraga Ringan\n\n"
+        "💻 <b>Software Engineer / Tech:</b>\n"
+        "• Area: Kesehatan, Core Project, Bugfix & Review, Belajar Teknologi\n"
+        "• Habit: Deep Work 90m, Daily Git Commit, Review PR\n\n"
+        "💼 <b>Profesional / Bisnis:</b>\n"
+        "• Area: Kesehatan, Klien & Sales, Operasional, Pengembangan Diri\n"
+        "• Habit: Review Prioritas Pagi, Follow-up Klien, Olahraga 20m\n\n"
+        "<i>Klik salah satu tombol di bawah:</i>"
+    )
+    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+
+async def preset_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    preset_key = data.split("preset:")[-1]
+    cfg = PRESETS.get(preset_key)
+    if not cfg:
+        await query.answer("Preset tidak ditemukan.", show_alert=True)
+        return
+
+    async with SessionLocal() as session:
+        areas_res = await session.execute(
+            select(Area).where(Area.user_id == profile.id)
+        )
+        existing_areas = {a.name.lower(): a for a in areas_res.scalars().all()}
+        for name, pos in cfg["areas"]:
+            if name.lower() in existing_areas:
+                existing_areas[name.lower()].position = pos
+                session.add(existing_areas[name.lower()])
+            else:
+                session.add(Area(user_id=profile.id, name=name, position=pos))
+
+        habits_res = await session.execute(
+            select(Habit).where(Habit.user_id == profile.id, Habit.is_active == True)
+        )
+        existing_habits = {h.name.lower() for h in habits_res.scalars().all()}
+        for h_name in cfg["habits"]:
+            if h_name.lower() not in existing_habits:
+                session.add(Habit(user_id=profile.id, name=h_name, is_active=True))
+
+        await session.commit()
+
+    await query.answer("🎉 Template berhasil diterapkan!", show_alert=False)
+    await query.edit_message_text(
+        f"🎉 <b>Template '{cfg['title']}' Berhasil Diterapkan!</b>\n\n"
+        "Area hidup dan kebiasaan harianmu sudah aktif.\n"
+        "• Ketik /areas untuk melihat urutan prioritasmu\n"
+        "• Ketik /habits untuk melihat kebiasaan harianmu\n"
+        "• Ketik /tasks untuk melihat daftar tugas",
+        parse_mode=ParseMode.HTML,
+    )
+
+
+# ==========================================
+# PRIVACY & SECURITY (/privacy)
+# ==========================================
+async def privacy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    text = (
+        "🔒 <b>Jaminan Privasi & Keamanan Data — Second Brain</b>\n\n"
+        "Kepercayaan dan kepemilikan data pengguna adalah prioritas mutlak kami:\n\n"
+        "1. <b>Isolasi Data Mutlak (PostgreSQL RLS):</b>\n"
+        "   Setiap catatan, tugas, dan timer dilindungi Row Level Security. Pengguna lain tidak bisa mengakses atau memodifikasi datamu.\n\n"
+        "2. <b>Zero Third-Party Tracking:</b>\n"
+        "   Tidak ada iklan, tidak ada analytics komersial, dan tidak ada data yang dibagikan atau dijual ke pihak ketiga.\n\n"
+        "3. <b>Eksekusi Perintah Bebas LLM:</b>\n"
+        "   Perintah langsung (/tasks, /done, /habits, /timer, /areas) diproses murni di server tanpa mengirim data ke model AI eksternal.\n\n"
+        "4. <b>Hak Portabilitas Data (Zero Vendor Lock-in):</b>\n"
+        "   Kamu bebas mengunduh salinan seluruh datamu kapan saja dengan perintah /export, atau memutuskan tautan dengan /disconnect.\n\n"
+        "<i>Open-source, transparan, dan di bawah kendalimu sendiri.</i>"
+    )
+    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML)
+
+
+# ==========================================
+# EXPORT DATA PORTABILITY (/export)
+# ==========================================
+async def export_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    today = datetime.now(LOCAL_TZ).date()
+    async with SessionLocal() as session:
+        notes_res = await session.execute(
+            select(Note).where(Note.user_id == profile.id).order_by(Note.created_at.desc())
+        )
+        notes = notes_res.scalars().all()
+
+        tasks_res = await session.execute(
+            select(Task).where(Task.user_id == profile.id).order_by(Task.created_at.desc())
+        )
+        tasks = tasks_res.scalars().all()
+
+    md_lines = [
+        f"# Second Brain Export — {profile.full_name or profile.email}",
+        f"**Tanggal Ekspor:** {today.strftime('%d %B %Y')}",
+        f"**Total Catatan:** {len(notes)} | **Total Tugas:** {len(tasks)}",
+        "\n---\n",
+        "## 🎯 Daftar Tugas\n",
+    ]
+    for t in tasks:
+        check = "x" if t.status == "completed" else " "
+        deadline_str = f" (Deadline: {t.deadline.strftime('%Y-%m-%d')})" if t.deadline else ""
+        urgent_str = " [MENDESAK]" if t.is_urgent else ""
+        md_lines.append(f"- [{check}] #{t.id} {t.title}{deadline_str}{urgent_str}")
+
+    md_lines.append("\n---\n\n## 📝 Catatan & Ide\n")
+    for n in notes:
+        created_str = n.created_at.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M")
+        tags_str = f" `{'` `'.join(n.tags)}`" if n.tags else ""
+        md_lines.append(f"### {created_str}{tags_str}\n")
+        md_lines.append(f"{n.content}\n")
+
+    export_content = "\n".join(md_lines)
+    bio = io.BytesIO(export_content.encode("utf-8"))
+    bio.name = f"second_brain_export_{today.strftime('%Y%m%d')}.md"
+
+    await context.bot.send_document(
+        chat_id=chat_id,
+        document=bio,
+        filename=bio.name,
+        caption="📦 <b>Backup Catatan & Tugas Berhasil Dibuat!</b>\n\nFormat: Markdown (.md)\n✅ Kompatibel langsung dengan Obsidian, Notion, dan text editor.",
+        parse_mode=ParseMode.HTML,
+    )
+
+
+# ==========================================
+# SELF-SERVICE DISCONNECT (/disconnect)
+# ==========================================
+async def disconnect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("⚠️ Ya, Putuskan Tautan", callback_data="disconnect:confirm"),
+            InlineKeyboardButton("❌ Batal", callback_data="disconnect:cancel"),
+        ]
+    ])
+    await update.effective_message.reply_text(
+        "🔌 <b>Putuskan Tautan Akun Telegram?</b>\n\n"
+        "Jika tautan diputuskan, bot tidak akan lagi menerima perintah dari chat ini. "
+        "Data akun, catatan, dan tugasmu tetap aman di database web.\n\n"
+        "Apakah kamu yakin?",
+        parse_mode=ParseMode.HTML,
+        reply_markup=keyboard,
+    )
+
+
+async def disconnect_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+
+    if data == "disconnect:cancel":
+        await query.answer("Dibatalkan.", show_alert=False)
+        await query.edit_message_text("✅ Pemutusan tautan dibatalkan. Akun tetap terhubung.")
+        return
+
+    if data == "disconnect:confirm":
+        if profile is not None:
+            async with SessionLocal() as session:
+                prof = await session.get(Profile, profile.id)
+                if prof:
+                    prof.telegram_chat_id = None
+                    session.add(prof)
+                    await session.commit()
+
+        await query.answer("Tautan berhasil diputuskan.", show_alert=False)
+        await query.edit_message_text(
+            "🔌 <b>Tautan Akun Berhasil Diputuskan</b>\n\n"
+            "Akun Telegram-mu telah diputuskan dari sistem Second Brain. "
+            "Datamu tetap tersimpan aman di database web.\n\n"
+            "Ketik /connect kapan saja jika ingin menghubungkan kembali.",
+            parse_mode=ParseMode.HTML,
+        )
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -989,12 +1411,24 @@ ptb_app.add_handler(CommandHandler("check", check_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["timer", "status"], timer_cmd, filters=private))
 ptb_app.add_handler(CommandHandler("stop", stop_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["night", "bedtime"], night_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["preset", "template"], preset_cmd, filters=private))
+ptb_app.add_handler(CommandHandler("privacy", privacy_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["export", "backup"], export_cmd, filters=private))
+ptb_app.add_handler(CommandHandler("disconnect", disconnect_cmd, filters=private))
 ptb_app.add_handler(
     CommandHandler(["chill", "recharge", "jeda"], chill_cmd, filters=private)
 )
 ptb_app.add_handler(CommandHandler(["kopi", "coffee"], coffee_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["weekly", "laporan"], weekly_cmd, filters=private))
+
+# Callback Query Handlers
 ptb_app.add_handler(CallbackQueryHandler(chill_callback, pattern=r"^chill:"))
+ptb_app.add_handler(CallbackQueryHandler(task_callback, pattern=r"^task:"))
+ptb_app.add_handler(CallbackQueryHandler(habit_callback, pattern=r"^habit:"))
+ptb_app.add_handler(CallbackQueryHandler(timer_callback, pattern=r"^timer:"))
+ptb_app.add_handler(CallbackQueryHandler(preset_callback, pattern=r"^preset:"))
+ptb_app.add_handler(CallbackQueryHandler(disconnect_callback, pattern=r"^disconnect:"))
+
 ptb_app.add_handler(
     MessageHandler(
         private & filters.UpdateType.MESSAGE & (filters.VOICE | filters.AUDIO),

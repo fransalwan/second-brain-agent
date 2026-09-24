@@ -119,6 +119,10 @@ Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya ins
 | `/chill` | Menu Mode Jeda interaktif (YouTube Music, ShopeeFood, Rekomendasi Film & Hangout) |
 | `/kopi` | Akses cepat pilihan menu kopi ShopeeFood |
 | `/weekly` | Melihat Laporan Mingguan Pola Kerja (waktu fokus, tugas selesai, habit, tidur, insight) |
+| `/preset` | Pilih template starter produktivitas (Akademisi, Software Engineer, Bisnis) |
+| `/export` | Mengunduh backup seluruh catatan dan tugas dalam format Markdown (.md) |
+| `/privacy` | Penjelasan jaminan keamanan, privasi data (RLS), dan hak portabilitas |
+| `/disconnect` | Memutuskan tautan akun Telegram secara mandiri |
 | `/connect <email atau kode>` | Menghubungkan akun Telegram dengan email web atau kode undangan |
 | `/invite <nama> <email>` | Membuat kode undangan (khusus admin) |
 
