@@ -66,7 +66,9 @@ async def seed_data():
             return
 
         user_id = profile.id
-        print(f"Mempersiapkan data seed untuk: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]")
+        print(
+            f"Mempersiapkan data seed untuk: {profile.full_name} ({TARGET_EMAIL}) [ID: {user_id}]"
+        )
 
         # Konfigurasi profil optimal
         profile.brief_time = time(7, 0)
@@ -78,11 +80,21 @@ async def seed_data():
         # 2. BERSIHKAN DATA LAMA
         # ==========================================
         await session.execute(delete(SleepLog).where(SleepLog.user_id == user_id))
-        await session.execute(delete(HydrationLog).where(HydrationLog.user_id == user_id))
-        await session.execute(delete(HealthCheckLog).where(HealthCheckLog.user_id == user_id))
-        await session.execute(delete(ThesisChapter).where(ThesisChapter.user_id == user_id))
-        await session.execute(delete(SupervisionLog).where(SupervisionLog.user_id == user_id))
-        await session.execute(delete(ExperimentMetric).where(ExperimentMetric.user_id == user_id))
+        await session.execute(
+            delete(HydrationLog).where(HydrationLog.user_id == user_id)
+        )
+        await session.execute(
+            delete(HealthCheckLog).where(HealthCheckLog.user_id == user_id)
+        )
+        await session.execute(
+            delete(ThesisChapter).where(ThesisChapter.user_id == user_id)
+        )
+        await session.execute(
+            delete(SupervisionLog).where(SupervisionLog.user_id == user_id)
+        )
+        await session.execute(
+            delete(ExperimentMetric).where(ExperimentMetric.user_id == user_id)
+        )
         await session.execute(delete(HabitLog).where(HabitLog.user_id == user_id))
         await session.execute(delete(Habit).where(Habit.user_id == user_id))
         await session.execute(delete(Task).where(Task.user_id == user_id))
@@ -109,7 +121,9 @@ async def seed_data():
             select(Area).where(Area.user_id == user_id).order_by(Area.position.asc())
         )
         areas = {a.name: a.id for a in areas_res.scalars().all()}
-        print(f"Berhasil membuat {len(areas)} Area Hidup (Kesehatan, Kuliah dan Riset, Karir, Usaha).")
+        print(
+            f"Berhasil membuat {len(areas)} Area Hidup (Kesehatan, Kuliah dan Riset, Karir, Usaha)."
+        )
 
         # Helper datetime UTC
         def local_dt(d: date, hour: int, minute: int) -> datetime:
@@ -149,7 +163,6 @@ async def seed_data():
                 status="completed",
                 completed_at=local_dt(today - timedelta(days=1), 16, 0),
             ),
-
             # --- AREA 2: KULIAH DAN RISET (Hit /matkul countdown!) ---
             Task(
                 user_id=user_id,
@@ -192,7 +205,6 @@ async def seed_data():
                 status="completed",
                 completed_at=local_dt(today - timedelta(days=2), 15, 0),
             ),
-
             # --- AREA 3: KARIR ---
             Task(
                 user_id=user_id,
@@ -219,7 +231,6 @@ async def seed_data():
                 status="completed",
                 completed_at=local_dt(today - timedelta(days=3), 17, 30),
             ),
-
             # --- AREA 4: USAHA ---
             Task(
                 user_id=user_id,
@@ -280,12 +291,16 @@ async def seed_data():
                     habit_id=h.id,
                     user_id=user_id,
                     completed_date=d,
-                    created_at=datetime.combine(d, time(8, 0)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                    created_at=datetime.combine(d, time(8, 0))
+                    .replace(tzinfo=LOCAL_TZ)
+                    .astimezone(timezone.utc),
                 )
                 session.add(hl)
                 total_habit_logs += 1
         await session.commit()
-        print(f"Berhasil membuat {len(created_habits)} Habit aktif dengan {total_habit_logs} Habit Logs (Streak aktif).")
+        print(
+            f"Berhasil membuat {len(created_habits)} Habit aktif dengan {total_habit_logs} Habit Logs (Streak aktif)."
+        )
 
         # ==========================================
         # 6. TIME LOGS (SESI FOKUS DEEP WORK)
@@ -355,7 +370,9 @@ async def seed_data():
         for tl in time_logs_data:
             session.add(tl)
         await session.commit()
-        print(f"Berhasil membuat {len(time_logs_data)} Sesi Fokus (Time Logs) harian & pekanan.")
+        print(
+            f"Berhasil membuat {len(time_logs_data)} Sesi Fokus (Time Logs) harian & pekanan."
+        )
 
         # ==========================================
         # 7. CATATAN & BANK LITERATUR (KNOWLEDGE GRAPH & /paper)
@@ -427,22 +444,56 @@ async def seed_data():
         for n in notes_data:
             session.add(n)
         await session.commit()
-        print(f"Berhasil membuat {len(notes_data)} Catatan (termasuk Bank Literatur Paper & Knowledge Graph).")
+        print(
+            f"Berhasil membuat {len(notes_data)} Catatan (termasuk Bank Literatur Paper & Knowledge Graph)."
+        )
 
         # ==========================================
         # 8. THESIS CHAPTERS (/thesis)
         # ==========================================
         chapters_data = [
-            ThesisChapter(user_id=user_id, chapter_num=1, title="Pendahuluan", status="Selesai", progress=100),
-            ThesisChapter(user_id=user_id, chapter_num=2, title="Landasan Teori", status="Review Dospem", progress=85),
-            ThesisChapter(user_id=user_id, chapter_num=3, title="Metodologi Penelitian", status="Drafting", progress=50),
-            ThesisChapter(user_id=user_id, chapter_num=4, title="Hasil & Pembahasan", status="Drafting", progress=20),
-            ThesisChapter(user_id=user_id, chapter_num=5, title="Kesimpulan & Saran", status="Belum Mulai", progress=0),
+            ThesisChapter(
+                user_id=user_id,
+                chapter_num=1,
+                title="Pendahuluan",
+                status="Selesai",
+                progress=100,
+            ),
+            ThesisChapter(
+                user_id=user_id,
+                chapter_num=2,
+                title="Landasan Teori",
+                status="Review Dospem",
+                progress=85,
+            ),
+            ThesisChapter(
+                user_id=user_id,
+                chapter_num=3,
+                title="Metodologi Penelitian",
+                status="Drafting",
+                progress=50,
+            ),
+            ThesisChapter(
+                user_id=user_id,
+                chapter_num=4,
+                title="Hasil & Pembahasan",
+                status="Drafting",
+                progress=20,
+            ),
+            ThesisChapter(
+                user_id=user_id,
+                chapter_num=5,
+                title="Kesimpulan & Saran",
+                status="Belum Mulai",
+                progress=0,
+            ),
         ]
         for ch in chapters_data:
             session.add(ch)
         await session.commit()
-        print(f"Berhasil membuat {len(chapters_data)} Bab Thesis (Progres gabungan ~51%).")
+        print(
+            f"Berhasil membuat {len(chapters_data)} Bab Thesis (Progres gabungan ~51%)."
+        )
 
         # ==========================================
         # 9. SUPERVISION LOGS (/bimbingan)
@@ -452,19 +503,25 @@ async def seed_data():
                 user_id=user_id,
                 notes="Dospem menyetujui arsitektur Bab 3, minta perjelas batasan masalah & perbandingan F1 score",
                 action_items="Tambahkan tabel komparasi parameter baseline di Bab 4",
-                created_at=datetime.combine(today - timedelta(days=4), time(14, 30)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=4), time(14, 30))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
             SupervisionLog(
                 user_id=user_id,
                 notes="Review outline Bab 2 & sitasi jurnal terbaru (Transformer-based NLP)",
                 action_items="Perbanyak sitasi jurnal internasional Q1/Q2 5 tahun terakhir",
-                created_at=datetime.combine(today - timedelta(days=12), time(10, 15)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=12), time(10, 15))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
             SupervisionLog(
                 user_id=user_id,
                 notes="Pengajuan judul dan latar belakang penelitian disetujui",
                 action_items="Susun draft Bab 1 dan instrumen pengumpulan dataset",
-                created_at=datetime.combine(today - timedelta(days=25), time(11, 0)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=25), time(11, 0))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
         ]
         for s in supervision_data:
@@ -481,21 +538,27 @@ async def seed_data():
                 model_name="Transformer-Encoder",
                 metrics_summary="Akurasi: 94.8%, F1: 94.2%, Loss: 0.089",
                 parameters="Epoch: 40, LR: 0.0005, Heads: 8, Warmup: 1000",
-                created_at=datetime.combine(today - timedelta(days=1), time(16, 20)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=1), time(16, 20))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
             ExperimentMetric(
                 user_id=user_id,
                 model_name="BiLSTM-Attention",
                 metrics_summary="Akurasi: 92.4%, F1: 91.8%, Loss: 0.142",
                 parameters="Epoch: 50, LR: 0.001, Hidden: 256, Dropout: 0.3",
-                created_at=datetime.combine(today - timedelta(days=2), time(11, 45)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=2), time(11, 45))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
             ExperimentMetric(
                 user_id=user_id,
                 model_name="Baseline-SVM",
                 metrics_summary="Akurasi: 84.1%, F1: 82.7%",
                 parameters="Kernel: RBF, C: 1.0, Gamma: scale",
-                created_at=datetime.combine(today - timedelta(days=4), time(15, 10)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(today - timedelta(days=4), time(15, 10))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             ),
         ]
         for em in metrics_data:
@@ -521,11 +584,15 @@ async def seed_data():
                 date=s_date,
                 hours=hours,
                 quality=qual,
-                created_at=datetime.combine(s_date, time(7, 30)).replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc),
+                created_at=datetime.combine(s_date, time(7, 30))
+                .replace(tzinfo=LOCAL_TZ)
+                .astimezone(timezone.utc),
             )
             session.add(sl)
         await session.commit()
-        print(f"Berhasil membuat {len(sleep_history)} Log Tidur 7 hari terakhir (Rata-rata 6.8 jam).")
+        print(
+            f"Berhasil membuat {len(sleep_history)} Log Tidur 7 hari terakhir (Rata-rata 6.8 jam)."
+        )
 
         # ==========================================
         # 12. HYDRATION & HEALTH CHECK (/minum, /vitamin, /kesehatan)
@@ -550,7 +617,9 @@ async def seed_data():
         )
         session.add(health_check)
         await session.commit()
-        print("Berhasil membuat Log Hidrasi (5/8 gelas) dan Health Check (Vitamin & Peregangan Selesai).")
+        print(
+            "Berhasil membuat Log Hidrasi (5/8 gelas) dan Health Check (Vitamin & Peregangan Selesai)."
+        )
 
     print("\n=======================================================")
     print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
