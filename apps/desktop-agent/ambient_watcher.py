@@ -210,9 +210,10 @@ def extract_activity_context(title: str, project_name: str) -> str:
         file_name = parts[0]
 
     title_lower = title.lower()
+    proj_lower = project_name.lower()
 
     # 1. Deteksi Naskah Thesis
-    if "thesis-manuscript" in title_lower or "penulisan" in project_name.lower():
+    if "thesis-manuscript" in title_lower or "penulisan" in proj_lower:
         if any(
             file_name.lower().endswith(ext)
             for ext in [".md", ".tex", ".docx", ".txt", ".typ"]
@@ -234,15 +235,43 @@ def extract_activity_context(title: str, project_name: str) -> str:
             else "Pengerjaan Naskah Thesis"
         )
 
-    # 2. Deteksi Eksperimen Thesis
-    if "thesis-experiment" in title_lower or "eksperimen" in project_name.lower():
+    # 2. Deteksi Eksperimen Thesis / Riset
+    if "thesis-experiment" in title_lower or "eksperimen" in proj_lower or "riset" in proj_lower:
         if file_name.lower().endswith(".py"):
             return f"Pengembangan Model & Coding ({file_name})"
         elif file_name.lower().endswith(".ipynb"):
             return f"Eksplorasi Notebook & Analisis Data ({file_name})"
         elif any(file_name.lower().endswith(ext) for ext in [".yaml", ".yml", ".json"]):
             return f"Konfigurasi Parameter Eksperimen ({file_name})"
-        return f"Eksperimen Thesis ({file_name})" if file_name else "Eksperimen Thesis"
+        return f"Eksperimen Riset ({file_name})" if file_name else "Eksperimen Riset"
+
+    # 3. Deteksi Kuliah / Tugas
+    if "kuliah" in proj_lower or any(k in title_lower for k in ["tugas", "tubes", "praktikum", "matkul"]):
+        if any(file_name.lower().endswith(ext) for ext in [".py", ".java", ".c", ".cpp", ".js", ".ts", ".html", ".css", ".go", ".rs"]):
+            return f"Pengerjaan Tugas / Coding ({file_name})"
+        elif any(file_name.lower().endswith(ext) for ext in [".pdf", ".docx", ".md", ".txt"]):
+            return f"Pengerjaan Laporan / Catatan Kuliah ({file_name})"
+        elif file_name.lower().endswith(".sql"):
+            return f"Praktikum Database ({file_name})"
+        return f"Pengerjaan Materi Kuliah ({file_name})" if file_name else "Aktivitas Kuliah"
+
+    # 4. Deteksi Hobby / Open Source
+    if "hobby" in proj_lower or "open source" in proj_lower or "opensource" in proj_lower:
+        if "test" in file_name.lower():
+            return f"Pengujian & Unit Test ({file_name})"
+        elif file_name.lower().endswith(".md"):
+            return f"Dokumentasi & Arsitektur ({file_name})"
+        elif file_name:
+            return f"Pengembangan Fitur ({file_name})"
+        return "Pengembangan Open Source"
+
+    # 5. Deteksi Karir / Upwork / Freelance
+    if "karir" in proj_lower:
+        return f"Pengerjaan Project Client / Freelance ({file_name})" if file_name else "Aktivitas Karir & Client"
+
+    # 6. Deteksi Usaha
+    if "usaha" in proj_lower:
+        return f"Operasional Bisnis ({file_name})" if file_name else "Aktivitas Usaha"
 
     if file_name:
         return f"Menyunting {file_name}"
@@ -310,21 +339,78 @@ class AmbientWatcher:
         return None
 
     def match_project_name(self, title: str) -> str | None:
-        """Mencocokkan judul jendela VS Code dengan pemetaan project di config."""
+        """Mencocokkan judul jendela VS Code dengan pemetaan project di config secara dinamis & cerdas."""
         if "Visual Studio Code" not in title:
             return None
 
-        mappings = self.config.get("project_mappings", {})
-        title_lower = title.lower()
+        # 1. Bersihkan judul dan ambil nama folder / workspace
+        clean_title = title.split(" - Visual Studio Code")[0].strip()
+        parts = [p.strip().lstrip("● ") for p in clean_title.split(" - ") if p.strip()]
 
+        folder_hint = parts[-1] if parts else clean_title
+        folder_hint_clean = folder_hint.replace(" (Workspace)", "").strip()
+
+        title_lower = title.lower()
+        folder_lower = folder_hint_clean.lower()
+
+        # 2. Periksa Pemetaan Eksplisit dari Config (Prioritas Utama User)
+        mappings = self.config.get("project_mappings", {})
         for key, project_name in mappings.items():
             if key == "default":
                 continue
             if key.lower() in title_lower:
                 return project_name
 
-        # Jika jendela adalah VS Code tapi folder tidak terdaftar khusus
-        return mappings.get("default", None)
+        # 3. Klasifikasi Dinamis Berbasis Kata Kunci (Dynamic Pattern Matching):
+
+        # A. KULIAH (Tugas, Matkul, Praktikum, Tubes, Ujian, Quiz, Semester)
+        kuliah_patterns = [
+            "tugas", "tubes", "tucas", "matkul", "mata-kuliah", "kuliah",
+            "praktikum", "prak-", "lab-", "uts", "uas", "ujian", "quiz", "kuis",
+            "coursework", "assignment", "homework", "informatika", "semester", "sks"
+        ]
+        if any(pat in folder_lower for pat in kuliah_patterns) or any(pat in title_lower for pat in ["tugas", "tubes", "praktikum", "uts", "uas"]):
+            return "Kuliah"
+
+        # B. RISET & THESIS (Skripsi, Thesis, Paper, Eksperimen Model)
+        riset_patterns = [
+            "thesis", "skripsi", "slp-iris", "riset", "research",
+            "manuscript", "naskah", "paper", "latex", "overleaf", "dospem", "bimbingan"
+        ]
+        if any(pat in folder_lower for pat in riset_patterns) or any(pat in title_lower for pat in ["thesis", "skripsi", "slp-iris"]):
+            if any(k in title_lower for k in ["manuscript", "naskah", "penulisan", "paper", ".tex", ".bib"]):
+                return "Thesis: Penulisan & Naskah"
+            if any(k in title_lower for k in ["experiment", "eksperimen", "model", "slp-iris", ".ipynb"]):
+                return "Thesis: Eksperimen & Model"
+            return "Kuliah dan Riset"
+
+        # C. HOBBY / OPEN SOURCE (Repo Personal, Portofolio, Eksplorasi)
+        hobby_patterns = [
+            "second-brain-agent", "second-brain", "opensource", "open-source",
+            "portfolio", "hobby", "sideproject", "side-project", "playground",
+            "dotfiles", "pet-project", "toy-"
+        ]
+        if any(pat in folder_lower for pat in hobby_patterns) or any(pat in title_lower for pat in ["opensource", "portfolio-opensource"]):
+            return "Hobby / Open Source"
+
+        # D. KARIR (Upwork, Freelance, Client Gig)
+        karir_patterns = [
+            "upwork", "freelance", "scrap-yard-dashboard", "scrap-yard",
+            "client", "klien", "gig", "contract", "job-hunt", "interview"
+        ]
+        if any(pat in folder_lower for pat in karir_patterns) or any(pat in title_lower for pat in ["upwork", "freelance"]):
+            return "Karir"
+
+        # E. USAHA & BISNIS
+        usaha_patterns = [
+            "cv pelangi efrata", "pelangi", "efrata", "usaha", "bisnis",
+            "invoice", "toko", "kasir", "laporan-keuangan"
+        ]
+        if any(pat in folder_lower for pat in usaha_patterns):
+            return "Usaha"
+
+        # 4. Fallback Default jika tidak ada keyword spesifik
+        return mappings.get("default", "Hobby / Open Source")
 
     def start_quick_capture_listener(self):
         """Start quick capture hotkey listener di background thread."""
