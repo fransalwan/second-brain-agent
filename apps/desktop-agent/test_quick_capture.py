@@ -9,9 +9,6 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
 
 def test_config():
     """Verifikasi config.json ada dan valid."""

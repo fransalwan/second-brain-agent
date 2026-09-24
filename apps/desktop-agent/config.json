@@ -11,11 +11,11 @@
   "bedtime_cutoff": "22:30",
   "bedtime_reminder_interval_minutes": 15,
   "project_mappings": {
-    "second-brain-agent": "Hobby / Open Source",
-    "portfolio-opensource": "Hobby / Open Source",
-    "thesis-manuscripts": "Thesis: Penulisan & Naskah",
-    "thesis-experiments": "Thesis: Eksperimen & Model",
-    "slp-iris": "Kuliah dan Riset",
+    "second-brain-agent": "Hobby",
+    "portfolio-opensource": "Hobby",
+    "thesis-manuscripts": "Riset",
+    "thesis-experiments": "Riset",
+    "slp-iris": "Riset",
     "tugas": "Kuliah",
     "matkul": "Kuliah",
     "praktikum": "Kuliah",
@@ -23,6 +23,6 @@
     "scrap-yard-dashboard": "Karir",
     "upwork": "Karir",
     "CV PELANGI EFRATA": "Usaha",
-    "default": "Hobby / Open Source"
+    "default": "Hobby"
   }
 }

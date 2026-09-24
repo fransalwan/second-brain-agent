@@ -234,7 +234,7 @@ async def get_coursework_tasks(
     areas_res = await session.execute(
         select(Area).where(
             Area.user_id == user_id,
-            col(Area.name).in_(["Kuliah dan Riset", "Kuliah & Riset", "Kuliah"]),
+            col(Area.name).in_(["Kuliah dan Riset", "Kuliah & Riset", "Kuliah", "Riset"]),
         )
     )
     kuliah_areas = areas_res.scalars().all()
