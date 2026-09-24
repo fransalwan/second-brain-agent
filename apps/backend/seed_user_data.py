@@ -30,6 +30,9 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import (
     Area,
+    CourseAssignment,
+    CourseExam,
+    CourseProject,
     ExperimentMetric,
     Habit,
     HabitLog,
@@ -85,6 +88,15 @@ async def seed_data():
         )
         await session.execute(
             delete(HealthCheckLog).where(HealthCheckLog.user_id == user_id)
+        )
+        await session.execute(
+            delete(CourseAssignment).where(CourseAssignment.user_id == user_id)
+        )
+        await session.execute(
+            delete(CourseExam).where(CourseExam.user_id == user_id)
+        )
+        await session.execute(
+            delete(CourseProject).where(CourseProject.user_id == user_id)
         )
         await session.execute(
             delete(ThesisChapter).where(ThesisChapter.user_id == user_id)
@@ -621,14 +633,183 @@ async def seed_data():
             "Berhasil membuat Log Hidrasi (5/8 gelas) dan Health Check (Vitamin & Peregangan Selesai)."
         )
 
+        # ==========================================
+        # 13. TUGAS KULIAH (CourseAssignment)
+        # ==========================================
+        now_dt = utcnow()
+        assignments_data = [
+            CourseAssignment(
+                user_id=user_id,
+                course_name="Machine Learning",
+                title="Laporan Praktikum Neural Network (Backprop manual)",
+                assignment_type="Praktikum",
+                deadline=now_dt + timedelta(days=1, hours=4),  # Besok malam
+                weight_percent=15,
+                status="pending",
+                notes="Gunakan dataset CIFAR-10 dan lampirkan grafik loss per epoch",
+                created_at=now_dt - timedelta(days=3),
+            ),
+            CourseAssignment(
+                user_id=user_id,
+                course_name="Sistem Terdistribusi",
+                title="Implementasi Konsensus Algoritma Raft",
+                assignment_type="Kelompok",
+                deadline=now_dt + timedelta(days=3, hours=7),  # H-3
+                weight_percent=20,
+                status="pending",
+                notes="Simulasi 5 node cluster dengan leader election dan log replication",
+                created_at=now_dt - timedelta(days=5),
+            ),
+            CourseAssignment(
+                user_id=user_id,
+                course_name="Etika & Kebijakan AI",
+                title="Critical Essay Regulasi Generative AI (EU AI Act)",
+                assignment_type="Individu",
+                deadline=now_dt + timedelta(days=6, hours=2),  # H-6
+                weight_percent=10,
+                status="pending",
+                notes="Fokus pada mitigasi halusinasi dan hak cipta data training",
+                created_at=now_dt - timedelta(days=2),
+            ),
+            CourseAssignment(
+                user_id=user_id,
+                course_name="Metodologi Penelitian",
+                title="Review Draft Proposal & Daftar Pustaka BibTeX",
+                assignment_type="Reading",
+                deadline=now_dt + timedelta(days=12),
+                weight_percent=10,
+                status="pending",
+                notes="Pastikan minimal 15 referensi jurnal terindeks Scopus/IEEE",
+                created_at=now_dt - timedelta(days=1),
+            ),
+        ]
+        session.add_all(assignments_data)
+
+        # ==========================================
+        # 14. RADAR PERSIAPAN UJIAN (CourseExam)
+        # ==========================================
+        exams_data = [
+            CourseExam(
+                user_id=user_id,
+                course_name="Machine Learning",
+                exam_type="UTS",
+                exam_date=now_dt + timedelta(days=5, hours=1),
+                room_or_link="Lab Komputer 301",
+                rules="Open Book & Laptop (No Internet)",
+                topics=[
+                    {
+                        "title": "P1-P3 Supervised Learning (Regression & Trees)",
+                        "status": "siap",
+                    },
+                    {
+                        "title": "P4 Neural Networks & Backpropagation",
+                        "status": "latihan",
+                    },
+                    {
+                        "title": "P5-P7 SVM, Ensemble & Unsupervised",
+                        "status": "paham",
+                    },
+                ],
+                target_score=90,
+                created_at=now_dt - timedelta(days=7),
+            ),
+            CourseExam(
+                user_id=user_id,
+                course_name="Sistem Terdistribusi",
+                exam_type="UAS",
+                exam_date=now_dt + timedelta(days=16, hours=5),
+                room_or_link="Gedung Kuliah Bersama 204",
+                rules="Closed Book (Kalkulator diperbolehkan)",
+                topics=[
+                    {
+                        "title": "Arsitektur RPC & Protocol Buffers",
+                        "status": "siap",
+                    },
+                    {
+                        "title": "Algoritma Konsensus Paxos & Raft",
+                        "status": "paham",
+                    },
+                    {
+                        "title": "Distributed Transaction (2PC / Saga Pattern)",
+                        "status": "belum",
+                    },
+                ],
+                target_score=85,
+                created_at=now_dt - timedelta(days=7),
+            ),
+        ]
+        session.add_all(exams_data)
+
+        # ==========================================
+        # 15. FINAL PROJECT HUB (CourseProject)
+        # ==========================================
+        projects_data = [
+            CourseProject(
+                user_id=user_id,
+                course_name="Sistem Informasi Lanjut",
+                title="Sistem Rekomendasi E-Commerce Multi-tenant",
+                deadline=now_dt + timedelta(days=18),
+                milestones=[
+                    {
+                        "step": "Proposal & Desain Arsitektur Sistem",
+                        "status": "done",
+                        "pic": "Frans",
+                    },
+                    {
+                        "step": "Training Model Rekomendasi & Backend API",
+                        "status": "in_progress",
+                        "pic": "Frans",
+                    },
+                    {
+                        "step": "Pengembangan Frontend Web Dashboard",
+                        "status": "in_progress",
+                        "pic": "Rekan B",
+                    },
+                    {
+                        "step": "Pengujian Akurasi & Naskah Laporan",
+                        "status": "pending",
+                        "pic": "Rekan C",
+                    },
+                ],
+                deliverables=[
+                    {
+                        "item": "Repository GitHub (Clean Git & Docs)",
+                        "done": True,
+                    },
+                    {
+                        "item": "Naskah Laporan Akhir (PDF IEEE)",
+                        "done": False,
+                    },
+                    {
+                        "item": "Slide Pitching & Demo Interaktif",
+                        "done": False,
+                    },
+                    {
+                        "item": "Video Rekaman Presentasi (10 Menit)",
+                        "done": False,
+                    },
+                ],
+                status="in_progress",
+                created_at=now_dt - timedelta(days=14),
+            )
+        ]
+        session.add_all(projects_data)
+        await session.commit()
+        print(
+            "Berhasil membuat data Tugas Kuliah (4), Radar Ujian (2), dan Final Project (1)."
+        )
+
     print("\n=======================================================")
     print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
     print("Seluruh modul kini terisi data nyata & siap diuji:")
+    print("• /kuliah     -> Master Command Center Akademik")
+    print("• /tugas      -> 4 tugas kuliah (Kritis Besok, H-3, H-6, Reading)")
+    print("• /ujian      -> 2 ujian (UTS Machine Learning H-5, UAS DistSys)")
+    print("• /tubes      -> 1 Final Project (Sistem Rekomendasi E-Commerce 75%)")
     print("• /thesis     -> Bab 1-5 dengan progres naskah 51%")
     print("• /bimbingan  -> 3 riwayat catatan dospem & counter 4 hari")
     print("• /metric     -> 3 benchmark model (Transformer, BiLSTM, SVM)")
     print("• /paper      -> 3 intisari jurnal/paper terindeks")
-    print("• /matkul     -> 4 tugas kuliah dengan countdown (HARI INI, BESOK, H-3)")
     print("• /tidur      -> Riwayat tidur 7 hari (rata-rata 6.8 jam)")
     print("• /minum      -> 5/8 gelas (1250 / 2000 ml)")
     print("• /kesehatan  -> Skor Burnout 20/100 (Rendah 🟢 Kondisi Prima)")

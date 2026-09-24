@@ -87,7 +87,8 @@ Prinsip yang dipegang:
 | Windows Native Toast Notification (*Bedtime Guardian Live Alert*) | ✅ |
 | Global Quick Capture keyboard shortcut (`Ctrl + Shift + Space`) | ✅ |
 | Git Commit Hook (otomatis menyelesaikan tugas & sinkron habit via commit) | ✅ |
-| Modul Kuliah & Riset (Pelacak Bab Thesis, Dospem Log, Logger Metrik, Bank Paper, Countdown Matkul) | ✅ |
+| Modul Kuliah & Akademik (Smart Coursework `/tugas`, Radar Ujian `/ujian`, Final Project Hub `/tubes`, Command Center `/kuliah`) | ✅ |
+| Modul Thesis & Riset (Pelacak Bab Thesis, Dospem Log, Logger Metrik, Bank Paper) | ✅ |
 | Modul Kesehatan & Vitalitas (Sleep Tracker, Hydration Tracker, Micro-Stretching, Vitamin Check, Burnout Risk Index) | ✅ |
 
 ---
@@ -143,11 +144,15 @@ Perintah berikut **tidak memakai AI** (atau minim dependensi) — responsnya ins
 | `/export` | Mengunduh backup seluruh catatan dan tugas dalam format Markdown (.md) |
 | `/privacy` | Penjelasan jaminan keamanan, privasi data (RLS), dan hak portabilitas |
 | `/disconnect` | Memutuskan tautan akun Telegram secara mandiri |
+| `/kuliah` | Master Academic Command Center (Ringkasan Tugas, Ujian, Tubes, & Naskah) |
+| `/tugas` | Smart Coursework Tracker (Urgensi Kritis, Minggu Ini, Bobot Nilai, & 1-tap kumpulkan) |
+| `/ujian` | Radar Persiapan Ujian UTS & UAS (Checklist kisi-kisi topik & bar kesiapan materi) |
+| `/tubes` | Final Project & Tugas Besar Hub (Milestone 4 tahap, delegasi tim, & deliverable) |
 | `/thesis` | Visual progress bar status penulisan naskah Bab 1–5 dengan tombol update 1-tap |
 | `/bimbingan [catatan]` | Mencatat notulensi bimbingan dosen pembimbing + peringatan anti-ghosting (> 14 hari) |
 | `/metric [model] [hasil] \| [param]` | Mencatat metrik evaluasi eksperimen model AI untuk tabel Bab 4 naskah |
 | `/paper [judul/sitasi] \| [insight]` | Menyimpan intisari paper ke Bank Literatur dengan tag `#paper` `#literatur` |
-| `/matkul` | Countdown deadline tugas kuliah (Hari Ini, Besok, H-X) + tombol selesai 1-tap |
+| `/matkul` | Alias cepat menuju `/kuliah` atau countdown tugas perkuliahan |
 | `/tidur [jam]` | Pelacak durasi tidur semalam & rata-rata 7 hari dengan tombol cepat 1-tap |
 | `/minum [status]` | Pencatat hidrasi harian (+1 gelas / 250ml) dengan progress bar visual |
 | `/stretch` | Panduan micro-stretching 3 menit (leher, pergelangan, punggung) anti lelah |
@@ -436,6 +441,9 @@ Setiap masukan akan dipelajari dan menjadi bahan pertimbangan utama untuk roadma
 - [x] Jaminan privasi transparan & pemutusan tautan mandiri (`/privacy`, `/disconnect`)
 - [x] Desktop Ambient Watcher & Windows Native Toast Bedtime Guardian
 - [x] Global Quick Capture (`Ctrl + Shift + Space`) & Git Commit Hook
+- [x] Modul Kuliah & Akademik (Smart Coursework `/tugas`, Radar Ujian `/ujian`, Final Project Hub `/tubes`, Command Center `/kuliah`)
+- [x] Modul Thesis & Riset (Pelacak Bab Thesis, Dospem Log, Logger Metrik, Bank Paper)
+- [x] Modul Kesehatan & Vitalitas (Sleep Tracker, Hydration Tracker, Micro-Stretching, Vitamin Check, Burnout Risk Index)
 - [x] Rilis Produksi v1.0.0 (Stabil & Siap Pakai)
 
 **Mendatang (Berdasarkan Feedback Komunitas)**

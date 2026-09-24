@@ -19,3 +19,6 @@ dependencies = [
 dev = [
     "aiosqlite>=0.22.1",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

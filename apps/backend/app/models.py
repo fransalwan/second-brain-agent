@@ -230,3 +230,60 @@ class HealthCheckLog(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
+
+
+class CourseAssignment(SQLModel, table=True):
+    __tablename__ = "course_assignments"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    course_name: str = Field(index=True)
+    title: str
+    assignment_type: str = Field(default="Individu")  # Individu, Kelompok, Praktikum, Reading
+    deadline: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    weight_percent: Optional[int] = Field(default=None)  # contoh: 15 untuk 15%
+    status: str = Field(default="pending")  # pending, done
+    notes: Optional[str] = None
+    completed_at: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class CourseExam(SQLModel, table=True):
+    __tablename__ = "course_exams"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    course_name: str = Field(index=True)
+    exam_type: str = Field(default="UTS")  # UTS, UAS, Kuis, Praktikum
+    exam_date: datetime = Field(sa_type=DateTime(timezone=True))
+    room_or_link: Optional[str] = None
+    rules: Optional[str] = Field(default="Closed Book")  # Closed Book, Open Book, Take-Home
+    topics: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
+    target_score: Optional[int] = Field(default=85)
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class CourseProject(SQLModel, table=True):
+    __tablename__ = "course_projects"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    course_name: str = Field(index=True)
+    title: str
+    deadline: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    milestones: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
+    deliverables: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
+    status: str = Field(default="in_progress")  # in_progress, completed
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )

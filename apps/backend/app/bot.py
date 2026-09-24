@@ -3,6 +3,7 @@ import io
 import logging
 import secrets
 from datetime import datetime, time, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -27,6 +28,9 @@ from .brief_formatter import INDO_DAYS, INDO_MONTHS
 from .habits import check_habit_for_today, get_user_habits_status
 from .models import (
     Area,
+    CourseAssignment,
+    CourseExam,
+    CourseProject,
     ExperimentMetric,
     Habit,
     HabitLog,
@@ -52,6 +56,21 @@ from .thesis import (
     get_recent_metrics,
     get_supervision_summary,
     update_thesis_chapter,
+)
+from .coursework import (
+    add_course_assignment,
+    add_course_exam,
+    add_course_project,
+    format_assignments_html,
+    format_exams_html,
+    format_projects_html,
+    get_active_course_assignments,
+    get_active_course_projects,
+    get_upcoming_exams,
+    mark_course_assignment_done,
+    toggle_project_deliverable,
+    update_exam_topic_status,
+    update_project_milestone,
 )
 from .health import (
     calculate_burnout_risk,
@@ -2201,6 +2220,379 @@ async def health_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
 
+# ==========================================
+# MODUL KULIAH & AKADEMIK (TUGAS, UJIAN, TUBES)
+# ==========================================
+
+def build_coursework_hub_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "📝 Tugas Kuliah", callback_data="coursework:menu:tugas"
+                ),
+                InlineKeyboardButton(
+                    "🎯 Radar Ujian", callback_data="coursework:menu:ujian"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🚀 Final Project", callback_data="coursework:menu:tubes"
+                ),
+                InlineKeyboardButton(
+                    "🎓 Status Thesis", callback_data="coursework:menu:thesis"
+                ),
+            ],
+        ]
+    )
+
+
+def build_assignments_keyboard(
+    assignments: List[CourseAssignment],
+) -> InlineKeyboardMarkup:
+    buttons = []
+    for a in assignments[:6]:  # maksimal 6 tombol cepat
+        short_title = a.title[:18] + "..." if len(a.title) > 18 else a.title
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"✅ Kumpulkan #{a.id}: {a.course_name} - {short_title}",
+                    callback_data=f"coursework:done:{a.id}",
+                )
+            ]
+        )
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                "🎯 Radar Ujian", callback_data="coursework:menu:ujian"
+            ),
+            InlineKeyboardButton(
+                "🚀 Final Project", callback_data="coursework:menu:tubes"
+            ),
+        ]
+    )
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_exams_keyboard(exams: List[CourseExam]) -> InlineKeyboardMarkup:
+    buttons = []
+    status_icons = {"siap": "✅", "latihan": "✍️", "paham": "📖", "belum": "⚪"}
+    for ex in exams:
+        if ex.topics:
+            for idx, t in enumerate(ex.topics):
+                icon = status_icons.get(t.get("status", "belum"), "⚪")
+                title = t.get("title", f"Topik {idx+1}")[:22]
+                buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            f"{ex.course_name} #{idx+1} {icon} {title}",
+                            callback_data=f"coursework:topic:{ex.id}:{idx}",
+                        )
+                    ]
+                )
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                "📝 Tugas Kuliah", callback_data="coursework:menu:tugas"
+            ),
+            InlineKeyboardButton(
+                "🚀 Final Project", callback_data="coursework:menu:tubes"
+            ),
+        ]
+    )
+    return InlineKeyboardMarkup(buttons)
+
+
+def build_projects_keyboard(projects: List[CourseProject]) -> InlineKeyboardMarkup:
+    buttons = []
+    m_icons = {"done": "✅", "in_progress": "⏳", "pending": "⚪"}
+    for prj in projects:
+        if prj.milestones:
+            for idx, m in enumerate(prj.milestones):
+                icon = m_icons.get(m.get("status", "pending"), "⚪")
+                step_name = m.get("step", f"Step {idx+1}")[:20]
+                buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            f"📌 {icon} {step_name}",
+                            callback_data=f"coursework:milestone:{prj.id}:{idx}",
+                        )
+                    ]
+                )
+        if prj.deliverables:
+            for idx, d in enumerate(prj.deliverables):
+                chk = "☑️" if d.get("done") else "⬜"
+                item_name = d.get("item", f"Berkas {idx+1}")[:20]
+                buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            f"{chk} {item_name}",
+                            callback_data=f"coursework:deliv:{prj.id}:{idx}",
+                        )
+                    ]
+                )
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                "📝 Tugas Kuliah", callback_data="coursework:menu:tugas"
+            ),
+            InlineKeyboardButton(
+                "🎯 Radar Ujian", callback_data="coursework:menu:ujian"
+            ),
+        ]
+    )
+    return InlineKeyboardMarkup(buttons)
+
+
+async def tugas_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        assignments = await get_active_course_assignments(session, profile.id)
+
+    text = format_assignments_html(assignments, tz=LOCAL_TZ)
+    reply_markup = build_assignments_keyboard(assignments) if assignments else None
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=reply_markup
+    )
+
+
+async def ujian_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        exams = await get_upcoming_exams(session, profile.id)
+
+    text = format_exams_html(exams, tz=LOCAL_TZ)
+    reply_markup = build_exams_keyboard(exams) if exams else None
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=reply_markup
+    )
+
+
+async def tubes_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        projects = await get_active_course_projects(session, profile.id)
+
+    text = format_projects_html(projects, tz=LOCAL_TZ)
+    reply_markup = build_projects_keyboard(projects) if projects else None
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=reply_markup
+    )
+
+
+async def kuliah_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        assignments = await get_active_course_assignments(session, profile.id)
+        exams = await get_upcoming_exams(session, profile.id)
+        projects = await get_active_course_projects(session, profile.id)
+        chapters = await get_or_create_thesis_chapters(session, profile.id)
+
+    thesis_prog = (
+        sum(c.progress for c in chapters) // len(chapters) if chapters else 0
+    )
+    now = datetime.now(LOCAL_TZ)
+    exam_summary = "Tidak ada ujian terdekat"
+    if exams:
+        nearest = exams[0]
+        dl = (
+            nearest.exam_date.astimezone(LOCAL_TZ)
+            if nearest.exam_date.tzinfo
+            else nearest.exam_date.replace(tzinfo=timezone.utc).astimezone(LOCAL_TZ)
+        )
+        days = (dl.date() - now.date()).days
+        time_str = "HARI INI!" if days == 0 else (f"H-{days}" if days > 0 else "Selesai")
+        exam_summary = f"{nearest.exam_type} {nearest.course_name} ({time_str})"
+
+    lines = [
+        "📚 <b>KULIAH COMMAND CENTER</b>",
+        "<i>Pusat kendali akademik, tugas kuliah, persiapan ujian & riset.</i>\n",
+        f"📝 <b>Tugas Pending:</b> {len(assignments)} tugas kuliah",
+        f"🎯 <b>Ujian Terdekat:</b> {exam_summary}",
+        f"🚀 <b>Final Project Aktif:</b> {len(projects)} proyek besar",
+        f"🎓 <b>Progres Naskah Thesis:</b> [{thesis_prog}%]\n",
+        "<i>Pilih modul yang ingin kamu tinjau atau kelola:</i>",
+    ]
+    await update.effective_message.reply_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_coursework_hub_keyboard(),
+    )
+
+
+async def coursework_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data.startswith("coursework:done:"):
+        aid = int(data.split(":")[-1])
+        async with SessionLocal() as session:
+            await mark_course_assignment_done(session, profile.id, aid)
+            assignments = await get_active_course_assignments(session, profile.id)
+
+        await query.answer("🎉 Tugas berhasil ditandai selesai!", show_alert=False)
+        text = format_assignments_html(assignments, tz=LOCAL_TZ)
+        markup = build_assignments_keyboard(assignments) if assignments else None
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+    if data.startswith("coursework:topic:"):
+        parts = data.split(":")
+        exam_id = int(parts[2])
+        t_idx = int(parts[3])
+        cycle = {
+            "belum": "paham",
+            "paham": "latihan",
+            "latihan": "siap",
+            "siap": "belum",
+        }
+        async with SessionLocal() as session:
+            exams = await get_upcoming_exams(session, profile.id)
+            target_ex = next((e for e in exams if e.id == exam_id), None)
+            if target_ex and target_ex.topics and t_idx < len(target_ex.topics):
+                curr = target_ex.topics[t_idx].get("status", "belum")
+                next_st = cycle.get(curr, "paham")
+                await update_exam_topic_status(
+                    session, profile.id, exam_id, t_idx, next_st
+                )
+            exams = await get_upcoming_exams(session, profile.id)
+
+        await query.answer("Status penguasaan materi diperbarui!", show_alert=False)
+        text = format_exams_html(exams, tz=LOCAL_TZ)
+        markup = build_exams_keyboard(exams) if exams else None
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+    if data.startswith("coursework:milestone:"):
+        parts = data.split(":")
+        p_id = int(parts[2])
+        m_idx = int(parts[3])
+        cycle = {
+            "pending": "in_progress",
+            "in_progress": "done",
+            "done": "pending",
+        }
+        async with SessionLocal() as session:
+            projects = await get_active_course_projects(session, profile.id)
+            target_p = next((p for p in projects if p.id == p_id), None)
+            if (
+                target_p
+                and target_p.milestones
+                and m_idx < len(target_p.milestones)
+            ):
+                curr = target_p.milestones[m_idx].get("status", "pending")
+                next_st = cycle.get(curr, "in_progress")
+                await update_project_milestone(
+                    session, profile.id, p_id, m_idx, next_st
+                )
+            projects = await get_active_course_projects(session, profile.id)
+
+        await query.answer("Milestone proyek diperbarui!", show_alert=False)
+        text = format_projects_html(projects, tz=LOCAL_TZ)
+        markup = build_projects_keyboard(projects) if projects else None
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+    if data.startswith("coursework:deliv:"):
+        parts = data.split(":")
+        p_id = int(parts[2])
+        d_idx = int(parts[3])
+        async with SessionLocal() as session:
+            await toggle_project_deliverable(session, profile.id, p_id, d_idx)
+            projects = await get_active_course_projects(session, profile.id)
+
+        await query.answer("Checklist berkas diperbarui!", show_alert=False)
+        text = format_projects_html(projects, tz=LOCAL_TZ)
+        markup = build_projects_keyboard(projects) if projects else None
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+    if data.startswith("coursework:menu:"):
+        menu = data.split(":")[-1]
+        async with SessionLocal() as session:
+            if menu == "tugas":
+                assignments = await get_active_course_assignments(
+                    session, profile.id
+                )
+                text = format_assignments_html(assignments, tz=LOCAL_TZ)
+                markup = (
+                    build_assignments_keyboard(assignments)
+                    if assignments
+                    else None
+                )
+            elif menu == "ujian":
+                exams = await get_upcoming_exams(session, profile.id)
+                text = format_exams_html(exams, tz=LOCAL_TZ)
+                markup = build_exams_keyboard(exams) if exams else None
+            elif menu == "tubes":
+                projects = await get_active_course_projects(session, profile.id)
+                text = format_projects_html(projects, tz=LOCAL_TZ)
+                markup = build_projects_keyboard(projects) if projects else None
+            elif menu == "thesis":
+                chapters = await get_or_create_thesis_chapters(
+                    session, profile.id
+                )
+                text = format_thesis_progress_html(chapters)
+                markup = build_thesis_keyboard()
+            else:
+                return
+
+        await query.answer()
+        await query.edit_message_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -2214,7 +2606,7 @@ ptb_app.add_handler(CommandHandler("start", start, filters=private))
 ptb_app.add_handler(CommandHandler("connect", connect, filters=private))
 ptb_app.add_handler(CommandHandler("invite", invite, filters=private))
 ptb_app.add_handler(CommandHandler(["areas", "area"], areas_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["tasks", "tugas"], tasks_cmd, filters=private))
+ptb_app.add_handler(CommandHandler(["tasks"], tasks_cmd, filters=private))
 ptb_app.add_handler(CommandHandler("done", done_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["habits", "habit"], habits_cmd, filters=private))
 ptb_app.add_handler(CommandHandler("check", check_cmd, filters=private))
@@ -2227,6 +2619,16 @@ ptb_app.add_handler(CommandHandler(["export", "backup"], export_cmd, filters=pri
 ptb_app.add_handler(CommandHandler("disconnect", disconnect_cmd, filters=private))
 
 # Kuliah & Riset Handlers
+ptb_app.add_handler(
+    CommandHandler(["kuliah", "matkul", "academic"], kuliah_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["tugas", "coursework", "assignments"], tugas_cmd, filters=private)
+)
+ptb_app.add_handler(CommandHandler(["ujian", "exam", "exams"], ujian_cmd, filters=private))
+ptb_app.add_handler(
+    CommandHandler(["tubes", "proyek", "project"], tubes_cmd, filters=private)
+)
 ptb_app.add_handler(CommandHandler(["thesis", "skripsi"], thesis_cmd, filters=private))
 ptb_app.add_handler(
     CommandHandler(["bimbingan", "dospem"], bimbingan_cmd, filters=private)
@@ -2235,7 +2637,6 @@ ptb_app.add_handler(
     CommandHandler(["metric", "metrik", "experiment"], metric_cmd, filters=private)
 )
 ptb_app.add_handler(CommandHandler(["paper", "literatur"], paper_cmd, filters=private))
-ptb_app.add_handler(CommandHandler(["matkul", "kuliah"], matkul_cmd, filters=private))
 
 # Health Handlers
 ptb_app.add_handler(CommandHandler(["tidur", "sleep"], tidur_cmd, filters=private))
@@ -2267,6 +2668,7 @@ ptb_app.add_handler(CallbackQueryHandler(preset_callback, pattern=r"^preset:"))
 ptb_app.add_handler(CallbackQueryHandler(disconnect_callback, pattern=r"^disconnect:"))
 ptb_app.add_handler(CallbackQueryHandler(thesis_callback, pattern=r"^thesis:"))
 ptb_app.add_handler(CallbackQueryHandler(health_callback, pattern=r"^health:"))
+ptb_app.add_handler(CallbackQueryHandler(coursework_callback, pattern=r"^coursework:"))
 
 ptb_app.add_handler(
     MessageHandler(
