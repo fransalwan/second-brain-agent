@@ -79,6 +79,14 @@ Prinsip yang dipegang:
 | Transkripsi voice note multimodal via Gemini Audio (terhubung langsung ke aksi agent) | ✅ |
 | Laporan mingguan pola kerja & refleksi cerdas (otomatis Minggu malam & on-demand `/weekly`) | ✅ |
 | Visualisasi hubungan antar catatan (Knowledge Graph interaktif di dashboard) | ✅ |
+| Tombol interaktif Telegram 1-tap (`/tasks`, `/habits`, `/timer`) | ✅ |
+| Template starter produktivitas 1-klik (`/preset` Akademisi, Developer, Bisnis) | ✅ |
+| Ekspor catatan & tugas ke file Markdown Obsidian/Notion (`/export`) | ✅ |
+| Transparansi privasi & pemutusan tautan mandiri (`/privacy`, `/disconnect`) | ✅ |
+| Desktop Ambient Watcher (pelacak otomatis aktivitas VS Code) | ✅ |
+| Windows Native Toast Notification (*Bedtime Guardian Live Alert*) | ✅ |
+| Global Quick Capture keyboard shortcut (`Ctrl + Shift + Space`) | ✅ |
+| Git Commit Hook (otomatis menyelesaikan tugas & sinkron habit via commit) | ✅ |
 
 ---
 
@@ -398,11 +406,18 @@ Setiap masukan akan dipelajari dan menjadi bahan pertimbangan utama untuk roadma
 - [x] File skema gabungan untuk instalasi 1-klik (`init_schema.sql`)
 - [x] Sistem registrasi & autentikasi mandiri kredensial (Email & Password di dashboard)
 - [x] Penautan instan akun Telegram via email (`/connect email@kamu.com`)
+- [x] Tombol interaktif Telegram (1-tap inline keyboards untuk /tasks, /habits, /timer)
+- [x] 1-Click Starter Presets (`/preset` untuk Mahasiswa, Developer, Bisnis)
+- [x] Export Catatan ke format Markdown / Obsidian (`/export`)
+- [x] Jaminan privasi transparan & pemutusan tautan mandiri (`/privacy`, `/disconnect`)
+- [x] Desktop Ambient Watcher & Windows Native Toast Bedtime Guardian
+- [x] Global Quick Capture (`Ctrl + Shift + Space`) & Git Commit Hook
+- [x] Rilis Produksi v1.0.0 (Stabil & Siap Pakai)
 
 **Mendatang (Berdasarkan Feedback Komunitas)**
 
 - [ ] Integrasi Kalender (Google Calendar sync)
-- [ ] Export Catatan ke format Markdown / PDF
+- [ ] Ekspor Laporan Mingguan ke format PDF
 - [ ] Dukungan PWA / Offline cache untuk mobile browser
 
 ---
