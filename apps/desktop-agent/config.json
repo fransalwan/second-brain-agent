@@ -7,6 +7,9 @@
   "notify_telegram": true,
   "enable_quick_capture": true,
   "quick_capture_hotkey": "<ctrl>+<shift>+space",
+  "enable_bedtime_toast": true,
+  "bedtime_cutoff": "22:30",
+  "bedtime_reminder_interval_minutes": 15,
   "project_mappings": {
     "second-brain-agent": "Second Brain Agent",
     "scrap-yard-dashboard": "Usaha & Karir",

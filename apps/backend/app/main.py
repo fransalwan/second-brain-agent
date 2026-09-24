@@ -15,6 +15,7 @@ from .bot import ptb_app
 from .database import engine, get_session
 from .models import Note
 from .ambient import (
+    check_bedtime_status,
     check_habit_by_keyword,
     get_ambient_status,
     handle_git_commit_event,
@@ -183,6 +184,19 @@ async def api_ambient_status(
 ):
     """Cek status timer aktif dan konfigurasi user untuk ambient daemon."""
     result = await get_ambient_status(session=session, email=email)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
+@app.get("/api/v1/ambient/bedtime-status")
+async def api_ambient_bedtime_status(
+    email: str,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Mengecek status jam malam user untuk sinkronisasi dengan desktop watcher."""
+    result = await check_bedtime_status(session=session, email=email)
     if result.get("status") == "error":
         raise HTTPException(status_code=404, detail=result.get("message"))
     return result

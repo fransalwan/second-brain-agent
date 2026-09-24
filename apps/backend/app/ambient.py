@@ -579,6 +579,42 @@ async def handle_git_commit_event(
     }
 
 
+async def check_bedtime_status(session: AsyncSession, email: str) -> dict:
+    """Mengecek status jam malam untuk ambient watcher (sinkronisasi cutoff dari profil DB)."""
+    profile = await get_profile_by_email(session, email)
+    if not profile:
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
+
+    night_cutoff = (
+        profile.night_cutoff_time if profile.night_cutoff_time else time(23, 0)
+    )
+    now_local = datetime.now(LOCAL_TZ)
+    current_t = now_local.time()
+    past_bedtime = is_past_night_cutoff(current_t, night_cutoff)
+
+    cutoff_str = night_cutoff.strftime("%H:%M")
+    current_str = now_local.strftime("%H:%M")
+
+    if past_bedtime:
+        message = (
+            f"🌙 Sudah pukul {current_str} (batas jam malam {cutoff_str}). "
+            f"Waktunya istirahat dan simpan pekerjaanmu!"
+        )
+    else:
+        message = f"✅ Masih dalam jam kerja ({current_str}). Batas malam: {cutoff_str}."
+
+    return {
+        "status": "ok",
+        "is_past_bedtime": past_bedtime,
+        "cutoff_time": cutoff_str,
+        "current_time": current_str,
+        "message": message,
+    }
+
+
 async def handle_quick_capture(
     session: AsyncSession,
     email: str,

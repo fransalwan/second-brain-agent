@@ -11,11 +11,13 @@ Memantau aktivitas jendela VS Code di Windows secara otomatis:
 
 import ctypes
 from ctypes import wintypes
+from datetime import datetime, time as dt_time
 import json
 import logging
 import os
 from pathlib import Path
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -96,6 +98,103 @@ def get_all_open_vscode_window_titles() -> list[str]:
 
 
 # ==========================================
+# 🌙 BEDTIME GUARDIAN — TOAST NOTIFICATION
+# ==========================================
+def show_bedtime_toast(cutoff_str: str, current_str: str) -> bool:
+    """Menampilkan Windows Native Toast Notification untuk pengingat jam tidur.
+
+    Strategi:
+    1. Primary: PowerShell [Windows.UI.Notifications] — native Windows 10/11
+    2. Fallback: Win32 MessageBoxW via ctypes
+    """
+    title = "🌙 Bedtime Guardian"
+    body = (
+        f"Sudah pukul {current_str} (batas jam malam {cutoff_str}). "
+        f"Waktunya istirahat dan simpan pekerjaanmu!"
+    )
+
+    # Primary: PowerShell Toast Notification (non-blocking)
+    try:
+        ps_script = f"""
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
+
+$template = @"
+<toast duration="long">
+    <visual>
+        <binding template="ToastGeneric">
+            <text>{title}</text>
+            <text>{body}</text>
+        </binding>
+    </visual>
+    <audio src="ms-winsoundevent:Notification.Reminder"/>
+</toast>
+"@
+
+$xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+$xml.LoadXml($template)
+$toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Second Brain Agent").Show($toast)
+"""
+        subprocess.Popen(
+            ["powershell", "-WindowStyle", "Hidden", "-Command", ps_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        logger.info(f"[BEDTIME TOAST] Notifikasi dikirim via PowerShell: {body}")
+        return True
+    except Exception as e:
+        logger.warning(f"PowerShell toast gagal ({e}), mencoba fallback MessageBox...")
+
+    # Fallback: Win32 MessageBox (blocking, tapi di thread terpisah)
+    try:
+
+        def _show_msgbox():
+            MB_OK = 0x00000000
+            MB_ICONINFORMATION = 0x00000040
+            MB_TOPMOST = 0x00040000
+            ctypes.windll.user32.MessageBoxW(
+                0, body, title, MB_OK | MB_ICONINFORMATION | MB_TOPMOST
+            )
+
+        threading.Thread(target=_show_msgbox, daemon=True).start()
+        logger.info(f"[BEDTIME TOAST] Notifikasi dikirim via MessageBox fallback")
+        return True
+    except Exception as e:
+        logger.error(f"Semua metode notifikasi gagal: {e}")
+        return False
+
+
+def is_past_bedtime(
+    current_time: dt_time, cutoff: dt_time, morning_end: dt_time = dt_time(4, 0)
+) -> bool:
+    """Mengecek apakah current_time berada di rentang batas jam malam hingga pagi.
+
+    Logika sama dengan is_past_night_cutoff di backend, tapi standalone
+    agar watcher tidak bergantung pada backend untuk pengecekan waktu.
+    """
+    if cutoff >= morning_end:
+        # Cutoff normal (misal 22:30): larut malam = >= 22:30 ATAU < 04:00
+        return current_time >= cutoff or current_time < morning_end
+    else:
+        # Cutoff di dini hari (misal 01:00): larut malam = >= 01:00 DAN < 04:00
+        return cutoff <= current_time < morning_end
+
+
+def parse_cutoff_time(cutoff_str: str) -> dt_time:
+    """Parse string waktu HH:MM menjadi objek time."""
+    try:
+        parts = cutoff_str.strip().split(":")
+        return dt_time(int(parts[0]), int(parts[1]))
+    except (ValueError, IndexError):
+        logger.warning(
+            f"Format bedtime_cutoff tidak valid: '{cutoff_str}', menggunakan default 23:00"
+        )
+        return dt_time(23, 0)
+
+
+# ==========================================
 # AMBIENT WATCHER CLIENT
 # ==========================================
 class AmbientWatcher:
@@ -108,6 +207,17 @@ class AmbientWatcher:
         self.running = True
         self.quick_capture_thread: threading.Thread | None = None
         self.quick_capture_enabled = self.config.get("enable_quick_capture", True)
+
+        # 🌙 Bedtime Guardian state
+        self.bedtime_enabled = self.config.get("enable_bedtime_toast", True)
+        self.bedtime_cutoff = parse_cutoff_time(
+            self.config.get("bedtime_cutoff", "22:30")
+        )
+        self.bedtime_reminder_interval = self.config.get(
+            "bedtime_reminder_interval_minutes", 15
+        )
+        self.bedtime_notified: bool = False  # Guard: sudah kirim toast hari ini?
+        self.bedtime_last_reminder: float = 0.0  # Timestamp reminder terakhir
 
     def load_config(self) -> dict:
         if not self.config_file.exists():
@@ -251,6 +361,56 @@ class AmbientWatcher:
                 )
         self.current_project = None
 
+    def check_bedtime_and_notify(self):
+        """🌙 Bedtime Guardian: cek waktu malam dan tampilkan toast notification.
+
+        Logika:
+        - Jika waktu lokal >= bedtime_cutoff DAN ada project aktif → kirim toast
+        - Toast pertama langsung dikirim saat crossing cutoff
+        - Toast reminder dikirim setiap bedtime_reminder_interval menit
+        - Reset flag saat hari berganti (setelah pukul 04:00 pagi)
+        """
+        if not self.bedtime_enabled:
+            return
+
+        now = datetime.now()
+        current_t = now.time()
+
+        # Reset flag bedtime saat pagi (setelah 04:00) agar besok malam bisa kirim lagi
+        if dt_time(4, 0) <= current_t < dt_time(5, 0) and self.bedtime_notified:
+            self.bedtime_notified = False
+            self.bedtime_last_reminder = 0.0
+            logger.info("[BEDTIME] Flag direset untuk hari baru.")
+            return
+
+        # Cek apakah sudah melewati batas jam malam
+        if not is_past_bedtime(current_t, self.bedtime_cutoff):
+            return
+
+        # Sudah lewat cutoff — cek apakah perlu kirim toast
+        now_ts = time.time()
+        cutoff_str = self.bedtime_cutoff.strftime("%H:%M")
+        current_str = now.strftime("%H:%M")
+
+        if not self.bedtime_notified:
+            # Toast pertama kali melewati cutoff
+            show_bedtime_toast(cutoff_str, current_str)
+            self.bedtime_notified = True
+            self.bedtime_last_reminder = now_ts
+            logger.info(
+                f"[BEDTIME] ⚠️ Peringatan pertama dikirim: {current_str} (cutoff: {cutoff_str})"
+            )
+        else:
+            # Reminder berkala setiap N menit
+            elapsed_since_last = (now_ts - self.bedtime_last_reminder) / 60.0
+            if elapsed_since_last >= self.bedtime_reminder_interval:
+                show_bedtime_toast(cutoff_str, current_str)
+                self.bedtime_last_reminder = now_ts
+                logger.info(
+                    f"[BEDTIME] 🔁 Reminder dikirim ulang: {current_str} "
+                    f"(interval: {self.bedtime_reminder_interval} menit)"
+                )
+
     def run(self):
         poll_interval = self.config.get("poll_interval_seconds", 3)
         idle_threshold = self.config.get("idle_threshold_seconds", 600)
@@ -261,6 +421,11 @@ class AmbientWatcher:
         logger.info(
             f"Interval Pemantauan: {poll_interval}s | Batas Idle: {idle_threshold}s"
         )
+        if self.bedtime_enabled:
+            logger.info(
+                f"🌙 Bedtime Guardian: aktif (cutoff: {self.bedtime_cutoff.strftime('%H:%M')}, "
+                f"reminder: setiap {self.bedtime_reminder_interval} menit)"
+            )
         logger.info("Tekan Ctrl+C untuk berhenti.")
         logger.info("=" * 60)
 
@@ -304,6 +469,10 @@ class AmbientWatcher:
                             "[VSCODE CLOSED] VS Code tidak terdeteksi terbuka. Menghentikan sesi fokus."
                         )
                         self.stop_timer(reason="window_closed")
+
+                # 3. 🌙 Bedtime Guardian: cek jam malam saat user masih aktif ngoding
+                if self.current_project:
+                    self.check_bedtime_and_notify()
 
                 time.sleep(poll_interval)
 

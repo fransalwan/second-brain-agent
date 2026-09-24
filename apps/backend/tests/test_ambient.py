@@ -16,6 +16,7 @@ from sqlmodel import SQLModel, select
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ambient import (
+    check_bedtime_status,
     get_ambient_status,
     handle_git_commit_event,
     start_ambient_timer,
@@ -509,3 +510,126 @@ async def test_git_commit_api_endpoint():
     app.dependency_overrides.clear()
     await test_engine.dispose()
 
+
+async def test_bedtime_status_past_cutoff(async_session: AsyncSession):
+    """Verifikasi check_bedtime_status mengembalikan is_past_bedtime=True saat lewat cutoff."""
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="bedtime_user@example.com",
+        full_name="Bedtime User",
+        night_cutoff_time=time(22, 30),
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    # Mock waktu lokal ke 23:15 (sudah lewat cutoff 22:30)
+    from unittest.mock import patch
+
+    fake_now = datetime(2026, 9, 22, 23, 15, 0)
+    with patch("app.ambient.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+
+        res = await check_bedtime_status(
+            session=async_session,
+            email="bedtime_user@example.com",
+        )
+
+    assert res["status"] == "ok"
+    assert res["is_past_bedtime"] is True
+    assert res["cutoff_time"] == "22:30"
+    assert res["current_time"] == "23:15"
+    assert "🌙" in res["message"]
+
+
+async def test_bedtime_status_before_cutoff(async_session: AsyncSession):
+    """Verifikasi check_bedtime_status mengembalikan is_past_bedtime=False sebelum cutoff."""
+    user_id = uuid.uuid4()
+    profile = Profile(
+        id=user_id,
+        email="early_user@example.com",
+        full_name="Early User",
+        night_cutoff_time=time(22, 30),
+    )
+    async_session.add(profile)
+    await async_session.commit()
+
+    # Mock waktu lokal ke 20:00 (belum lewat cutoff 22:30)
+    from unittest.mock import patch
+
+    fake_now = datetime(2026, 9, 22, 20, 0, 0)
+    with patch("app.ambient.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+
+        res = await check_bedtime_status(
+            session=async_session,
+            email="early_user@example.com",
+        )
+
+    assert res["status"] == "ok"
+    assert res["is_past_bedtime"] is False
+    assert res["cutoff_time"] == "22:30"
+    assert "✅" in res["message"]
+
+
+async def test_bedtime_status_api_endpoint():
+    """Verifikasi endpoint GET /api/v1/ambient/bedtime-status mengembalikan data yang benar."""
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        profile = Profile(
+            id=user_id,
+            email="bedtime_api@example.com",
+            full_name="Bedtime API Tester",
+            night_cutoff_time=time(23, 0),
+        )
+        session.add(profile)
+        await session.commit()
+
+    async def override_get_session():
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = {"X-Ambient-Key": settings.AMBIENT_API_KEY}
+
+        # 1. Tanpa API key -> 403
+        resp_unauth = await client.get(
+            "/api/v1/ambient/bedtime-status?email=bedtime_api@example.com",
+        )
+        assert resp_unauth.status_code == 403
+
+        # 2. Dengan API key -> 200
+        resp = await client.get(
+            "/api/v1/ambient/bedtime-status?email=bedtime_api@example.com",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "is_past_bedtime" in data
+        assert "cutoff_time" in data
+        assert "current_time" in data
+        assert "message" in data
+        assert data["cutoff_time"] == "23:00"
+
+        # 3. User tidak ditemukan -> 404
+        resp_404 = await client.get(
+            "/api/v1/ambient/bedtime-status?email=notfound@example.com",
+            headers=headers,
+        )
+        assert resp_404.status_code == 404
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()

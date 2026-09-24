@@ -22,6 +22,16 @@ Daemon otomatis untuk pelacakan ambient, timer fokus, dan quick capture ide/tuga
 - Otomatis centang habit coding saat ada commit
 - Sinkronisasi real-time ke Telegram
 
+### 4. **🌙 Bedtime Guardian (NEW!)**
+- Deteksi otomatis saat kamu masih ngoding melewati batas jam malam
+- **Windows Native Toast Notification** muncul langsung di layar laptop
+- Reminder berkala setiap 15 menit (konfigurabel) selama kamu masih aktif
+- Zero external dependency — menggunakan PowerShell native Windows 10/11
+- Konfigurasi via `config.json`:
+  - `bedtime_cutoff`: Batas jam malam (default: `"22:30"`)
+  - `bedtime_reminder_interval_minutes`: Interval reminder (default: `15`)
+  - `enable_bedtime_toast`: Aktifkan/nonaktifkan fitur (default: `true`)
+
 ## 🚀 Setup
 
 ### Prerequisites
