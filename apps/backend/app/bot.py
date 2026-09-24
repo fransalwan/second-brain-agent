@@ -584,16 +584,20 @@ async def tasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for item in prioritized[:5]:
         t = item.task
         short_title = t.title[:24] + "..." if len(t.title) > 24 else t.title
-        keyboard_buttons.append([
-            InlineKeyboardButton(
-                f"✅ #{t.id} {short_title}",
-                callback_data=f"task:done:{t.id}",
-            )
-        ])
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"✅ #{t.id} {short_title}",
+                    callback_data=f"task:done:{t.id}",
+                )
+            ]
+        )
     reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
 
     lines.append("\nTip: Ketik /done <id> atau klik tombol di bawah:")
-    await update.effective_message.reply_text("\n".join(lines), reply_markup=reply_markup)
+    await update.effective_message.reply_text(
+        "\n".join(lines), reply_markup=reply_markup
+    )
 
 
 async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -684,16 +688,20 @@ async def habits_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     keyboard_buttons = []
     for h in habits_status:
         if not h.is_completed_today and h.habit.id is not None:
-            keyboard_buttons.append([
-                InlineKeyboardButton(
-                    f"🔥 Centang: {h.habit.name}",
-                    callback_data=f"habit:check:{h.habit.id}",
-                )
-            ])
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        f"🔥 Centang: {h.habit.name}",
+                        callback_data=f"habit:check:{h.habit.id}",
+                    )
+                ]
+            )
     reply_markup = InlineKeyboardMarkup(keyboard_buttons) if keyboard_buttons else None
 
     lines.append("\nTip: Ketik /check <id> atau klik tombol di bawah:")
-    await update.effective_message.reply_text("\n".join(lines), reply_markup=reply_markup)
+    await update.effective_message.reply_text(
+        "\n".join(lines), reply_markup=reply_markup
+    )
 
 
 async def check_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -777,9 +785,15 @@ async def timer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elapsed = int((now_utc - started_at).total_seconds() // 60)
     started_local = started_at.astimezone(LOCAL_TZ).strftime("%H:%M")
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🛑 Hentikan Timer Sekarang", callback_data="timer:stop")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🛑 Hentikan Timer Sekarang", callback_data="timer:stop"
+                )
+            ]
+        ]
+    )
     await update.effective_message.reply_text(
         f"⏱️ <b>Timer Aktif:</b> '{html.escape(running.project_name)}'\n"
         f"Mulai: pukul {started_local} (berjalan {elapsed} menit)\n\n"
@@ -1077,7 +1091,9 @@ async def habit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         h_name = habit.name
         if already_done:
-            await query.answer(f"Sudah dicentang hari ini! (Streak: {streak} hari)", show_alert=True)
+            await query.answer(
+                f"Sudah dicentang hari ini! (Streak: {streak} hari)", show_alert=True
+            )
             return
 
         streak_str = f" 🔥 Streak: {streak} hari!" if streak > 0 else ""
@@ -1109,7 +1125,9 @@ async def timer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             running = result.scalars().first()
             if running is None:
-                await query.answer("Tidak ada timer yang sedang berjalan.", show_alert=True)
+                await query.answer(
+                    "Tidak ada timer yang sedang berjalan.", show_alert=True
+                )
                 return
 
             started_at = running.started_at
@@ -1130,7 +1148,9 @@ async def timer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode=ParseMode.HTML,
             )
         except Exception:
-            await query.message.reply_text(f"🛑 Timer '{proj}' dihentikan ({duration} menit).")
+            await query.message.reply_text(
+                f"🛑 Timer '{proj}' dihentikan ({duration} menit)."
+            )
 
 
 # ==========================================
@@ -1145,7 +1165,11 @@ PRESETS = {
             ("Kuliah & Tugas", 3),
             ("Karir", 4),
         ],
-        "habits": ["Menulis Naskah 30 Menit", "Membaca Paper / Jurnal", "Olahraga Ringan"],
+        "habits": [
+            "Menulis Naskah 30 Menit",
+            "Membaca Paper / Jurnal",
+            "Olahraga Ringan",
+        ],
     },
     "dev": {
         "title": "💻 Software Engineer / Tech",
@@ -1180,11 +1204,25 @@ async def preset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎓 Akademisi / Mahasiswa", callback_data="preset:academic")],
-        [InlineKeyboardButton("💻 Software Engineer / Tech", callback_data="preset:dev")],
-        [InlineKeyboardButton("💼 Profesional / Bisnis", callback_data="preset:biz")],
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🎓 Akademisi / Mahasiswa", callback_data="preset:academic"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "💻 Software Engineer / Tech", callback_data="preset:dev"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "💼 Profesional / Bisnis", callback_data="preset:biz"
+                )
+            ],
+        ]
+    )
     text = (
         "⚡ <b>Pilih Template Produktivitasmu (1-Klik Setup)</b>\n\n"
         "Pilih template yang paling sesuai untuk membuat area dan kebiasaan awal secara instan:\n\n"
@@ -1199,7 +1237,9 @@ async def preset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         "• Habit: Review Prioritas Pagi, Follow-up Klien, Olahraga 20m\n\n"
         "<i>Klik salah satu tombol di bawah:</i>"
     )
-    await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=keyboard
+    )
 
 
 async def preset_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1288,12 +1328,16 @@ async def export_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     today = datetime.now(LOCAL_TZ).date()
     async with SessionLocal() as session:
         notes_res = await session.execute(
-            select(Note).where(Note.user_id == profile.id).order_by(Note.created_at.desc())
+            select(Note)
+            .where(Note.user_id == profile.id)
+            .order_by(Note.created_at.desc())
         )
         notes = notes_res.scalars().all()
 
         tasks_res = await session.execute(
-            select(Task).where(Task.user_id == profile.id).order_by(Task.created_at.desc())
+            select(Task)
+            .where(Task.user_id == profile.id)
+            .order_by(Task.created_at.desc())
         )
         tasks = tasks_res.scalars().all()
 
@@ -1306,7 +1350,9 @@ async def export_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ]
     for t in tasks:
         check = "x" if t.status == "completed" else " "
-        deadline_str = f" (Deadline: {t.deadline.strftime('%Y-%m-%d')})" if t.deadline else ""
+        deadline_str = (
+            f" (Deadline: {t.deadline.strftime('%Y-%m-%d')})" if t.deadline else ""
+        )
         urgent_str = " [MENDESAK]" if t.is_urgent else ""
         md_lines.append(f"- [{check}] #{t.id} {t.title}{deadline_str}{urgent_str}")
 
@@ -1343,12 +1389,16 @@ async def disconnect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
 
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("⚠️ Ya, Putuskan Tautan", callback_data="disconnect:confirm"),
-            InlineKeyboardButton("❌ Batal", callback_data="disconnect:cancel"),
+            [
+                InlineKeyboardButton(
+                    "⚠️ Ya, Putuskan Tautan", callback_data="disconnect:confirm"
+                ),
+                InlineKeyboardButton("❌ Batal", callback_data="disconnect:cancel"),
+            ]
         ]
-    ])
+    )
     await update.effective_message.reply_text(
         "🔌 <b>Putuskan Tautan Akun Telegram?</b>\n\n"
         "Jika tautan diputuskan, bot tidak akan lagi menerima perintah dari chat ini. "
@@ -1359,7 +1409,9 @@ async def disconnect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
-async def disconnect_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def disconnect_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     query = update.callback_query
     if not query:
         return
@@ -1369,7 +1421,9 @@ async def disconnect_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if data == "disconnect:cancel":
         await query.answer("Dibatalkan.", show_alert=False)
-        await query.edit_message_text("✅ Pemutusan tautan dibatalkan. Akun tetap terhubung.")
+        await query.edit_message_text(
+            "✅ Pemutusan tautan dibatalkan. Akun tetap terhubung."
+        )
         return
 
     if data == "disconnect:confirm":

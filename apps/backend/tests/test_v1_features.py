@@ -54,13 +54,17 @@ class MockBot:
     def __init__(self):
         self.sent_documents = []
 
-    async def send_document(self, chat_id: int, document, filename: str, caption: str, **kwargs):
-        self.sent_documents.append({
-            "chat_id": chat_id,
-            "filename": filename,
-            "content": document.getvalue().decode("utf-8"),
-            "caption": caption,
-        })
+    async def send_document(
+        self, chat_id: int, document, filename: str, caption: str, **kwargs
+    ):
+        self.sent_documents.append(
+            {
+                "chat_id": chat_id,
+                "filename": filename,
+                "content": document.getvalue().decode("utf-8"),
+                "caption": caption,
+            }
+        )
 
 
 class MockUpdate:
@@ -182,7 +186,9 @@ async def test_interactive_timer_stop_callback(setup_test_db):
 
     async with Session() as session:
         t_res = await session.execute(
-            select(TimeLog).where(TimeLog.user_id == user_id, col(TimeLog.ended_at).is_(None))
+            select(TimeLog).where(
+                TimeLog.user_id == user_id, col(TimeLog.ended_at).is_(None)
+            )
         )
         assert t_res.scalars().first() is None
 
@@ -221,8 +227,12 @@ async def test_export_command(setup_test_db):
     Session = setup_test_db["session_factory"]
 
     async with Session() as session:
-        session.add(Note(user_id=user_id, content="Catatan penting riset", tags=["riset", "ai"]))
-        session.add(Task(user_id=user_id, title="Tugas evaluasi model", status="pending"))
+        session.add(
+            Note(user_id=user_id, content="Catatan penting riset", tags=["riset", "ai"])
+        )
+        session.add(
+            Task(user_id=user_id, title="Tugas evaluasi model", status="pending")
+        )
         await session.commit()
 
     update = MockUpdate(chat_id)
