@@ -287,3 +287,60 @@ class CourseProject(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
+
+
+class CareerGoal(SQLModel, table=True):
+    __tablename__ = "career_goals"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    month: str = Field(index=True)  # Format: YYYY-MM
+    target_revenue_usd: float = Field(default=1000.0)
+    target_proposals_count: int = Field(default=20)
+    current_badge: str = Field(default="Rising Talent")  # Rising Talent, Top Rated, Top Rated Plus
+    usd_to_idr_rate: float = Field(default=16200.0)
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class UpworkProposal(SQLModel, table=True):
+    __tablename__ = "upwork_proposals"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    job_title: str
+    bid_amount_usd: Optional[float] = None
+    connects_spent: int = Field(default=8)
+    client_country: Optional[str] = None
+    job_url: Optional[str] = None
+    status: str = Field(default="submitted")  # submitted, interviewing, hired, rejected, withdrawn
+    notes: Optional[str] = None
+    submitted_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )
+
+
+class UpworkContract(SQLModel, table=True):
+    __tablename__ = "upwork_contracts"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    proposal_id: Optional[int] = Field(default=None, foreign_key="upwork_proposals.id")
+    client_name: str
+    project_title: str
+    contract_type: str = Field(default="fixed")  # fixed, hourly
+    rate_or_budget_usd: float = Field(default=0.0)
+    total_earned_usd: float = Field(default=0.0)
+    status: str = Field(default="active")  # active, completed, cancelled
+    rating: Optional[float] = None
+    feedback: Optional[str] = None
+    deadline: Optional[datetime] = Field(
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )

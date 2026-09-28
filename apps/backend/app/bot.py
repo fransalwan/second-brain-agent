@@ -100,6 +100,23 @@ from .weekly_report import (
     generate_weekly_insight_llm,
     get_weekly_stats,
 )
+from .career import (
+    STATUS_BADGES,
+    add_contract_earnings,
+    add_upwork_contract,
+    add_upwork_proposal,
+    build_career_dashboard_keyboard,
+    build_contracts_list_keyboard,
+    build_proposals_list_keyboard,
+    cycle_proposal_status,
+    format_career_dashboard_html,
+    format_contracts_list_html,
+    format_proposals_list_html,
+    get_active_contracts,
+    get_all_contracts,
+    get_career_summary,
+    get_recent_proposals,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2593,6 +2610,200 @@ async def coursework_callback(
         return
 
 
+async def karir_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Dashboard performa karir & Upwork revenue tracker."""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        summary = await get_career_summary(session, profile.id)
+        active_contracts = await get_active_contracts(session, profile.id)
+        recent_proposals = await get_recent_proposals(session, profile.id, limit=3)
+
+    text = format_career_dashboard_html(summary, active_contracts, recent_proposals)
+    markup = build_career_dashboard_keyboard()
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=markup
+    )
+
+
+async def proposal_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Mencatat proposal baru atau melihat daftar proposal Upwork.
+
+    Format tambah: /proposal <Job Title> | [bid_usd] | [connects]
+    Contoh: /proposal AI Agent Developer | 500 | 8
+    """
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    args_text = " ".join(context.args).strip() if context.args else ""
+    if not args_text:
+        # Jika tanpa argumen, tampilkan daftar proposal terkini
+        async with SessionLocal() as session:
+            proposals = await get_recent_proposals(session, profile.id, limit=10)
+        text = format_proposals_list_html(proposals)
+        markup = build_proposals_list_keyboard(proposals) if proposals else None
+        await update.effective_message.reply_text(
+            text, parse_mode=ParseMode.HTML, reply_markup=markup
+        )
+        return
+
+    # Parse format "Job Title | Bid | Connects"
+    parts = [p.strip() for p in args_text.split("|")]
+    job_title = parts[0]
+    bid_usd = None
+    connects = 8
+
+    if len(parts) > 1 and parts[1]:
+        try:
+            bid_usd = float(parts[1].replace("$", "").replace(",", ""))
+        except ValueError:
+            pass
+
+    if len(parts) > 2 and parts[2]:
+        try:
+            connects = int(parts[2])
+        except ValueError:
+            pass
+
+    async with SessionLocal() as session:
+        prop = await add_upwork_proposal(
+            session=session,
+            user_id=profile.id,
+            job_title=job_title,
+            bid_amount_usd=bid_usd,
+            connects_spent=connects,
+        )
+        proposals = await get_recent_proposals(session, profile.id, limit=5)
+
+    bid_info = f" | Bid: <b>${bid_usd:,.0f}</b>" if bid_usd else ""
+    await update.effective_message.reply_text(
+        f"✅ <b>Proposal Upwork Berhasil Dicatat!</b>\n\n"
+        f"📌 <b>{html.escape(prop.job_title)}</b>{bid_info}\n"
+        f"🪙 Connects terpakai: <b>{prop.connects_spent}</b>\n"
+        f"Status: 📨 <b>Terkirim (submitted)</b>\n\n"
+        f"<i>Gunakan /karir untuk melihat progress radar pendapatan.</i>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=build_proposals_list_keyboard(proposals),
+    )
+
+
+async def contracts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Melihat daftar kontrak kerja Upwork."""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await update.effective_message.reply_text(
+            NOT_LINKED_MSG.format(chat_id=chat_id),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    async with SessionLocal() as session:
+        contracts = await get_all_contracts(session, profile.id, limit=10)
+
+    text = format_contracts_list_html(contracts)
+    markup = build_contracts_list_keyboard(contracts) if contracts else None
+    await update.effective_message.reply_text(
+        text, parse_mode=ParseMode.HTML, reply_markup=markup
+    )
+
+
+async def career_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    data = query.data or ""
+    chat_id = update.effective_chat.id
+    profile = await get_profile_by_chat_id(chat_id)
+    if profile is None:
+        await query.answer("Akun belum terhubung.", show_alert=True)
+        return
+
+    if data == "career:menu:dashboard" or data == "career:menu:refresh":
+        async with SessionLocal() as session:
+            summary = await get_career_summary(session, profile.id)
+            active_contracts = await get_active_contracts(session, profile.id)
+            recent_proposals = await get_recent_proposals(session, profile.id, limit=3)
+
+        await query.answer("Dashboard diperbarui!", show_alert=False)
+        text = format_career_dashboard_html(summary, active_contracts, recent_proposals)
+        markup = build_career_dashboard_keyboard()
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    if data == "career:menu:proposals":
+        async with SessionLocal() as session:
+            proposals = await get_recent_proposals(session, profile.id, limit=10)
+
+        await query.answer()
+        text = format_proposals_list_html(proposals)
+        markup = build_proposals_list_keyboard(proposals) if proposals else None
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    if data == "career:menu:contracts" or data == "career:menu:earnings":
+        async with SessionLocal() as session:
+            contracts = await get_all_contracts(session, profile.id, limit=10)
+
+        await query.answer()
+        text = format_contracts_list_html(contracts)
+        markup = build_contracts_list_keyboard(contracts) if contracts else None
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    if data.startswith("career:cycle_prop:"):
+        pid = int(data.split(":")[-1])
+        async with SessionLocal() as session:
+            updated = await cycle_proposal_status(session, profile.id, pid)
+            proposals = await get_recent_proposals(session, profile.id, limit=10)
+
+        if updated:
+            st_badge = STATUS_BADGES.get(updated.status, updated.status)
+            await query.answer(f"Status proposal: {st_badge}", show_alert=False)
+        else:
+            await query.answer("Proposal tidak ditemukan.", show_alert=True)
+
+        text = format_proposals_list_html(proposals)
+        markup = build_proposals_list_keyboard(proposals) if proposals else None
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    if data.startswith("career:earn:"):
+        parts = data.split(":")
+        cid = int(parts[2])
+        amount = float(parts[3])
+        async with SessionLocal() as session:
+            updated = await add_contract_earnings(session, profile.id, cid, amount)
+            contracts = await get_all_contracts(session, profile.id, limit=10)
+
+        if updated:
+            await query.answer(f"Earning +${amount:,.0f} dicatat!", show_alert=False)
+        else:
+            await query.answer("Kontrak tidak ditemukan.", show_alert=True)
+
+        text = format_contracts_list_html(contracts)
+        markup = build_contracts_list_keyboard(contracts) if contracts else None
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
+        return
+
+    await query.answer()
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Error saat memproses update", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
@@ -2659,6 +2870,17 @@ ptb_app.add_handler(
 ptb_app.add_handler(CommandHandler(["kopi", "coffee"], coffee_cmd, filters=private))
 ptb_app.add_handler(CommandHandler(["weekly", "laporan"], weekly_cmd, filters=private))
 
+# Career & Upwork Handlers
+ptb_app.add_handler(
+    CommandHandler(["karir", "career", "upwork"], karir_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["proposal", "proposals"], proposal_cmd, filters=private)
+)
+ptb_app.add_handler(
+    CommandHandler(["kontrak", "contract", "contracts"], contracts_cmd, filters=private)
+)
+
 # Callback Query Handlers
 ptb_app.add_handler(CallbackQueryHandler(chill_callback, pattern=r"^chill:"))
 ptb_app.add_handler(CallbackQueryHandler(task_callback, pattern=r"^task:"))
@@ -2669,6 +2891,7 @@ ptb_app.add_handler(CallbackQueryHandler(disconnect_callback, pattern=r"^disconn
 ptb_app.add_handler(CallbackQueryHandler(thesis_callback, pattern=r"^thesis:"))
 ptb_app.add_handler(CallbackQueryHandler(health_callback, pattern=r"^health:"))
 ptb_app.add_handler(CallbackQueryHandler(coursework_callback, pattern=r"^coursework:"))
+ptb_app.add_handler(CallbackQueryHandler(career_callback, pattern=r"^career:"))
 
 ptb_app.add_handler(
     MessageHandler(

@@ -24,12 +24,13 @@ from zoneinfo import ZoneInfo
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from sqlmodel import col, delete, select
+from sqlmodel import SQLModel, col, delete, select
 
 from app.config import settings
-from app.database import SessionLocal
+from app.database import SessionLocal, engine
 from app.models import (
     Area,
+    CareerGoal,
     CourseAssignment,
     CourseExam,
     CourseProject,
@@ -45,6 +46,8 @@ from app.models import (
     Task,
     ThesisChapter,
     TimeLog,
+    UpworkContract,
+    UpworkProposal,
     utcnow,
 )
 
@@ -54,6 +57,9 @@ LOCAL_TZ = ZoneInfo(settings.APP_TIMEZONE)
 
 async def seed_data():
     today = datetime.now(LOCAL_TZ).date()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
     async with SessionLocal() as session:
         # ==========================================
@@ -82,6 +88,15 @@ async def seed_data():
         # ==========================================
         # 2. BERSIHKAN DATA LAMA
         # ==========================================
+        await session.execute(
+            delete(UpworkContract).where(UpworkContract.user_id == user_id)
+        )
+        await session.execute(
+            delete(UpworkProposal).where(UpworkProposal.user_id == user_id)
+        )
+        await session.execute(
+            delete(CareerGoal).where(CareerGoal.user_id == user_id)
+        )
         await session.execute(delete(SleepLog).where(SleepLog.user_id == user_id))
         await session.execute(
             delete(HydrationLog).where(HydrationLog.user_id == user_id)
@@ -846,9 +861,137 @@ async def seed_data():
             "Berhasil membuat data Tugas Kuliah (4), Radar Ujian (2), dan Final Project (1)."
         )
 
+        # ==========================================
+        # 16. UPWORK CAREER ENGINE
+        # ==========================================
+        target_month = now_dt.strftime("%Y-%m")
+        career_goal = CareerGoal(
+            user_id=user_id,
+            month=target_month,
+            target_revenue_usd=1200.0,
+            target_proposals_count=20,
+            current_badge="Rising Talent",
+            usd_to_idr_rate=16200.0,
+            created_at=now_dt - timedelta(days=20),
+        )
+        session.add(career_goal)
+        await session.commit()
+
+        proposals_data = [
+            UpworkProposal(
+                user_id=user_id,
+                job_title="AI Agent & Workflow Automation Developer",
+                bid_amount_usd=450.0,
+                connects_spent=8,
+                client_country="United States",
+                job_url="https://www.upwork.com/jobs/~01exampleaiagent",
+                status="hired",
+                notes="Fokus integrasi Google Gemini dan asynchronous worker.",
+                submitted_at=now_dt - timedelta(days=12),
+                created_at=now_dt - timedelta(days=12),
+            ),
+            UpworkProposal(
+                user_id=user_id,
+                job_title="FastAPI Backend & Telegram Bot Architect",
+                bid_amount_usd=200.0,
+                connects_spent=8,
+                client_country="Singapore",
+                job_url="https://www.upwork.com/jobs/~02examplefastapibot",
+                status="hired",
+                notes="Realtime bot dashboard & webhook integration.",
+                submitted_at=now_dt - timedelta(days=8),
+                created_at=now_dt - timedelta(days=8),
+            ),
+            UpworkProposal(
+                user_id=user_id,
+                job_title="Full-Stack Web Scraper & Data Pipeline",
+                bid_amount_usd=300.0,
+                connects_spent=6,
+                client_country="Germany",
+                job_url="https://www.upwork.com/jobs/~03examplescraper",
+                status="interviewing",
+                notes="Tahap diskusi format output JSON dan cloud storage.",
+                submitted_at=now_dt - timedelta(days=3),
+                created_at=now_dt - timedelta(days=3),
+            ),
+            UpworkProposal(
+                user_id=user_id,
+                job_title="Next.js & Supabase SaaS MVP",
+                bid_amount_usd=600.0,
+                connects_spent=12,
+                client_country="Canada",
+                job_url="https://www.upwork.com/jobs/~04examplesaas",
+                status="submitted",
+                notes="Proposal komprehensif dengan demo portfolio live.",
+                submitted_at=now_dt - timedelta(days=1),
+                created_at=now_dt - timedelta(days=1),
+            ),
+            UpworkProposal(
+                user_id=user_id,
+                job_title="LangChain RAG Pipeline Optimization",
+                bid_amount_usd=350.0,
+                connects_spent=10,
+                client_country="United Kingdom",
+                job_url="https://www.upwork.com/jobs/~05examplerag",
+                status="rejected",
+                notes="Klien memilih freelancer dengan timezone Eropa.",
+                submitted_at=now_dt - timedelta(days=15),
+                created_at=now_dt - timedelta(days=15),
+            ),
+        ]
+        session.add_all(proposals_data)
+        await session.commit()
+
+        # Ambil ID proposal hired
+        hired_props_res = await session.execute(
+            select(UpworkProposal)
+            .where(UpworkProposal.user_id == user_id, UpworkProposal.status == "hired")
+            .order_by(UpworkProposal.submitted_at.asc())
+        )
+        hired_props = hired_props_res.scalars().all()
+        prop1_id = hired_props[0].id if len(hired_props) > 0 else None
+        prop2_id = hired_props[1].id if len(hired_props) > 1 else None
+
+        contracts_data = [
+            UpworkContract(
+                user_id=user_id,
+                proposal_id=prop1_id,
+                client_name="FinTech Alpha (US)",
+                project_title="Autonomous Agent Workflow Engine",
+                contract_type="fixed",
+                rate_or_budget_usd=450.0,
+                total_earned_usd=450.0,
+                status="completed",
+                rating=5.0,
+                feedback="Frans is an exceptional AI engineer! Prompt, clear communication, and outstanding deliverables.",
+                deadline=now_dt - timedelta(days=2),
+                created_at=now_dt - timedelta(days=10),
+            ),
+            UpworkContract(
+                user_id=user_id,
+                proposal_id=prop2_id,
+                client_name="Apex Media SG",
+                project_title="Telegram Notification & CRM Bot",
+                contract_type="fixed",
+                rate_or_budget_usd=300.0,
+                total_earned_usd=200.0,
+                status="active",
+                deadline=now_dt + timedelta(days=5),
+                created_at=now_dt - timedelta(days=6),
+            ),
+        ]
+        session.add_all(contracts_data)
+        await session.commit()
+        print(
+            "Berhasil membuat data Upwork Career: Target $1,200, 5 Proposal, dan 2 Kontrak ($650 earned)."
+        )
+
     print("\n=======================================================")
     print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
     print("Seluruh modul kini terisi data nyata & siap diuji:")
+    print("• /karir      -> Upwork Career Engine & Revenue Target ($650 / $1,200 - 54%)")
+    print("• /proposal   -> 5 proposal (1 submitting, 1 interview, 2 hired, 1 rejected)")
+    print("• /kontrak    -> 2 kontrak Upwork (1 aktif, 1 selesai rating 5.0)")
     print("• /kuliah     -> Master Command Center Akademik")
     print("• /tugas      -> 4 tugas kuliah (Kritis Besok, H-3, H-6, Reading)")
     print("• /ujian      -> 2 ujian (UTS Machine Learning H-5, UAS DistSys)")
