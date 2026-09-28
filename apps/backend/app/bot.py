@@ -266,12 +266,18 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
                 return
 
+            is_force = len(context.args) > 1 and context.args[1].strip().lower() in ["force", "update", "replace"]
             if (
                 profile.telegram_chat_id is not None
                 and profile.telegram_chat_id != chat_id
+                and not is_force
             ):
                 await message.reply_text(
-                    "Email ini sudah terhubung ke akun Telegram lain."
+                    "⚠️ Email ini sudah terhubung ke akun Telegram lain.\n\n"
+                    "💡 Solusi:\n"
+                    f"1. Kirim <code>/connect {email} force</code> untuk langsung menghubungkan ke akun Telegram ini.\n"
+                    f"2. Atau perbarui Chat ID kamu (<code>{chat_id}</code>) di dashboard web.",
+                    parse_mode=ParseMode.HTML,
                 )
                 return
 
