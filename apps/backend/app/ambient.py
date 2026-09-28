@@ -15,7 +15,19 @@ from telegram.constants import ParseMode
 
 from .config import settings
 from .habits import check_habit_for_today, get_user_habits_status
-from .models import Area, Habit, HabitLog, Note, Profile, Task, TimeLog, utcnow
+from .models import (
+    Area,
+    ExperimentMetric,
+    Habit,
+    HabitLog,
+    Note,
+    Profile,
+    SupervisionLog,
+    Task,
+    ThesisChapter,
+    TimeLog,
+    utcnow,
+)
 from .scheduler import is_past_night_cutoff
 
 logger = logging.getLogger(__name__)
@@ -699,3 +711,119 @@ async def handle_quick_capture(
         "reply": reply,
         "text": clean_text,
     }
+
+
+async def handle_thesis_sync(
+    session: AsyncSession,
+    email: str,
+    experiments_data: Optional[dict] = None,
+    manuscripts_data: Optional[dict] = None,
+    notify_telegram: bool = True,
+    bot: Optional[Any] = None,
+) -> dict:
+    """Menyinkronkan hasil eksperimen dan catatan bimbingan skripsi dari repo lokal ke database."""
+    profile = await get_profile_by_email(session, email)
+    if not profile:
+        return {
+            "status": "error",
+            "message": f"User dengan email '{email}' tidak ditemukan",
+        }
+
+    synced_metrics = 0
+    synced_logs = 0
+
+    # 1. Inisialisasi 5 Bab Tesis jika belum ada
+    res_chaps = await session.execute(
+        select(ThesisChapter).where(ThesisChapter.user_id == profile.id)
+    )
+    existing_chaps = res_chaps.scalars().all()
+    if not existing_chaps:
+        default_chaps = [
+            (1, "Pendahuluan & Rumusan Masalah IDCS", "Drafting", 40),
+            (2, "Tinjauan Pustaka XAI & Stabilitas SRA", "Drafting", 35),
+            (3, "Metodologi Penelitian & Replikasi EJOR", "Drafting", 50),
+            (4, "Hasil Eksperimen HMEQ/VUB & Analisis", "Belum Mulai", 15),
+            (5, "Kesimpulan, Trade-off & Rekomendasi", "Belum Mulai", 0),
+        ]
+        for cnum, title, status, prog in default_chaps:
+            chap = ThesisChapter(
+                user_id=profile.id,
+                chapter_num=cnum,
+                title=title,
+                status=status,
+                progress=prog,
+            )
+            session.add(chap)
+        await session.commit()
+
+    # 2. Sync Experiment Metrics dari thesis-experiments
+    if experiments_data and "sample_metrics" in experiments_data:
+        for m in experiments_data["sample_metrics"]:
+            res_m = await session.execute(
+                select(ExperimentMetric).where(
+                    ExperimentMetric.user_id == profile.id,
+                    ExperimentMetric.model_name == m["model_name"],
+                )
+            )
+            existing = res_m.scalars().first()
+            if not existing:
+                new_metric = ExperimentMetric(
+                    user_id=profile.id,
+                    model_name=m["model_name"],
+                    metrics_summary=m["metrics_summary"],
+                    parameters=m.get("parameters"),
+                )
+                session.add(new_metric)
+                synced_metrics += 1
+            else:
+                existing.metrics_summary = m["metrics_summary"]
+                existing.parameters = m.get("parameters")
+                session.add(existing)
+
+    # 3. Sync Supervision Logs dari thesis-manuscripts
+    if manuscripts_data and "supervision_logs" in manuscripts_data:
+        for log in manuscripts_data["supervision_logs"]:
+            res_l = await session.execute(
+                select(SupervisionLog).where(
+                    SupervisionLog.user_id == profile.id,
+                    SupervisionLog.notes == log["notes"],
+                )
+            )
+            existing_log = res_l.scalars().first()
+            if not existing_log:
+                new_log = SupervisionLog(
+                    user_id=profile.id,
+                    notes=log["notes"],
+                    action_items=log.get("action_items"),
+                )
+                session.add(new_log)
+                synced_logs += 1
+            elif log.get("action_items"):
+                existing_log.action_items = log["action_items"]
+                session.add(existing_log)
+
+    await session.commit()
+
+    # Notifikasi Telegram jika bot aktif
+    if notify_telegram and profile.telegram_chat_id and bot:
+        try:
+            tg_msg = (
+                f"🔬 <b>[Thesis Sync]</b> Repositori Riset Berhasil Disinkronkan!\n\n"
+                f"📊 <b>Eksperimen IDCS:</b> {synced_metrics} metrik baru ter-update ke Tab Riset.\n"
+                f"📝 <b>Bimbingan Naskah:</b> {synced_logs} catatan revisi tersinkron.\n"
+                f"Tabel metrik siap diekspor ke format LaTeX untuk Bab 4!"
+            )
+            await bot.send_message(
+                chat_id=profile.telegram_chat_id,
+                text=tg_msg,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.warning(f"Gagal mengirim notif Telegram thesis sync: {e}")
+
+    return {
+        "status": "success",
+        "synced_metrics": synced_metrics,
+        "synced_supervisions": synced_logs,
+    }
+

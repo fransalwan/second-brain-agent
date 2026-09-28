@@ -20,6 +20,7 @@ from .ambient import (
     get_ambient_status,
     handle_git_commit_event,
     handle_quick_capture,
+    handle_thesis_sync,
     start_ambient_timer,
     stop_ambient_timer,
 )
@@ -286,3 +287,32 @@ async def api_quick_capture(
     if result.get("status") == "error":
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
+
+
+class ThesisSyncRequest(BaseModel):
+    email: str
+    experiments_data: dict | None = None
+    manuscripts_data: dict | None = None
+    notify_telegram: bool = True
+
+
+@app.post("/api/v1/ambient/thesis/sync")
+async def api_thesis_sync(
+    payload: ThesisSyncRequest,
+    _auth: bool = Depends(verify_ambient_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Menerima sinkronisasi otomatis dari repo thesis-experiments dan thesis-manuscripts."""
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    result = await handle_thesis_sync(
+        session=session,
+        email=payload.email,
+        experiments_data=payload.experiments_data,
+        manuscripts_data=payload.manuscripts_data,
+        notify_telegram=payload.notify_telegram,
+        bot=bot,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+

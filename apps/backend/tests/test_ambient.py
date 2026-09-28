@@ -633,3 +633,70 @@ async def test_bedtime_status_api_endpoint():
 
     app.dependency_overrides.clear()
     await test_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_thesis_sync_api_endpoint():
+    """Test endpoint /api/v1/ambient/thesis/sync untuk sinkronisasi eksperimen dan bimbingan."""
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    async with async_session_factory() as session:
+        profile = Profile(
+            id=uuid.uuid4(),
+            email="thesis_user@example.com",
+            full_name="Frans Alwan",
+        )
+        session.add(profile)
+        await session.commit()
+
+    async def override_get_session():
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        headers = {"X-Ambient-Key": settings.AMBIENT_API_KEY}
+
+        payload = {
+            "email": "thesis_user@example.com",
+            "experiments_data": {
+                "sample_metrics": [
+                    {
+                        "model_name": "Boosted Tree (IDCS Rate 0.15)",
+                        "metrics_summary": "SRA Mean: 0.7201, FDR: p<0.05",
+                        "parameters": "Runs: 5 iter",
+                    }
+                ]
+            },
+            "manuscripts_data": {
+                "supervision_logs": [
+                    {
+                        "notes": "Log Bimbingan #1: Perumusan Masalah",
+                        "action_items": "- [x] Pipeline HMEQ\n- [ ] Uji Wilcoxon",
+                    }
+                ]
+            },
+            "notify_telegram": False,
+        }
+
+        resp = await client.post(
+            "/api/v1/ambient/thesis/sync",
+            json=payload,
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["synced_metrics"] >= 1
+        assert data["synced_supervisions"] >= 1
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()
+
