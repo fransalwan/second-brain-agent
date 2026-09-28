@@ -107,6 +107,7 @@ const hoveredNode = ref<GraphNode | null>(null)
 // State penautan Telegram Chat ID
 const inputChatId = ref('')
 const linkingChatId = ref(false)
+const showEditTelegram = ref(false)
 const linkSuccessMsg = ref('')
 const linkErrorMsg = ref('')
 
@@ -144,6 +145,7 @@ async function handleLinkTelegram() {
     } else {
       linkSuccessMsg.value = 'Akun Telegram berhasil ditautkan! Buka bot Telegram dan kirim /start.'
       inputChatId.value = ''
+      showEditTelegram.value = false
       await fetchData()
     }
   } catch (err: any) {
@@ -626,54 +628,6 @@ function handleCanvasMouseLeave() {
   hoveredNode.value = null
 }
 
-function handleCanvasTouchStart(e: TouchEvent) {
-  if (e.touches.length !== 1) return
-  const canvas = graphCanvas.value
-  if (!canvas) return
-  const rect = canvas.getBoundingClientRect()
-  const touch = e.touches[0]
-  const touchX = touch.clientX - rect.left
-  const touchY = touch.clientY - rect.top
-
-  for (const node of graphNodes.value) {
-    const dx = node.x - touchX
-    const dy = node.y - touchY
-    if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 12) {
-      draggedNode = node
-      dragStartX = touchX
-      dragStartY = touchY
-      hasMovedFar = false
-      if (e.cancelable) e.preventDefault()
-      break
-    }
-  }
-}
-
-function handleCanvasTouchMove(e: TouchEvent) {
-  if (e.touches.length !== 1 || !draggedNode) return
-  const canvas = graphCanvas.value
-  if (!canvas) return
-  const rect = canvas.getBoundingClientRect()
-  const touch = e.touches[0]
-  const touchX = touch.clientX - rect.left
-  const touchY = touch.clientY - rect.top
-
-  const dx = touchX - dragStartX
-  const dy = touchY - dragStartY
-  if (Math.sqrt(dx * dx + dy * dy) > 5) {
-    hasMovedFar = true
-  }
-  draggedNode.x = touchX
-  draggedNode.y = touchY
-  draggedNode.vx = 0
-  draggedNode.vy = 0
-  if (e.cancelable) e.preventDefault()
-}
-
-function handleCanvasTouchEnd() {
-  handleCanvasMouseUp()
-}
-
 function switchNotesTab(tab: 'list' | 'graph') {
   notesTab.value = tab
   if (tab === 'graph') {
@@ -741,8 +695,8 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Navigation Tabs Bar (Desktop / Tablet) -->
-      <div class="border-t border-gray-100 bg-white hidden md:block">
+      <!-- Navigation Tabs Bar -->
+      <div class="border-t border-gray-100 bg-white">
         <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 sm:px-6 overflow-x-auto no-scrollbar">
           <button
             @click="activeTab = 'overview'"
@@ -796,7 +750,7 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-3 sm:px-6 pt-4 sm:pt-6 space-y-6 pb-28 md:pb-12">
+    <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
       <!-- Tab 1: Kesehatan -->
       <HealthTab
         v-if="activeTab === 'health' && currentUserId"
@@ -823,50 +777,129 @@ onMounted(() => {
 
       <!-- Tab Overview (Default) -->
       <div v-else-if="activeTab === 'overview'" class="space-y-6">
-        <!-- Banner Onboarding Hubungkan Telegram (jika profil belum ada atau belum punya telegram_chat_id) -->
+      <!-- Card Status & Penautan Telegram (Selalu Aksesibel di Smartphone & Desktop) -->
       <div
-        v-if="profileLoaded && (!profile || !profile.telegram_chat_id)"
-        class="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950 shadow-sm transition-all"
+        v-if="profileLoaded"
+        class="rounded-2xl border transition-all shadow-xs"
+        :class="profile?.telegram_chat_id ? 'border-emerald-200 bg-emerald-50/70 p-4 sm:p-5' : 'border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950'"
       >
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-2 max-w-xl">
+        <!-- KONDISI 1: SUDAH TERHUBUNG -->
+        <div v-if="profile?.telegram_chat_id" class="space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl font-bold shrink-0 shadow-xs">
+                ✈️
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-bold uppercase tracking-wider text-emerald-900">Telegram Terhubung</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-200 text-emerald-900">Chat ID: {{ profile.telegram_chat_id }}</span>
+                </div>
+                <p class="text-xs text-emerald-800 mt-0.5">
+                  Bot resmi: <a href="https://t.me/secondbraindev_bot" target="_blank" class="font-bold underline text-emerald-950">@secondbraindev_bot</a> • Siap kirim tugas & voice note.
+                </p>
+              </div>
+            </div>
+
             <div class="flex items-center gap-2">
+              <a
+                href="https://t.me/secondbraindev_bot"
+                target="_blank"
+                class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 min-h-[40px] cursor-pointer"
+              >
+                <span>Buka Bot Telegram</span>
+                <span>↗</span>
+              </a>
+              <button
+                type="button"
+                @click="showEditTelegram = !showEditTelegram"
+                class="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 min-h-[40px] cursor-pointer"
+              >
+                {{ showEditTelegram ? 'Tutup Form' : 'Ubah Chat ID' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Form Edit ID jika toggle showEditTelegram aktif -->
+          <div v-if="showEditTelegram" class="pt-3 border-t border-emerald-200/80">
+            <label for="tg-chat-id-edit" class="block text-xs font-semibold text-gray-800 mb-1">
+              Ganti Chat ID Telegram:
+            </label>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-md">
+              <input
+                id="tg-chat-id-edit"
+                v-model="inputChatId"
+                type="text"
+                placeholder="Contoh: 8277307447"
+                class="block w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 min-h-[42px]"
+              />
+              <button
+                type="button"
+                @click="handleLinkTelegram"
+                :disabled="linkingChatId || !inputChatId"
+                class="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition-colors shrink-0 shadow-xs min-h-[42px] cursor-pointer"
+              >
+                {{ linkingChatId ? 'Menyimpan...' : 'Perbarui ID' }}
+              </button>
+            </div>
+            <div v-if="linkSuccessMsg" class="mt-2 rounded-lg bg-emerald-100 p-2 text-xs text-emerald-900">
+              {{ linkSuccessMsg }}
+            </div>
+            <div v-if="linkErrorMsg" class="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">
+              {{ linkErrorMsg }}
+            </div>
+          </div>
+        </div>
+
+        <!-- KONDISI 2: BELUM TERHUBUNG -->
+        <div v-else class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-2.5 max-w-xl">
+            <div class="flex items-center gap-2.5">
               <span class="text-2xl">✈️</span>
               <div>
                 <h2 class="text-base font-bold text-indigo-950">Tautkan Akun ke Bot Telegram</h2>
                 <p class="text-xs text-indigo-700">Hubungkan bot agar kamu bisa mencatat tugas, ide via suara, dan menerima brief pagi.</p>
               </div>
             </div>
-            <div class="pt-1 text-xs text-indigo-900 space-y-1.5">
-              <p class="flex items-start gap-1.5">
-                <span class="font-bold shrink-0">Opsi 1 (Instan):</span>
-                <span>Buka bot Telegram kamu dan ketik perintah: <code class="rounded bg-white px-2 py-0.5 font-mono font-bold text-indigo-900 border border-indigo-200 shadow-2xs">/connect {{ userEmail }}</code></span>
-              </p>
-              <p class="flex items-start gap-1.5">
-                <span class="font-bold shrink-0">Opsi 2 (Form Web):</span>
-                <span>Ketik <code class="rounded bg-white px-1.5 py-0.5 font-mono text-indigo-900 border border-indigo-200">/start</code> di bot untuk melihat Chat ID kamu, lalu masukkan di samping 👉</span>
-              </p>
+            <div class="pt-1 text-xs text-indigo-900 space-y-2">
+              <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100">
+                <span class="font-bold block text-indigo-950 mb-1">Cara Cepat (1-Tap):</span>
+                <a
+                  href="https://t.me/secondbraindev_bot"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs"
+                >
+                  <span>1. Klik untuk Buka Bot @secondbraindev_bot</span>
+                  <span>↗</span>
+                </a>
+                <p class="text-[11px] text-indigo-800 mt-1.5">
+                  2. Lalu kirim pesan: <code class="rounded bg-indigo-50 px-1.5 py-0.5 font-mono font-bold text-indigo-950 border border-indigo-200">/connect {{ userEmail }}</code>
+                </p>
+              </div>
             </div>
           </div>
 
-          <!-- Form Input Chat ID Langsung -->
-          <div class="w-full lg:w-80 rounded-xl bg-white p-4 border border-indigo-100 shadow-xs space-y-2.5 shrink-0">
+          <!-- Form Input Chat ID Langsung di HP & Web -->
+          <div class="w-full lg:w-80 rounded-2xl bg-white p-4 border border-indigo-100 shadow-xs space-y-2 shrink-0">
             <label for="tg-chat-id" class="block text-xs font-semibold text-gray-800">
-              Input Chat ID Telegram
+              Atau Input Chat ID Telegram Manual
             </label>
-            <div class="flex items-center gap-2">
+            <p class="text-[11px] text-gray-500">
+              Kirim <code class="bg-gray-100 px-1 rounded text-gray-700">/start</code> di bot untuk melihat ID angkamu:
+            </p>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input
                 id="tg-chat-id"
                 v-model="inputChatId"
                 type="text"
                 placeholder="Contoh: 123456789"
-                class="block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                class="block w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 min-h-[42px]"
               />
               <button
                 type="button"
                 @click="handleLinkTelegram"
                 :disabled="linkingChatId || !inputChatId"
-                class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 shadow-xs"
+                class="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 shadow-xs min-h-[42px] cursor-pointer"
               >
                 {{ linkingChatId ? 'Menyimpan...' : 'Hubungkan' }}
               </button>
@@ -1270,10 +1303,7 @@ onMounted(() => {
                     @mousemove="handleCanvasMouseMove"
                     @mouseup="handleCanvasMouseUp"
                     @mouseleave="handleCanvasMouseLeave"
-                    @touchstart="handleCanvasTouchStart"
-                    @touchmove="handleCanvasTouchMove"
-                    @touchend="handleCanvasTouchEnd"
-                    class="w-full h-80 cursor-grab active:cursor-grabbing block touch-none"
+                    class="w-full h-80 cursor-grab active:cursor-grabbing block"
                   ></canvas>
                 </div>
 
@@ -1320,69 +1350,5 @@ onMounted(() => {
       </div>
       </div>
     </main>
-
-    <!-- Mobile Bottom Floating Navigation Bar (Thumb Zone) -->
-    <nav class="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200/90 px-2 py-1 shadow-lg shadow-gray-900/10 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div class="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
-        <!-- 0: Ringkasan -->
-        <button
-          type="button"
-          @click="activeTab = 'overview'"
-          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
-          :class="activeTab === 'overview' ? 'text-gray-950 font-bold bg-gray-100' : 'text-gray-500 hover:text-gray-800'"
-        >
-          <span class="text-lg leading-none">🏠</span>
-          <span class="text-[10px] mt-1 font-medium tracking-tight">Home</span>
-        </button>
-
-        <!-- 1: Kesehatan -->
-        <button
-          type="button"
-          @click="activeTab = 'health'"
-          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
-          :class="activeTab === 'health' ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-gray-500 hover:text-gray-800'"
-        >
-          <span class="text-lg leading-none">🩺</span>
-          <span class="text-[10px] mt-1 font-medium tracking-tight">Kesehatan</span>
-          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-        </button>
-
-        <!-- 2: Kuliah -->
-        <button
-          type="button"
-          @click="activeTab = 'coursework'"
-          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
-          :class="activeTab === 'coursework' ? 'text-blue-700 font-bold bg-blue-50' : 'text-gray-500 hover:text-gray-800'"
-        >
-          <span class="text-lg leading-none">🎓</span>
-          <span class="text-[10px] mt-1 font-medium tracking-tight">Kuliah</span>
-          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-        </button>
-
-        <!-- 3: Riset -->
-        <button
-          type="button"
-          @click="activeTab = 'research'"
-          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
-          :class="activeTab === 'research' ? 'text-purple-700 font-bold bg-purple-50' : 'text-gray-500 hover:text-gray-800'"
-        >
-          <span class="text-lg leading-none">🔬</span>
-          <span class="text-[10px] mt-1 font-medium tracking-tight">Riset</span>
-          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-purple-500"></span>
-        </button>
-
-        <!-- 4: Hobby -->
-        <button
-          type="button"
-          @click="activeTab = 'hobby'"
-          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
-          :class="activeTab === 'hobby' ? 'text-amber-700 font-bold bg-amber-50' : 'text-gray-500 hover:text-gray-800'"
-        >
-          <span class="text-lg leading-none">🎨</span>
-          <span class="text-[10px] mt-1 font-medium tracking-tight">Hobby</span>
-          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-        </button>
-      </div>
-    </nav>
   </div>
 </template>
