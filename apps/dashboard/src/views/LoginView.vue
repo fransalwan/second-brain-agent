@@ -142,7 +142,7 @@ async function handleRegister() {
       return
     }
 
-    // Jika Supabase auto-confirm session
+    // 1. Coba langsung pakai session dari signUp jika tersedia
     if (data.session?.user) {
       try {
         await supabase.from('profiles').upsert({
@@ -153,12 +153,32 @@ async function handleRegister() {
         // Abaikan error upsert profil jika sudah ada trigger DB
       }
       router.push({ name: 'home' })
-    } else {
-      message.value =
-        'Akun berhasil dibuat! Silakan periksa email untuk konfirmasi aktivasi, atau langsung masuk dengan password kamu.'
-      authMode.value = 'login'
-      loginMethod.value = 'password'
+      return
     }
+
+    // 2. Auto-login langsung dengan password (zero friction untuk mahasiswa)
+    const { data: loginData } = await supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password: password.value,
+    })
+
+    if (loginData?.session?.user) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: loginData.session.user.id,
+          full_name: trimmedName,
+        })
+      } catch {
+        // Abaikan error upsert
+      }
+      router.push({ name: 'home' })
+      return
+    }
+
+    // 3. Fallback jika belum otomatis login
+    message.value = 'Akun berhasil dibuat! Silakan langsung masuk dengan email dan password kamu.'
+    authMode.value = 'login'
+    loginMethod.value = 'password'
   } catch (err: any) {
     errorMessage.value = 'Gagal melakukan pendaftaran akun. Silakan coba lagi.'
   } finally {
