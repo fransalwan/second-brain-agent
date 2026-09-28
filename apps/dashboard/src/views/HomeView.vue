@@ -626,6 +626,54 @@ function handleCanvasMouseLeave() {
   hoveredNode.value = null
 }
 
+function handleCanvasTouchStart(e: TouchEvent) {
+  if (e.touches.length !== 1) return
+  const canvas = graphCanvas.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const touch = e.touches[0]
+  const touchX = touch.clientX - rect.left
+  const touchY = touch.clientY - rect.top
+
+  for (const node of graphNodes.value) {
+    const dx = node.x - touchX
+    const dy = node.y - touchY
+    if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 12) {
+      draggedNode = node
+      dragStartX = touchX
+      dragStartY = touchY
+      hasMovedFar = false
+      if (e.cancelable) e.preventDefault()
+      break
+    }
+  }
+}
+
+function handleCanvasTouchMove(e: TouchEvent) {
+  if (e.touches.length !== 1 || !draggedNode) return
+  const canvas = graphCanvas.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const touch = e.touches[0]
+  const touchX = touch.clientX - rect.left
+  const touchY = touch.clientY - rect.top
+
+  const dx = touchX - dragStartX
+  const dy = touchY - dragStartY
+  if (Math.sqrt(dx * dx + dy * dy) > 5) {
+    hasMovedFar = true
+  }
+  draggedNode.x = touchX
+  draggedNode.y = touchY
+  draggedNode.vx = 0
+  draggedNode.vy = 0
+  if (e.cancelable) e.preventDefault()
+}
+
+function handleCanvasTouchEnd() {
+  handleCanvasMouseUp()
+}
+
 function switchNotesTab(tab: 'list' | 'graph') {
   notesTab.value = tab
   if (tab === 'graph') {
@@ -693,8 +741,8 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Navigation Tabs Bar -->
-      <div class="border-t border-gray-100 bg-white">
+      <!-- Navigation Tabs Bar (Desktop / Tablet) -->
+      <div class="border-t border-gray-100 bg-white hidden md:block">
         <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 sm:px-6 overflow-x-auto no-scrollbar">
           <button
             @click="activeTab = 'overview'"
@@ -748,7 +796,7 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
+    <main class="mx-auto max-w-6xl px-3 sm:px-6 pt-4 sm:pt-6 space-y-6 pb-28 md:pb-12">
       <!-- Tab 1: Kesehatan -->
       <HealthTab
         v-if="activeTab === 'health' && currentUserId"
@@ -1222,7 +1270,10 @@ onMounted(() => {
                     @mousemove="handleCanvasMouseMove"
                     @mouseup="handleCanvasMouseUp"
                     @mouseleave="handleCanvasMouseLeave"
-                    class="w-full h-80 cursor-grab active:cursor-grabbing block"
+                    @touchstart="handleCanvasTouchStart"
+                    @touchmove="handleCanvasTouchMove"
+                    @touchend="handleCanvasTouchEnd"
+                    class="w-full h-80 cursor-grab active:cursor-grabbing block touch-none"
                   ></canvas>
                 </div>
 
@@ -1269,5 +1320,69 @@ onMounted(() => {
       </div>
       </div>
     </main>
+
+    <!-- Mobile Bottom Floating Navigation Bar (Thumb Zone) -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200/90 px-2 py-1 shadow-lg shadow-gray-900/10 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div class="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
+        <!-- 0: Ringkasan -->
+        <button
+          type="button"
+          @click="activeTab = 'overview'"
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
+          :class="activeTab === 'overview' ? 'text-gray-950 font-bold bg-gray-100' : 'text-gray-500 hover:text-gray-800'"
+        >
+          <span class="text-lg leading-none">🏠</span>
+          <span class="text-[10px] mt-1 font-medium tracking-tight">Home</span>
+        </button>
+
+        <!-- 1: Kesehatan -->
+        <button
+          type="button"
+          @click="activeTab = 'health'"
+          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
+          :class="activeTab === 'health' ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-gray-500 hover:text-gray-800'"
+        >
+          <span class="text-lg leading-none">🩺</span>
+          <span class="text-[10px] mt-1 font-medium tracking-tight">Kesehatan</span>
+          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+
+        <!-- 2: Kuliah -->
+        <button
+          type="button"
+          @click="activeTab = 'coursework'"
+          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
+          :class="activeTab === 'coursework' ? 'text-blue-700 font-bold bg-blue-50' : 'text-gray-500 hover:text-gray-800'"
+        >
+          <span class="text-lg leading-none">🎓</span>
+          <span class="text-[10px] mt-1 font-medium tracking-tight">Kuliah</span>
+          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+        </button>
+
+        <!-- 3: Riset -->
+        <button
+          type="button"
+          @click="activeTab = 'research'"
+          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
+          :class="activeTab === 'research' ? 'text-purple-700 font-bold bg-purple-50' : 'text-gray-500 hover:text-gray-800'"
+        >
+          <span class="text-lg leading-none">🔬</span>
+          <span class="text-[10px] mt-1 font-medium tracking-tight">Riset</span>
+          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+        </button>
+
+        <!-- 4: Hobby -->
+        <button
+          type="button"
+          @click="activeTab = 'hobby'"
+          class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] cursor-pointer"
+          :class="activeTab === 'hobby' ? 'text-amber-700 font-bold bg-amber-50' : 'text-gray-500 hover:text-gray-800'"
+        >
+          <span class="text-lg leading-none">🎨</span>
+          <span class="text-[10px] mt-1 font-medium tracking-tight">Hobby</span>
+          <span class="absolute top-1 right-2 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+        </button>
+      </div>
+    </nav>
   </div>
 </template>

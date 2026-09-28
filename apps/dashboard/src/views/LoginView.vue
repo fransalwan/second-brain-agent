@@ -189,14 +189,14 @@ async function handleRegister() {
 
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
-    <!-- SISI KIRI: Showcase, Value Proposition & Kredibilitas Mahasiswa -->
-    <div class="flex-1 p-6 sm:p-10 lg:p-16 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-950 border-b lg:border-b-0 lg:border-r border-slate-800/80 relative overflow-hidden">
+    <!-- SISI KIRI: Showcase, Value Proposition & Kredibilitas Mahasiswa (Muncul setelah Form di HP) -->
+    <div class="order-2 lg:order-1 flex-1 p-5 sm:p-10 lg:p-16 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-950 border-t lg:border-t-0 lg:border-r border-slate-800/80 relative overflow-hidden">
       <!-- Glow ambient background effect -->
       <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none"></div>
       <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-      <!-- Top Brand -->
-      <div class="relative z-10">
+      <!-- Top Brand (Desktop Only) -->
+      <div class="relative z-10 hidden lg:block">
         <div class="flex items-center gap-3">
           <div class="h-11 w-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-500/25">
             🧠
@@ -299,12 +299,28 @@ async function handleRegister() {
       </div>
     </div>
 
-    <!-- SISI KANAN: Modern Auth Card (Sign In & Sign Up) -->
-    <div class="w-full lg:w-[460px] xl:w-[500px] flex items-center justify-center p-6 sm:p-10 bg-slate-900/60 backdrop-blur-md">
-      <div class="w-full max-w-md space-y-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8 shadow-2xl shadow-indigo-950/40">
+    <!-- SISI KANAN: Modern Auth Card (Sign In & Sign Up) - Tampil Pertama di Layar HP -->
+    <div class="order-1 lg:order-2 w-full lg:w-[460px] xl:w-[500px] flex items-center justify-center p-4 sm:p-8 lg:p-10 bg-slate-900/90 lg:bg-slate-900/60 backdrop-blur-md border-b lg:border-b-0 lg:border-l border-slate-800/80">
+      <div class="w-full max-w-md space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-8 shadow-2xl shadow-indigo-950/40">
+        <!-- Mobile Mini-Brand Header (Hanya di layar HP) -->
+        <div class="flex items-center gap-3 pb-1 lg:hidden">
+          <div class="h-10 w-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold shadow-md shadow-indigo-500/25 shrink-0">
+            🧠
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-base font-black tracking-tight text-white">Second Brain</span>
+              <span class="rounded-full bg-indigo-500/20 px-2 py-0.2 text-[10px] font-bold text-indigo-300 border border-indigo-500/30">
+                Student 🎓
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400">Autonomous AI Copilot &amp; Life Balance Hub</p>
+          </div>
+        </div>
+
         <!-- Auth Header Title -->
         <div class="text-left space-y-1">
-          <h2 class="text-xl font-bold text-white tracking-tight">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">
             {{ authMode === 'login' ? 'Masuk ke Akun Kamu' : 'Mulai Second Brain Kamu' }}
           </h2>
           <p class="text-xs text-slate-400">
@@ -312,12 +328,12 @@ async function handleRegister() {
           </p>
         </div>
 
-        <!-- Mode Switcher: Masuk vs Daftar Baru -->
+        <!-- Mode Switcher: Masuk vs Daftar Baru (Empuk di jempol min-h-[44px]) -->
         <div class="flex items-center rounded-xl bg-slate-950 p-1 text-xs font-semibold border border-slate-800">
           <button
             type="button"
             @click="switchMode('login')"
-            class="flex-1 py-2 rounded-lg transition-all cursor-pointer"
+            class="flex-1 min-h-[44px] flex items-center justify-center py-2 rounded-lg transition-all cursor-pointer"
             :class="authMode === 'login' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'"
           >
             Masuk (Sign In)
@@ -325,7 +341,7 @@ async function handleRegister() {
           <button
             type="button"
             @click="switchMode('register')"
-            class="flex-1 py-2 rounded-lg transition-all cursor-pointer"
+            class="flex-1 min-h-[44px] flex items-center justify-center py-2 rounded-lg transition-all cursor-pointer"
             :class="authMode === 'register' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'"
           >
             Daftar Baru (Sign Up)
@@ -382,7 +398,7 @@ async function handleRegister() {
                 type="email"
                 required
                 placeholder="nama@kampus.ac.id atau email pribadi"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
@@ -392,7 +408,7 @@ async function handleRegister() {
                 <button
                   type="button"
                   @click="showPassword = !showPassword"
-                  class="text-[11px] text-indigo-400 hover:underline cursor-pointer"
+                  class="min-h-[36px] px-1 text-xs text-indigo-400 hover:underline cursor-pointer flex items-center"
                 >
                   {{ showPassword ? 'Sembunyikan' : 'Lihat' }}
                 </button>
@@ -402,14 +418,14 @@ async function handleRegister() {
                 :type="showPassword ? 'text' : 'password'"
                 required
                 placeholder="••••••••"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
             <button
               type="submit"
               :disabled="loading"
-              class="w-full mt-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer"
+              class="w-full min-h-[46px] mt-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center"
             >
               {{ loading ? 'Memproses...' : (loginMethod === 'password' ? 'Masuk ke Dashboard' : 'Kirim Tautan Magic Link') }}
             </button>
@@ -426,7 +442,7 @@ async function handleRegister() {
                 type="text"
                 required
                 placeholder="Contoh: Frans Alwan Purba"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
@@ -437,7 +453,7 @@ async function handleRegister() {
                 type="email"
                 required
                 placeholder="nama@kampus.ac.id atau email pribadi"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
@@ -448,7 +464,7 @@ async function handleRegister() {
                 type="password"
                 required
                 placeholder="••••••••"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
@@ -459,14 +475,14 @@ async function handleRegister() {
                 type="password"
                 required
                 placeholder="••••••••"
-                class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
+                class="w-full min-h-[46px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
 
             <button
               type="submit"
               :disabled="loading"
-              class="w-full mt-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer"
+              class="w-full min-h-[46px] mt-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center"
             >
               {{ loading ? 'Mendaftarkan...' : 'Buat Akun Mahasiswa Baru' }}
             </button>
