@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import HealthTab from '../components/HealthTab.vue'
 import CourseworkTab from '../components/CourseworkTab.vue'
 import ResearchTab from '../components/ResearchTab.vue'
+import HobbyTab from '../components/HobbyTab.vue'
 
 interface ProfileItem {
   id?: string
@@ -83,7 +84,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research'>('overview')
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -728,6 +729,16 @@ onMounted(() => {
             <span>Riset</span>
             <span class="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-semibold text-purple-800">#3</span>
           </button>
+
+          <button
+            @click="activeTab = 'hobby'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'hobby' ? 'border-amber-600 text-amber-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>🎨</span>
+            <span>Hobby</span>
+            <span class="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800">#4</span>
+          </button>
         </div>
       </div>
     </header>
@@ -748,6 +759,12 @@ onMounted(() => {
       <!-- Tab 3: Riset -->
       <ResearchTab
         v-else-if="activeTab === 'research' && currentUserId"
+        :user-id="currentUserId"
+      />
+
+      <!-- Tab 4: Hobby -->
+      <HobbyTab
+        v-else-if="activeTab === 'hobby' && currentUserId"
         :user-id="currentUserId"
       />
 
