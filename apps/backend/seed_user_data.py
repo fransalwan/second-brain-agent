@@ -133,15 +133,13 @@ async def seed_data():
 
         # ==========================================
         # ==========================================
-        # 3. AREA HIDUP (6 Area Sesuai Prioritas Utama)
+        # 3. AREA HIDUP (4 Area Sesuai Prioritas Mahasiswa)
         # ==========================================
         areas_data = [
             Area(user_id=user_id, name="Kesehatan", position=1),
             Area(user_id=user_id, name="Kuliah", position=2),
             Area(user_id=user_id, name="Riset", position=3),
-            Area(user_id=user_id, name="Karir", position=4),
-            Area(user_id=user_id, name="Usaha", position=5),
-            Area(user_id=user_id, name="Hobby", position=6),
+            Area(user_id=user_id, name="Hobby", position=4),
         ]
         for a in areas_data:
             session.add(a)
@@ -152,7 +150,7 @@ async def seed_data():
         )
         areas = {a.name: a.id for a in areas_res.scalars().all()}
         print(
-            f"Berhasil membuat {len(areas)} Area Hidup (Kesehatan, Kuliah, Riset, Karir, Usaha, Hobby)."
+            f"Berhasil membuat {len(areas)} Area Hidup (Kesehatan, Kuliah, Riset, Hobby)."
         )
 
         # Helper datetime UTC
@@ -261,63 +259,19 @@ async def seed_data():
                 status="completed",
                 completed_at=local_dt(today - timedelta(days=2), 15, 0),
             ),
-            # --- AREA 4: KARIR (Prioritas #4 - Freelance & Upwork) ---
+            # --- AREA 4: HOBBY (Prioritas #4 - Guilt-Free Me-Time & Rest) ---
             Task(
                 user_id=user_id,
-                area_id=areas["Karir"],
-                title="Optimasi profil Upwork & susun proposal target niche AI Agent",
-                is_urgent=False,
-                deadline=today + timedelta(days=3),
-                status="pending",
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Tulis artikel teknis: Autonomous AI Agent Architecture di Medium",
-                is_urgent=False,
-                deadline=today + timedelta(days=6),
-                status="pending",
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Karir"],
-                title="Setup portfolio showcase & case study di GitHub",
-                is_urgent=False,
-                deadline=None,
-                status="completed",
-                completed_at=local_dt(today - timedelta(days=3), 17, 30),
-            ),
-            # --- AREA 5: USAHA (Prioritas #5 - CV PELANGI EFRATA) ---
-            Task(
-                user_id=user_id,
-                area_id=areas["Usaha"],
-                title="Kirim revisi invoice & konfirmasi pembayaran CV PELANGI EFRATA",
-                is_urgent=True,
-                deadline=today,
-                status="pending",
-            ),
-            Task(
-                user_id=user_id,
-                area_id=areas["Usaha"],
-                title="Follow up penawaran proyek dashboard analitik klien baru",
+                area_id=areas["Hobby"],
+                title="Sesi santai: Main Black Myth Wukong (Reward setelah submit Bab 2)",
                 is_urgent=False,
                 deadline=today + timedelta(days=2),
                 status="pending",
             ),
             Task(
                 user_id=user_id,
-                area_id=areas["Usaha"],
-                title="Rekonsiliasi cashflow dan pencatatan buku kas operasional",
-                is_urgent=False,
-                deadline=None,
-                status="completed",
-                completed_at=local_dt(today - timedelta(days=1), 18, 0),
-            ),
-            # --- AREA 6: HOBBY (Prioritas #6 - Open Source & Side-Projects) ---
-            Task(
-                user_id=user_id,
                 area_id=areas["Hobby"],
-                title="Rilis v1.1 Second Brain Agent & update showcase README",
+                title="Baca 20 menit buku non-akademik 'Atomic Habits' sebelum tidur",
                 is_urgent=False,
                 deadline=today + timedelta(days=4),
                 status="pending",
@@ -325,17 +279,17 @@ async def seed_data():
             Task(
                 user_id=user_id,
                 area_id=areas["Hobby"],
-                title="Setup automated testing pipeline di GitHub Actions",
+                title="Futsal / kardio santai bareng temen kampus",
                 is_urgent=False,
                 deadline=None,
                 status="completed",
-                completed_at=local_dt(today - timedelta(days=2), 16, 30),
+                completed_at=local_dt(today - timedelta(days=2), 17, 30),
             ),
         ]
         for t in tasks_data:
             session.add(t)
         await session.commit()
-        print(f"Berhasil membuat {len(tasks_data)} Tugas (Tasks) di 6 Area Hidup.")
+        print(f"Berhasil membuat {len(tasks_data)} Tugas (Tasks) di 4 Area Hidup.")
 
         # ==========================================
         # 5. HABITS & HABIT LOGS (Streaks)

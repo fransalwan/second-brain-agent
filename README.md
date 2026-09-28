@@ -1,17 +1,46 @@
-# Second Brain Agent
+# 🧠 Second Brain Agent (Student Edition 🎓)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D.svg)](https://vuejs.org)
 [![Telegram](https://img.shields.io/badge/Interface-Telegram%20Bot-24A1DE.svg)](https://t.me/BotFather)
-[![Feedback Form](https://img.shields.io/badge/Community-Beri%20Masukan-orange.svg)](https://docs.google.com/forms/d/e/1FAIpQLSchtkcU2s55nVvISOAwxW_fRpRDkfip4DHsaxi5mplTXlqxmQ/viewform)
+[![Target: Mahasiswa](https://img.shields.io/badge/Target-Mahasiswa%20S1%2FS2-indigo.svg)](#)
 
-Asisten pribadi di Telegram yang membantu menjawab satu pertanyaan setiap hari: **"apa yang harus saya kerjakan sekarang?"**
+> **"Lulus Skripsi & Kuliah Sukses, Tetap Sehat, dan Me-Time Tanpa Rasa Bersalah."**
 
-Tangkap ide, catat tugas beserta deadline-nya, lacak sesi fokus, dan atur prioritas di antara beberapa area hidup — kuliah, pekerjaan, project pribadi — cukup lewat chat biasa.
+**Second Brain Agent (Student Edition)** adalah asisten pribadi bertenaga AI (*Google Gemini 2.5 Flash*) yang menyatukan kemudahan chat/voice di Telegram dengan Web Dashboard interaktif. Dirancang khusus untuk mahasiswa yang menghadapi beban kuliah ganda: tugas bertumpuk, skripsi rawan ghosting, jam tidur rusak, dan burnout.
 
-> **Status:** ✅ Siap pakai & open-source. Semua fitur inti (tugas, area, timer, prioritas deterministik, brief pagi, habit, bedtime guardian, voice note, weekly report, knowledge graph, dan self-serve auth) telah terimplementasi dan teruji 100%.
+---
+
+## 🏛️ 4 Pilar Utama Mahasiswa
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                      4 PILAR UTAMA MAHASISWA                           │
+├────────────────────────────────────────────────────────────────────────┤
+│  🩺 Priority #1: KESEHATAN (8 Gelas Air, Sleep Debt, Burnout Meter)    │
+│  🎓 Priority #2: KULIAH (Filter Bobot Tugas, Tubes, Exam Mastery)      │
+│  🔬 Priority #3: RISET & SKRIPSI (5 Bab, Anti-Ghosting, LaTeX Export)  │
+│  🎨 Priority #4: HOBBY (Guilt-Free Me-Time 90 Menit & Energy Recharge) │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+| No | Pilar | Fitur Utama di Dashboard & Telegram |
+|:---:|:---|:---|
+| **#1** | **🩺 Kesehatan (Health)** | Pelacak hidrasi (8 gelas air interaktif), kalkulator **Sleep Debt** (defisit tidur mingguan), checklist vitamin/stretching, dan meteran risiko burnout adaptif. |
+| **#2** | **🎓 Kuliah (Coursework)** | Filter matkul & bobot nilai tugas, **Exam Mastery Radar** (checklist kisi-kisi UTS/UAS), milestone stepper Tugas Besar (Tubes). |
+| **#3** | **🔬 Riset & Skripsi (Research)** | Slider progres 5 Bab skripsi, **Anti-Ghosting Dosen Radar** (alert >14 hari tanpa bimbingan), sinkronisasi repositori tesis (`thesis-experiments` & `thesis-manuscripts`), serta **1-Klik Export LaTeX Table IEEE** untuk Bab 4. |
+| **#4** | **🎨 Hobby & Refreshing (Rest)** | **Guilt-free me-time tracker** (kuota santai 90m/hari), backlog hobi (game/buku/anime), dan rating pengembalian energi (*energy recharge score*). |
+
+---
+
+## ⚡ Keunggulan & Kredibilitas Akademik
+
+1. **📄 IEEE & Overleaf Ready:** Data metrik evaluasi model (akurasi, SRA, p-value FDR) dapat langsung disalin ke format tabel LaTeX `\begin{table}...\end{table}` siap *paste* ke naskah skripsi Bab 4.
+2. **🛡️ Anti-Ghosting Dospem Meter:** Menghitung hari sejak bimbingan terakhir dan memberikan alert warna jika Anda sudah terlalu lama tidak berkonsultasi.
+3. **🌉 Git Post-Commit Telemetry:** Terhubung langsung ke repositori riset Anda (`thesis-experiments` & `thesis-manuscripts`). Commit tugas/revisi otomatis memperbarui status tanpa input manual.
+4. **☕ Guilt-Free Rest Mindset:** *"Istirahat bukan hadiah setelah kerja rodi, tapi bahan bakar agar otak tetap tajam saat skripsi."*
 
 ---
 
@@ -21,7 +50,7 @@ Siapa pun bisa langsung menggunakan Second Brain Agent dalam hitungan menit:
 
 ```mermaid
 flowchart LR
-    A["1. Buat Akun di Web Dashboard"] --> B["2. Kirim /connect email di Telegram"] --> C["3. Siap Digunakan! (Chat & Suara)"]
+    A["1. Buat Akun di Web Dashboard"] --> B["2. Kirim /connect email di Telegram"] --> C["3. Siap Digunakan! (Chat, Suara & Web)"]
 ```
 
 ### Langkah 1: Buat Akun di Dashboard Web
