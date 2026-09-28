@@ -266,18 +266,12 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
                 return
 
-            is_force = len(context.args) > 1 and context.args[1].strip().lower() in ["force", "update", "replace"]
             if (
                 profile.telegram_chat_id is not None
                 and profile.telegram_chat_id != chat_id
-                and not is_force
             ):
                 await message.reply_text(
-                    "⚠️ Email ini sudah terhubung ke akun Telegram lain.\n\n"
-                    "💡 Solusi:\n"
-                    f"1. Kirim <code>/connect {email} force</code> untuk langsung menghubungkan ke akun Telegram ini.\n"
-                    f"2. Atau perbarui Chat ID kamu (<code>{chat_id}</code>) di dashboard web.",
-                    parse_mode=ParseMode.HTML,
+                    "Email ini sudah terhubung ke akun Telegram lain."
                 )
                 return
 
@@ -285,6 +279,16 @@ async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not profile.email:
                 profile.email = email
             session.add(profile)
+
+            # Auto-seed 4 pilar mahasiswa jika belum punya area
+            existing_areas_res = await session.execute(
+                select(Area).where(Area.user_id == profile.id)
+            )
+            if not existing_areas_res.scalars().all():
+                defaults = ["Kuliah", "Kesehatan", "Riset", "Hobby"]
+                for i, d_name in enumerate(defaults):
+                    session.add(Area(user_id=profile.id, name=d_name, position=i + 1))
+
             await session.commit()
             full_name = profile.full_name
 
@@ -604,14 +608,20 @@ async def areas_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         areas = result.scalars().all()
 
     if not areas:
-        await update.effective_message.reply_text(
-            "Kamu belum memiliki area hidup.\n\n"
-            "Contoh untuk mengatur area: kirim\n"
-            "area saya: Kuliah, Usaha, Pribadi"
-        )
-        return
+        async with SessionLocal() as session:
+            defaults = ["Kuliah", "Kesehatan", "Riset", "Hobby"]
+            areas = [
+                Area(user_id=profile.id, name=d_name, position=i + 1)
+                for i, d_name in enumerate(defaults)
+            ]
+            session.add_all(areas)
+            await session.commit()
+            result = await session.execute(
+                select(Area).where(Area.user_id == profile.id).order_by(Area.position.asc())
+            )
+            areas = result.scalars().all()
 
-    lines = ["Daftar Area:"]
+    lines = ["Daftar Area (4 Pilar Mahasiswa):"]
     for a in areas:
         lines.append(f"{a.position}. {a.name}")
     await update.effective_message.reply_text("\n".join(lines))
