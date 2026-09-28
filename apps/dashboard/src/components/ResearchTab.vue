@@ -32,6 +32,7 @@ interface ExperimentMetric {
 
 const loading = ref(true)
 const saving = ref(false)
+const copyNotification = ref<string | null>(null)
 
 const chapters = ref<ThesisChapter[]>([])
 const supervisionLogs = ref<SupervisionLog[]>([])
@@ -51,6 +52,18 @@ const metricForm = ref({
   metrics_summary: '',
   parameters: '',
 })
+
+// Action items interactive state per supervision log
+const parsedActionItems = ref<Record<number, Array<{ text: string, done: boolean }>>>({})
+
+function parseActionItems(log: SupervisionLog) {
+  if (!log.action_items) return []
+  return log.action_items.split('\n').filter(line => line.trim().length > 0).map(line => {
+    const isDone = line.trim().startsWith('[x]') || line.trim().startsWith('[X]')
+    const text = line.replace(/^\[[ xX]\]\s*/, '').trim()
+    return { text, done: isDone }
+  })
+}
 
 async function fetchResearchData() {
   loading.value = true
@@ -72,6 +85,9 @@ async function fetchResearchData() {
       .order('created_at', { ascending: false })
 
     supervisionLogs.value = supData || []
+    supervisionLogs.value.forEach(log => {
+      parsedActionItems.value[log.id] = parseActionItems(log)
+    })
 
     // 3. Experiment metrics
     const { data: metData } = await supabase
@@ -89,7 +105,16 @@ async function fetchResearchData() {
 }
 
 // Chapter update
-async function updateChapter(chapter: ThesisChapter) {
+async function updateChapter(chapter: ThesisChapter, newProgress?: number) {
+  if (newProgress !== undefined) {
+    chapter.progress = Math.max(0, Math.min(100, newProgress))
+    if (chapter.progress === 100) {
+      chapter.status = 'ACC / Selesai'
+    } else if (chapter.progress > 0 && chapter.status === 'Belum Mulai') {
+      chapter.status = 'Drafting'
+    }
+  }
+
   try {
     await supabase
       .from('thesis_chapters')
@@ -104,17 +129,47 @@ async function updateChapter(chapter: ThesisChapter) {
   }
 }
 
+// Toggle action item
+async function toggleActionItem(logId: number, itemIndex: number) {
+  const items = parsedActionItems.value[logId]
+  if (!items || !items[itemIndex]) return
+
+  items[itemIndex].done = !items[itemIndex].done
+
+  // Re-encode back to string
+  const rawText = items.map(it => `[${it.done ? 'x' : ' '}] ${it.text}`).join('\n')
+
+  try {
+    await supabase
+      .from('supervision_logs')
+      .update({ action_items: rawText })
+      .eq('id', logId)
+
+    const targetLog = supervisionLogs.value.find(l => l.id === logId)
+    if (targetLog) targetLog.action_items = rawText
+  } catch (err) {
+    console.error('Gagal update action item:', err)
+  }
+}
+
 // Submit Supervision Log
 async function submitSupervision() {
   if (saving.value) return
   saving.value = true
   try {
+    // Format action items
+    const rawAction = supervisionForm.value.action_items.trim()
+    const formattedAction = rawAction ? rawAction.split('\n').map(l => {
+      if (l.trim().startsWith('[')) return l.trim()
+      return `[ ] ${l.trim()}`
+    }).join('\n') : null
+
     const { error } = await supabase
       .from('supervision_logs')
       .insert({
         user_id: props.userId,
         notes: supervisionForm.value.notes.trim(),
-        action_items: supervisionForm.value.action_items.trim() || null,
+        action_items: formattedAction,
       })
 
     if (!error) {
@@ -126,6 +181,16 @@ async function submitSupervision() {
     console.error('Gagal mencatat bimbingan:', err)
   } finally {
     saving.value = false
+  }
+}
+
+async function deleteSupervision(id: number) {
+  if (!confirm('Hapus catatan bimbingan ini?')) return
+  try {
+    await supabase.from('supervision_logs').delete().eq('id', id)
+    supervisionLogs.value = supervisionLogs.value.filter(s => s.id !== id)
+  } catch (err) {
+    console.error('Gagal menghapus log bimbingan:', err)
   }
 }
 
@@ -155,6 +220,44 @@ async function submitMetric() {
   }
 }
 
+async function deleteMetric(id: number) {
+  if (!confirm('Hapus hasil benchmark ini?')) return
+  try {
+    await supabase.from('experiment_metrics').delete().eq('id', id)
+    metrics.value = metrics.value.filter(m => m.id !== id)
+  } catch (err) {
+    console.error('Gagal menghapus metrik:', err)
+  }
+}
+
+// Export Table Functions (LaTeX & Markdown)
+function copyLatexTable() {
+  if (metrics.value.length === 0) return
+  let latex = '\\begin{table}[h]\n\\centering\n\\begin{tabular}{|l|l|l|}\n\\hline\n\\textbf{Model} & \\textbf{Metrics} & \\textbf{Parameters} \\\\\n\\hline\n'
+  metrics.value.forEach(m => {
+    const name = m.model_name.replace(/_/g, '\\_')
+    const met = m.metrics_summary.replace(/_/g, '\\_')
+    const par = (m.parameters || '-').replace(/_/g, '\\_')
+    latex += `${name} & ${met} & ${par} \\\\\n\\hline\n`
+  })
+  latex += '\\end{tabular}\n\\caption{Tabel Perbandingan Hasil Eksperimen Model AI}\n\\label{tab:model_experiments}\n\\end{table}'
+
+  navigator.clipboard.writeText(latex)
+  copyNotification.value = '✓ Format tabel LaTeX berhasil disalin ke clipboard!'
+  setTimeout(() => { copyNotification.value = null }, 3500)
+}
+
+function copyMarkdownTable() {
+  if (metrics.value.length === 0) return
+  let md = '| Model Architecture | Evaluation Metrics | Parameters |\n| :--- | :--- | :--- |\n'
+  metrics.value.forEach(m => {
+    md += `| **${m.model_name}** | ${m.metrics_summary} | ${m.parameters || '-'} |\n`
+  })
+  navigator.clipboard.writeText(md)
+  copyNotification.value = '✓ Format tabel Markdown berhasil disalin ke clipboard!'
+  setTimeout(() => { copyNotification.value = null }, 3500)
+}
+
 // Computeds
 const totalThesisProgress = computed(() => {
   if (chapters.value.length === 0) return 0
@@ -172,9 +275,9 @@ const daysSinceLastSupervision = computed(() => {
 const antiGhostingStatus = computed(() => {
   const days = daysSinceLastSupervision.value
   if (days === null) return { text: 'Belum pernah bimbingan', color: 'bg-gray-100 text-gray-600 border-gray-200' }
-  if (days <= 7) return { text: `🟢 Aman (${days} hari lalu)`, color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
-  if (days <= 14) return { text: `🟡 Waktunya Jadwalkan (${days} hari lalu)`, color: 'bg-amber-50 text-amber-800 border-amber-200' }
-  return { text: `🔴 Peringatan: ${days} hari tanpa bimbingan!`, color: 'bg-rose-50 text-rose-800 border-rose-200' }
+  if (days <= 7) return { text: `🟢 Konsisten (${days} hari lalu)`, color: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold' }
+  if (days <= 14) return { text: `🟡 Waktunya Hubungi Dosen (${days} hari lalu)`, color: 'bg-amber-50 text-amber-800 border-amber-300 font-bold' }
+  return { text: `🔴 Peringatan: ${days} hari tanpa bimbingan!`, color: 'bg-rose-50 text-rose-800 border-rose-300 font-bold animate-pulse' }
 })
 
 onMounted(() => {
@@ -194,26 +297,35 @@ onMounted(() => {
             <span class="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-800">Prioritas #3</span>
           </div>
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
-            Pantau progres penulisan 5 bab naskah skripsi, log interaktif arahan dospem, dan tabel komparasi metrik eksperimen AI.
+            Pantau progres penulisan 5 bab naskah skripsi, log interaktif arahan dospem (anti-ghosting), dan benchmark metrik eksperimen AI.
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             @click="showSupervisionModal = true"
-            class="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors"
+            class="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <span>👨‍🏫</span>
             <span>Catat Bimbingan</span>
           </button>
           <button
             @click="showMetricModal = true"
-            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <span>🧪</span>
             <span>Benchmark Model</span>
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Toast Notification Copy -->
+    <div
+      v-if="copyNotification"
+      class="fixed bottom-5 right-5 z-50 rounded-xl bg-gray-900 text-white px-4 py-2.5 text-xs shadow-xl flex items-center gap-2 border border-gray-700 animate-bounce"
+    >
+      <span>📋</span>
+      <span>{{ copyNotification }}</span>
     </div>
 
     <div v-if="loading" class="flex justify-center py-12">
@@ -229,52 +341,53 @@ onMounted(() => {
               <span class="text-xl">📖</span>
               <h3 class="text-sm font-bold text-gray-900">Progres Naskah Skripsi / Thesis</h3>
             </div>
-            <p class="text-xs text-gray-500 mt-0.5">Geser persentase atau perbarui status tiap bab naskah secara realtime.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Kelola status dan geser persentase tiap bab. Progres otomatis tersimpan ke cloud.</p>
           </div>
           <div class="flex items-center gap-3">
-            <span class="text-xs font-semibold text-gray-600">Total Progres:</span>
-            <span class="text-lg font-extrabold text-purple-700">{{ totalThesisProgress }}%</span>
+            <span class="text-xs font-semibold text-gray-600">Total Progres Naskah:</span>
+            <span class="text-2xl font-black text-purple-700">{{ totalThesisProgress }}%</span>
           </div>
         </div>
 
         <!-- Master Progress Bar -->
-        <div class="mt-4 h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div class="mt-4 h-3.5 w-full rounded-full bg-gray-100 overflow-hidden relative">
           <div
-            class="h-full rounded-full bg-purple-600 transition-all duration-300"
+            class="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 transition-all duration-300"
             :style="{ width: `${totalThesisProgress}%` }"
           ></div>
         </div>
 
-        <!-- Chapters List -->
-        <div class="mt-5 space-y-3">
+        <!-- 5 Chapters Cards -->
+        <div class="mt-6 space-y-3.5">
           <div
             v-for="chap in chapters"
             :key="chap.id"
-            class="rounded-xl border border-gray-200 p-4 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3"
+            class="rounded-xl border border-gray-200 p-4 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-gray-50 transition-colors"
           >
-            <div class="min-w-56">
+            <div class="min-w-64">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-900">Bab {{ chap.chapter_num }}: {{ chap.title }}</span>
               </div>
               <div class="text-[11px] text-gray-400 mt-0.5">
-                Terakhir diperbarui: {{ new Date(chap.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}
+                Update: {{ new Date(chap.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
               </div>
             </div>
 
-            <!-- Status Dropdown & Slider -->
+            <!-- Status Dropdown & Slider & Quick Presets -->
             <div class="flex flex-1 flex-col sm:flex-row items-center gap-3">
               <select
                 v-model="chap.status"
                 @change="updateChapter(chap)"
-                class="w-full sm:w-40 rounded-lg border border-gray-300 bg-white p-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                class="w-full sm:w-44 rounded-lg border border-gray-300 bg-white p-1.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
               >
                 <option value="Belum Mulai">⚪ Belum Mulai</option>
-                <option value="Drafting">🔵 Drafting</option>
+                <option value="Drafting">🔵 Drafting Naskah</option>
                 <option value="Revisi Dospem">🟡 Revisi Dospem</option>
                 <option value="ACC / Selesai">🟢 ACC / Selesai</option>
               </select>
 
-              <div class="flex-1 flex items-center gap-2.5 w-full">
+              <!-- Slider Range -->
+              <div class="flex-1 flex items-center gap-2 w-full">
                 <input
                   v-model.number="chap.progress"
                   @change="updateChapter(chap)"
@@ -284,7 +397,20 @@ onMounted(() => {
                   step="5"
                   class="w-full accent-purple-600 cursor-pointer"
                 />
-                <span class="text-xs font-mono font-bold text-gray-700 w-10 text-right">{{ chap.progress }}%</span>
+                <span class="text-xs font-mono font-bold text-gray-800 w-11 text-right shrink-0">{{ chap.progress }}%</span>
+              </div>
+
+              <!-- Quick Jump Buttons (25%, 50%, 75%, 100%) -->
+              <div class="hidden md:flex items-center gap-1 shrink-0">
+                <button
+                  v-for="p in [25, 50, 75, 100]"
+                  :key="p"
+                  type="button"
+                  @click="updateChapter(chap, p)"
+                  class="rounded px-1.5 py-0.5 text-[10px] font-bold border border-gray-200 bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 cursor-pointer"
+                >
+                  {{ p }}%
+                </button>
               </div>
             </div>
           </div>
@@ -301,7 +427,7 @@ onMounted(() => {
                 <h3 class="text-sm font-bold text-gray-900">Catatan Bimbingan Dospem</h3>
               </div>
               <span
-                class="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
+                class="text-xs px-2.5 py-0.5 rounded-full border shadow-2xs"
                 :class="antiGhostingStatus.color"
               >
                 {{ antiGhostingStatus.text }}
@@ -309,26 +435,59 @@ onMounted(() => {
             </div>
 
             <div v-if="supervisionLogs.length === 0" class="py-8 text-center text-xs text-gray-400">
-              Belum ada catatan bimbingan. Klik "Catat Bimbingan" untuk menambahkan.
+              Belum ada catatan bimbingan. Klik "Catat Bimbingan" di atas untuk menambahkan arahan dosen.
             </div>
 
-            <div v-else class="mt-4 space-y-3 max-h-96 overflow-y-auto pr-1">
+            <div v-else class="mt-4 space-y-3.5 max-h-96 overflow-y-auto pr-1">
               <div
                 v-for="log in supervisionLogs"
                 :key="log.id"
-                class="rounded-xl border border-gray-200 p-3.5 bg-gray-50/60 space-y-2"
+                class="rounded-xl border border-gray-200 p-4 bg-gray-50/60 space-y-2.5 group hover:bg-gray-50 transition-colors"
               >
                 <div class="flex items-center justify-between text-[11px] text-gray-500">
-                  <span class="font-bold text-gray-800">
-                    📅 {{ new Date(log.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }) }}
+                  <span class="font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>📅</span>
+                    <span>{{ new Date(log.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) }}</span>
                   </span>
+                  <button
+                    type="button"
+                    @click="deleteSupervision(log.id)"
+                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 text-xs transition-opacity cursor-pointer p-0.5"
+                    title="Hapus log ini"
+                  >
+                    🗑️
+                  </button>
                 </div>
-                <div class="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+
+                <div class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
                   {{ log.notes }}
                 </div>
-                <div v-if="log.action_items" class="pt-2 border-t border-gray-200/60 text-[11px]">
-                  <span class="font-bold text-purple-700">Action Items:</span>
-                  <p class="text-gray-600 mt-0.5 whitespace-pre-wrap">{{ log.action_items }}</p>
+
+                <!-- Interactive Action Items Checklist -->
+                <div v-if="parsedActionItems[log.id] && parsedActionItems[log.id].length > 0" class="pt-2.5 border-t border-gray-200 text-xs space-y-1.5">
+                  <div class="font-bold text-purple-800 flex items-center justify-between text-[11px]">
+                    <span>Action Items Revisi:</span>
+                    <span class="font-normal text-gray-400">
+                      {{ parsedActionItems[log.id].filter(i => i.done).length }}/{{ parsedActionItems[log.id].length }} Selesai
+                    </span>
+                  </div>
+                  <div class="space-y-1">
+                    <label
+                      v-for="(item, idx) in parsedActionItems[log.id]"
+                      :key="idx"
+                      class="flex items-start gap-2 cursor-pointer p-1 rounded hover:bg-white transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        :checked="item.done"
+                        @change="toggleActionItem(log.id, idx)"
+                        class="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      />
+                      <span class="text-xs" :class="item.done ? 'line-through text-gray-400' : 'text-gray-700'">
+                        {{ item.text }}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -343,36 +502,77 @@ onMounted(() => {
                 <span class="text-xl">🧪</span>
                 <h3 class="text-sm font-bold text-gray-900">Benchmark Model AI &amp; Metrik</h3>
               </div>
-              <button
-                @click="showMetricModal = true"
-                class="text-xs font-semibold text-purple-600 hover:text-purple-800"
-              >
-                + Tambah Hasil
-              </button>
+              <div class="flex items-center gap-1.5">
+                <button
+                  @click="copyLatexTable"
+                  :disabled="metrics.length === 0"
+                  class="rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-700 cursor-pointer disabled:opacity-40"
+                  title="Salin dalam format tabel LaTeX"
+                >
+                  LaTeX
+                </button>
+                <button
+                  @click="copyMarkdownTable"
+                  :disabled="metrics.length === 0"
+                  class="rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-700 cursor-pointer disabled:opacity-40"
+                  title="Salin dalam format tabel Markdown"
+                >
+                  Markdown
+                </button>
+                <button
+                  @click="showMetricModal = true"
+                  class="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 text-[11px] font-semibold cursor-pointer"
+                >
+                  + Tambah
+                </button>
+              </div>
             </div>
 
             <div v-if="metrics.length === 0" class="py-8 text-center text-xs text-gray-400">
-              Belum ada log eksperimen model.
+              Belum ada log benchmark model. Klik "+ Tambah" untuk memasukkan metrik.
             </div>
 
             <div v-else class="mt-4 space-y-3 max-h-96 overflow-y-auto pr-1">
               <div
                 v-for="met in metrics"
                 :key="met.id"
-                class="rounded-xl border border-gray-200 p-3.5 bg-gray-50/60 space-y-1.5"
+                class="rounded-xl border border-gray-200 p-3.5 bg-gray-50/60 space-y-2 group hover:bg-gray-50 transition-colors"
               >
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-gray-900">{{ met.model_name }}</span>
-                  <span class="text-[10px] text-gray-400">{{ new Date(met.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-900">{{ met.model_name }}</span>
+                    <span v-if="met.model_name.toLowerCase().includes('fine-tune') || met.model_name.toLowerCase().includes('transformer')" class="rounded-full bg-amber-100 text-amber-900 px-1.5 py-0.2 text-[10px] font-bold">
+                      ⭐ Champion
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-gray-400">
+                      {{ new Date(met.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="deleteMetric(met.id)"
+                      class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 text-xs transition-opacity cursor-pointer"
+                      title="Hapus metrik ini"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
-                <div class="text-xs text-purple-900 font-mono bg-purple-50 p-2 rounded-lg border border-purple-100">
+
+                <div class="text-xs text-purple-900 font-mono bg-purple-50 p-2.5 rounded-lg border border-purple-100 font-semibold">
                   {{ met.metrics_summary }}
                 </div>
+
                 <div v-if="met.parameters" class="text-[11px] text-gray-500">
-                  ⚙️ <span class="font-medium">Params:</span> {{ met.parameters }}
+                  ⚙️ <span class="font-medium text-gray-700">Hyperparams:</span> {{ met.parameters }}
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-gray-100 text-center">
+            <span class="text-[11px] text-gray-400">💡 Gunakan tombol <strong>LaTeX</strong> untuk langsung paste tabel komparasi ke Bab 4 naskah skripsi!</span>
           </div>
         </div>
       </div>
@@ -389,7 +589,7 @@ onMounted(() => {
             <span class="text-xl">👨‍🏫</span>
             <h3 class="text-sm font-bold text-gray-900">Catat Arahan &amp; Bimbingan Dospem</h3>
           </div>
-          <button @click="showSupervisionModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button @click="showSupervisionModal = false" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">✕</button>
         </div>
 
         <form @submit.prevent="submitSupervision" class="space-y-3 text-xs">
@@ -405,11 +605,11 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Action Items / Daftar Revisi</label>
+            <label class="block font-semibold text-gray-700 mb-1">Action Items / Poin Revisi (1 baris per item)</label>
             <textarea
               v-model="supervisionForm.action_items"
               rows="3"
-              placeholder="Contoh: [1] Cari 3 paper IEEE 2024&#10;[2] Tambahkan tabel komparasi algoritma"
+              placeholder="Cari 3 paper IEEE 2024 terkait baseline&#10;Tambahkan tabel komparasi metrik evaluasi&#10;Perbaiki sitasi APA style"
               class="w-full rounded-lg border border-gray-300 p-2 text-xs focus:ring-2 focus:ring-gray-900 focus:outline-none"
             ></textarea>
           </div>
@@ -418,14 +618,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showSupervisionModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Simpan Bimbingan' }}
             </button>
@@ -445,7 +645,7 @@ onMounted(() => {
             <span class="text-xl">🧪</span>
             <h3 class="text-sm font-bold text-gray-900">Catat Benchmark Model AI</h3>
           </div>
-          <button @click="showMetricModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button @click="showMetricModal = false" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">✕</button>
         </div>
 
         <form @submit.prevent="submitMetric" class="space-y-3 text-xs">
@@ -461,7 +661,7 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Ringkasan Metrik</label>
+            <label class="block font-semibold text-gray-700 mb-1">Ringkasan Metrik (F1, Accuracy, Latency, Loss)</label>
             <input
               v-model="metricForm.metrics_summary"
               type="text"
@@ -485,14 +685,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showMetricModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Simpan Metrik' }}
             </button>

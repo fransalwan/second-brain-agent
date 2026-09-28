@@ -62,7 +62,11 @@ const assignments = ref<Assignment[]>([])
 const exams = ref<Exam[]>([])
 const projects = ref<CourseProject[]>([])
 
+// Filter & Sort
 const assignmentFilter = ref<'all' | 'pending' | 'completed'>('pending')
+const courseFilter = ref<string>('all')
+const sortBy = ref<'deadline' | 'weight'>('deadline')
+
 const showAssignmentModal = ref(false)
 const showExamModal = ref(false)
 const showProjectModal = ref(false)
@@ -94,6 +98,9 @@ const projectForm = ref({
   milestones_text: 'Proposal Arsitektur, Backend & AI Model, Frontend Dashboard, Laporan Akhir',
   deliverables_text: 'Repository Git, Naskah Laporan PDF, Slide Pitching, Video Demo',
 })
+
+// Inline new topic input states per exam
+const newTopicInputs = ref<Record<number, string>>({})
 
 async function fetchCourseworkData() {
   loading.value = true
@@ -158,6 +165,16 @@ async function toggleAssignmentStatus(assignment: Assignment) {
   }
 }
 
+async function deleteAssignment(id: number) {
+  if (!confirm('Hapus tugas kuliah ini?')) return
+  try {
+    await supabase.from('course_assignments').delete().eq('id', id)
+    assignments.value = assignments.value.filter(a => a.id !== id)
+  } catch (err) {
+    console.error('Gagal menghapus tugas:', err)
+  }
+}
+
 async function submitAssignment() {
   if (saving.value) return
   saving.value = true
@@ -203,6 +220,35 @@ async function toggleExamTopic(exam: Exam, topicIndex: number) {
   }
 }
 
+async function addInlineTopic(exam: Exam) {
+  const text = (newTopicInputs.value[exam.id] || '').trim()
+  if (!text) return
+
+  const topicsList = exam.topics || []
+  topicsList.push({ name: text, mastered: false })
+  exam.topics = topicsList
+  newTopicInputs.value[exam.id] = ''
+
+  try {
+    await supabase
+      .from('course_exams')
+      .update({ topics: exam.topics })
+      .eq('id', exam.id)
+  } catch (err) {
+    console.error('Gagal menambah topik ujian:', err)
+  }
+}
+
+async function deleteExam(id: number) {
+  if (!confirm('Hapus jadwal ujian ini?')) return
+  try {
+    await supabase.from('course_exams').delete().eq('id', id)
+    exams.value = exams.value.filter(e => e.id !== id)
+  } catch (err) {
+    console.error('Gagal menghapus ujian:', err)
+  }
+}
+
 async function submitExam() {
   if (saving.value) return
   saving.value = true
@@ -238,7 +284,7 @@ async function submitExam() {
   }
 }
 
-// Project Deliverable Toggle
+// Project Actions
 async function toggleProjectDeliverable(proj: CourseProject, index: number) {
   if (!proj.deliverables || !proj.deliverables[index]) return
   proj.deliverables[index].done = !proj.deliverables[index].done
@@ -253,6 +299,23 @@ async function toggleProjectDeliverable(proj: CourseProject, index: number) {
   }
 }
 
+async function cycleMilestoneStatus(proj: CourseProject, index: number) {
+  if (!proj.milestones || !proj.milestones[index]) return
+  const current = proj.milestones[index].status
+  const cycle: Array<'pending' | 'in_progress' | 'done'> = ['pending', 'in_progress', 'done']
+  const next = cycle[(cycle.indexOf(current) + 1) % cycle.length]
+  proj.milestones[index].status = next
+
+  try {
+    await supabase
+      .from('course_projects')
+      .update({ milestones: proj.milestones })
+      .eq('id', proj.id)
+  } catch (err) {
+    console.error('Gagal update milestone:', err)
+  }
+}
+
 async function submitProject() {
   if (saving.value) return
   saving.value = true
@@ -261,7 +324,7 @@ async function submitProject() {
       .split(',')
       .map(s => s.trim())
       .filter(s => s.length > 0)
-      .map((step, idx) => ({ step, status: idx === 0 ? 'in_progress' : 'pending', pic: 'Tim' }))
+      .map((step, idx) => ({ step, status: (idx === 0 ? 'in_progress' : 'pending') as 'in_progress' | 'pending', pic: 'Tim' }))
 
     const parsedDeliverables = projectForm.value.deliverables_text
       .split(',')
@@ -295,23 +358,48 @@ async function submitProject() {
   }
 }
 
-// Helper formatters
+// Helpers
 function formatDeadlineBadge(iso: string | null) {
-  if (!iso) return { label: 'Tanpa Deadline', color: 'bg-gray-100 text-gray-600' }
+  if (!iso) return { label: 'Tanpa Deadline', color: 'bg-gray-100 text-gray-600 border-gray-200' }
   const dl = new Date(iso)
   const now = new Date()
   const diffDays = Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diffDays < 0) return { label: 'Lewat Deadline', color: 'bg-gray-100 text-gray-500' }
-  if (diffDays <= 1) return { label: 'H-1 Kritis 🔥', color: 'bg-rose-100 text-rose-800 border-rose-200' }
-  if (diffDays <= 3) return { label: `H-${diffDays} ⏳`, color: 'bg-amber-100 text-amber-800 border-amber-200' }
+  if (diffDays < 0) return { label: 'Lewat Deadline', color: 'bg-gray-100 text-gray-500 border-gray-200' }
+  if (diffDays <= 1) return { label: 'H-1 Kritis 🔥', color: 'bg-rose-100 text-rose-800 border-rose-300 font-bold animate-pulse' }
+  if (diffDays <= 3) return { label: `H-${diffDays} ⏳`, color: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold' }
   return { label: `H-${diffDays}`, color: 'bg-blue-50 text-blue-700 border-blue-200' }
 }
 
+const distinctCourses = computed(() => {
+  const set = new Set<string>()
+  assignments.value.forEach(a => set.add(a.course_name))
+  exams.value.forEach(e => set.add(e.course_name))
+  return Array.from(set)
+})
+
 const filteredAssignments = computed(() => {
-  if (assignmentFilter.value === 'pending') return assignments.value.filter(a => a.status === 'pending')
-  if (assignmentFilter.value === 'completed') return assignments.value.filter(a => a.status === 'completed')
-  return assignments.value
+  let list = assignments.value
+
+  // Status Filter
+  if (assignmentFilter.value === 'pending') list = list.filter(a => a.status === 'pending')
+  else if (assignmentFilter.value === 'completed') list = list.filter(a => a.status === 'completed')
+
+  // Course Filter
+  if (courseFilter.value !== 'all') {
+    list = list.filter(a => a.course_name.toLowerCase() === courseFilter.value.toLowerCase())
+  }
+
+  // Sorting
+  return [...list].sort((a, b) => {
+    if (sortBy.value === 'weight') {
+      return (b.weight_percent || 0) - (a.weight_percent || 0)
+    }
+    // Default deadline sorting
+    if (!a.deadline) return 1
+    if (!b.deadline) return -1
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+  })
 })
 
 onMounted(() => {
@@ -331,23 +419,30 @@ onMounted(() => {
             <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">Prioritas #2</span>
           </div>
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
-            Manajemen tugas kuliah terstruktur, radar kisi-kisi UTS/UAS, dan pemantauan deliverable tugas besar (tubes).
+            Manajemen tugas kuliah prioritas tinggi, radar kisi-kisi UTS/UAS, dan pemantauan deliverable proyek tim (tubes).
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             @click="showAssignmentModal = true"
-            class="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors"
+            class="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <span>➕</span>
             <span>Tugas Kuliah</span>
           </button>
           <button
             @click="showExamModal = true"
-            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <span>🎯</span>
             <span>Jadwal Ujian</span>
+          </button>
+          <button
+            @click="showProjectModal = true"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+          >
+            <span>👥</span>
+            <span>Final Project</span>
           </button>
         </div>
       </div>
@@ -360,51 +455,72 @@ onMounted(() => {
     <div v-else class="space-y-6">
       <!-- 1. Assignments Section -->
       <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-gray-100">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-gray-100">
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl">📚</span>
               <h3 class="text-sm font-bold text-gray-900">Daftar Tugas Kuliah (Coursework)</h3>
             </div>
-            <p class="text-xs text-gray-500 mt-0.5">Prioritaskan tugas dengan bobot nilai tinggi dan deadline kritis.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Selesaikan tugas dengan bobot nilai tinggi terlebih dahulu untuk mengamankan IPK.</p>
           </div>
 
-          <!-- Filter Pills -->
-          <div class="flex items-center gap-1 rounded-xl bg-gray-100 p-1 text-xs">
-            <button
-              @click="assignmentFilter = 'pending'"
-              class="rounded-lg px-2.5 py-1 font-semibold transition-all"
-              :class="assignmentFilter === 'pending' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
+          <!-- Controls: Filter Status, Matkul, Sort -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Filter Matkul -->
+            <select
+              v-model="courseFilter"
+              class="rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-900"
             >
-              Pending ({{ assignments.filter(a => a.status === 'pending').length }})
-            </button>
-            <button
-              @click="assignmentFilter = 'completed'"
-              class="rounded-lg px-2.5 py-1 font-semibold transition-all"
-              :class="assignmentFilter === 'completed' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
+              <option value="all">Semua Matkul</option>
+              <option v-for="c in distinctCourses" :key="c" :value="c">{{ c }}</option>
+            </select>
+
+            <!-- Sort By -->
+            <select
+              v-model="sortBy"
+              class="rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-900"
             >
-              Selesai ({{ assignments.filter(a => a.status === 'completed').length }})
-            </button>
-            <button
-              @click="assignmentFilter = 'all'"
-              class="rounded-lg px-2.5 py-1 font-semibold transition-all"
-              :class="assignmentFilter === 'all' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
-            >
-              Semua
-            </button>
+              <option value="deadline">Urut: Deadline Terdekat</option>
+              <option value="weight">Urut: Bobot Nilai Tertinggi</option>
+            </select>
+
+            <!-- Status Pills -->
+            <div class="flex items-center gap-1 rounded-xl bg-gray-100 p-1 text-xs">
+              <button
+                @click="assignmentFilter = 'pending'"
+                class="rounded-lg px-2.5 py-1 font-semibold transition-all cursor-pointer"
+                :class="assignmentFilter === 'pending' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
+              >
+                Pending ({{ assignments.filter(a => a.status === 'pending').length }})
+              </button>
+              <button
+                @click="assignmentFilter = 'completed'"
+                class="rounded-lg px-2.5 py-1 font-semibold transition-all cursor-pointer"
+                :class="assignmentFilter === 'completed' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
+              >
+                Selesai ({{ assignments.filter(a => a.status === 'completed').length }})
+              </button>
+              <button
+                @click="assignmentFilter = 'all'"
+                class="rounded-lg px-2.5 py-1 font-semibold transition-all cursor-pointer"
+                :class="assignmentFilter === 'all' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'"
+              >
+                Semua
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Assignments List -->
         <div v-if="filteredAssignments.length === 0" class="py-10 text-center text-xs text-gray-400">
-          Tidak ada tugas kuliah dalam kategori ini.
+          Tidak ada tugas kuliah yang cocok dengan filter ini.
         </div>
 
         <div v-else class="mt-4 divide-y divide-gray-100">
           <div
             v-for="item in filteredAssignments"
             :key="item.id"
-            class="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 group"
+            class="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 group hover:bg-gray-50/50 p-2 rounded-xl transition-colors"
           >
             <div class="flex items-start gap-3">
               <input
@@ -427,21 +543,34 @@ onMounted(() => {
                   </span>
                   <span
                     v-if="item.status !== 'completed'"
-                    class="rounded-full px-2 py-0.5 text-[11px] font-semibold border"
+                    class="rounded-full px-2 py-0.5 text-[11px] border"
                     :class="formatDeadlineBadge(item.deadline).color"
                   >
                     {{ formatDeadlineBadge(item.deadline).label }}
                   </span>
                 </div>
-                <div class="text-[11px] text-gray-400 mt-1 flex items-center gap-2">
-                  <span>Tipe: {{ item.assignment_type }}</span>
+                <div class="text-[11px] text-gray-400 mt-1 flex flex-wrap items-center gap-2">
+                  <span>Tipe: <strong>{{ item.assignment_type }}</strong></span>
                   <span v-if="item.notes">• {{ item.notes }}</span>
                 </div>
               </div>
             </div>
 
-            <div class="text-right text-xs text-gray-400 shrink-0">
-              <span v-if="item.deadline">DL: {{ new Date(item.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
+            <div class="flex items-center gap-3 self-end sm:self-center">
+              <div class="text-right text-xs text-gray-400">
+                <span v-if="item.deadline">
+                  DL: {{ new Date(item.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+                </span>
+                <span v-else class="text-gray-300">Tanpa deadline</span>
+              </div>
+              <button
+                type="button"
+                @click="deleteAssignment(item.id)"
+                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 text-xs transition-opacity cursor-pointer p-1"
+                title="Hapus tugas"
+              >
+                🗑️
+              </button>
             </div>
           </div>
         </div>
@@ -449,63 +578,102 @@ onMounted(() => {
 
       <!-- 2. Exam Radar & Preparation Checklist -->
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
-          <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-            <div class="flex items-center gap-2">
-              <span class="text-xl">🎯</span>
-              <h3 class="text-sm font-bold text-gray-900">Radar Jadwal Ujian (UTS / UAS)</h3>
-            </div>
-            <span class="text-xs font-semibold text-gray-500">{{ exams.length }} Ujian Terdaftar</span>
-          </div>
-
-          <div v-if="exams.length === 0" class="py-8 text-center text-xs text-gray-400">
-            Belum ada jadwal ujian. Klik "Jadwal Ujian" di atas untuk menambah.
-          </div>
-
-          <div v-else class="mt-4 space-y-4">
-            <div
-              v-for="exam in exams"
-              :key="exam.id"
-              class="rounded-xl border border-gray-200 p-4 bg-gray-50/50 space-y-3"
-            >
-              <div class="flex items-start justify-between">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-gray-900">{{ exam.exam_type }} - {{ exam.course_name }}</span>
-                    <span class="rounded-full bg-blue-100 px-2 py-0.2 text-[10px] font-semibold text-blue-800">{{ exam.rules }}</span>
-                  </div>
-                  <div class="text-[11px] text-gray-500 mt-0.5">
-                    📅 {{ new Date(exam.exam_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }) }}
-                    <span v-if="exam.room_or_link">• 📍 {{ exam.room_or_link }}</span>
-                  </div>
-                </div>
-                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  Target: {{ exam.target_score || 85 }}
-                </span>
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🎯</span>
+                <h3 class="text-sm font-bold text-gray-900">Radar Jadwal Ujian (UTS / UAS)</h3>
               </div>
+              <span class="text-xs font-semibold text-gray-500">{{ exams.length }} Ujian Terdaftar</span>
+            </div>
 
-              <!-- Topics Checklist -->
-              <div v-if="exam.topics && exam.topics.length > 0" class="pt-2 border-t border-gray-200/60">
-                <div class="flex items-center justify-between text-[11px] font-semibold text-gray-600 mb-1.5">
-                  <span>Kisi-Kisi Topik ({{ exam.topics.filter(t => t.mastered).length }}/{{ exam.topics.length }} Dikuasai)</span>
-                  <span class="text-blue-600 font-bold">
-                    {{ Math.round((exam.topics.filter(t => t.mastered).length / exam.topics.length) * 100) }}%
-                  </span>
+            <div v-if="exams.length === 0" class="py-8 text-center text-xs text-gray-400">
+              Belum ada jadwal ujian. Klik "Jadwal Ujian" di atas untuk menambah.
+            </div>
+
+            <div v-else class="mt-4 space-y-4">
+              <div
+                v-for="exam in exams"
+                :key="exam.id"
+                class="rounded-xl border border-gray-200 p-4 bg-gray-50/50 space-y-3 group"
+              >
+                <div class="flex items-start justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-gray-900">{{ exam.exam_type }} - {{ exam.course_name }}</span>
+                      <span class="rounded-full bg-blue-100 px-2 py-0.2 text-[10px] font-semibold text-blue-800">{{ exam.rules }}</span>
+                    </div>
+                    <div class="text-[11px] text-gray-500 mt-0.5">
+                      📅 {{ new Date(exam.exam_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+                      <span v-if="exam.room_or_link">• 📍 {{ exam.room_or_link }}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Target: {{ exam.target_score || 85 }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="deleteExam(exam.id)"
+                      class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 text-xs transition-opacity cursor-pointer"
+                      title="Hapus ujian"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
-                <div class="space-y-1">
-                  <label
-                    v-for="(t, idx) in exam.topics"
-                    :key="idx"
-                    class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:text-gray-900"
+
+                <!-- Topics Checklist & Progress Mastery -->
+                <div v-if="exam.topics && exam.topics.length > 0" class="pt-2 border-t border-gray-200/60">
+                  <div class="flex items-center justify-between text-[11px] font-semibold text-gray-600 mb-1.5">
+                    <span>Kisi-Kisi Topik ({{ exam.topics.filter(t => t.mastered).length }}/{{ exam.topics.length }} Dikuasai)</span>
+                    <span class="text-blue-600 font-bold">
+                      {{ Math.round((exam.topics.filter(t => t.mastered).length / exam.topics.length) * 100) }}%
+                    </span>
+                  </div>
+
+                  <!-- Mastery Bar -->
+                  <div class="h-2 w-full rounded-full bg-gray-200 overflow-hidden mb-2.5">
+                    <div
+                      class="h-full rounded-full bg-blue-600 transition-all duration-300"
+                      :style="{ width: `${Math.round((exam.topics.filter(t => t.mastered).length / exam.topics.length) * 100)}%` }"
+                    ></div>
+                  </div>
+
+                  <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    <label
+                      v-for="(t, idx) in exam.topics"
+                      :key="idx"
+                      class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:text-gray-900"
+                    >
+                      <input
+                        type="checkbox"
+                        :checked="t.mastered"
+                        @change="toggleExamTopic(exam, idx)"
+                        class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span :class="t.mastered ? 'line-through text-gray-400' : ''">{{ t.name }}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Inline Add Topic -->
+                <div class="flex items-center gap-1.5 pt-1">
+                  <input
+                    v-model="newTopicInputs[exam.id]"
+                    @keyup.enter="addInlineTopic(exam)"
+                    type="text"
+                    placeholder="+ Tambah topik kisi-kisi..."
+                    class="flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    @click="addInlineTopic(exam)"
+                    class="rounded-lg bg-gray-100 hover:bg-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700 cursor-pointer"
                   >
-                    <input
-                      type="checkbox"
-                      :checked="t.mastered"
-                      @change="toggleExamTopic(exam, idx)"
-                      class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span :class="t.mastered ? 'line-through text-gray-400' : ''">{{ t.name }}</span>
-                  </label>
+                    Tambah
+                  </button>
                 </div>
               </div>
             </div>
@@ -522,7 +690,7 @@ onMounted(() => {
               </div>
               <button
                 @click="showProjectModal = true"
-                class="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                class="text-xs font-semibold text-blue-600 hover:text-blue-800 cursor-pointer"
               >
                 + Tambah Tubes
               </button>
@@ -539,12 +707,41 @@ onMounted(() => {
                 class="rounded-xl border border-gray-200 p-4 bg-gray-50/50 space-y-3"
               >
                 <div>
-                  <div class="text-xs font-bold text-gray-900">{{ proj.title }}</div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-gray-900">{{ proj.title }}</span>
+                    <span v-if="proj.deadline" class="text-[11px] text-gray-500">
+                      DL: {{ new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) }}
+                    </span>
+                  </div>
                   <div class="text-[11px] text-gray-500">Mata Kuliah: {{ proj.course_name }}</div>
                 </div>
 
+                <!-- Milestone Stepper (Clickable Cycle) -->
+                <div v-if="proj.milestones && proj.milestones.length > 0" class="pt-2 border-t border-gray-200/60">
+                  <div class="text-[11px] font-bold text-gray-600 mb-2 uppercase tracking-wider">
+                    Milestones (Klik untuk ubah status):
+                  </div>
+                  <div class="space-y-1.5">
+                    <div
+                      v-for="(m, idx) in proj.milestones"
+                      :key="idx"
+                      @click="cycleMilestoneStatus(proj, idx)"
+                      class="flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors"
+                      :class="m.status === 'done' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : (m.status === 'in_progress' ? 'bg-blue-50 border-blue-200 text-blue-900 font-semibold' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100')"
+                    >
+                      <span class="flex items-center gap-1.5">
+                        <span>{{ m.status === 'done' ? '✓' : (m.status === 'in_progress' ? '⏳' : '○') }}</span>
+                        <span>{{ m.step }}</span>
+                      </span>
+                      <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" :class="m.status === 'done' ? 'bg-emerald-200 text-emerald-900' : (m.status === 'in_progress' ? 'bg-blue-200 text-blue-900' : 'bg-gray-100 text-gray-500')">
+                        {{ m.status }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Deliverables Checklist -->
-                <div v-if="proj.deliverables && proj.deliverables.length > 0">
+                <div v-if="proj.deliverables && proj.deliverables.length > 0" class="pt-2 border-t border-gray-200/60">
                   <div class="text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Deliverables Tim:</div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     <label
@@ -556,7 +753,7 @@ onMounted(() => {
                         type="checkbox"
                         :checked="d.done"
                         @change="toggleProjectDeliverable(proj, idx)"
-                        class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        class="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
                       <span class="text-[11px]" :class="d.done ? 'line-through text-gray-400 font-normal' : 'font-semibold'">
                         {{ d.item }}
@@ -582,7 +779,7 @@ onMounted(() => {
             <span class="text-xl">📚</span>
             <h3 class="text-sm font-bold text-gray-900">Tambah Tugas Kuliah</h3>
           </div>
-          <button @click="showAssignmentModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button @click="showAssignmentModal = false" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">✕</button>
         </div>
 
         <form @submit.prevent="submitAssignment" class="space-y-3 text-xs">
@@ -632,7 +829,7 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Deadline</label>
+            <label class="block font-semibold text-gray-700 mb-1">Deadline Pengumpulan</label>
             <input
               v-model="assignmentForm.deadline"
               type="datetime-local"
@@ -641,11 +838,11 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Catatan</label>
+            <label class="block font-semibold text-gray-700 mb-1">Catatan / Format Pengumpulan</label>
             <input
               v-model="assignmentForm.notes"
               type="text"
-              placeholder="Format PDF / Notebook Jupyter"
+              placeholder="Contoh: Format PDF IEEE via portal kuliah"
               class="w-full rounded-lg border border-gray-300 p-2 text-xs focus:ring-2 focus:ring-gray-900 focus:outline-none"
             />
           </div>
@@ -654,14 +851,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showAssignmentModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Simpan Tugas' }}
             </button>
@@ -681,7 +878,7 @@ onMounted(() => {
             <span class="text-xl">🎯</span>
             <h3 class="text-sm font-bold text-gray-900">Jadwalkan Ujian Baru</h3>
           </div>
-          <button @click="showExamModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button @click="showExamModal = false" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">✕</button>
         </div>
 
         <form @submit.prevent="submitExam" class="space-y-3 text-xs">
@@ -756,14 +953,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showExamModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Jadwalkan Ujian' }}
             </button>
@@ -783,7 +980,7 @@ onMounted(() => {
             <span class="text-xl">👥</span>
             <h3 class="text-sm font-bold text-gray-900">Tambah Final Project / Tubes</h3>
           </div>
-          <button @click="showProjectModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+          <button @click="showProjectModal = false" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">✕</button>
         </div>
 
         <form @submit.prevent="submitProject" class="space-y-3 text-xs">
@@ -842,14 +1039,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showProjectModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Simpan Project' }}
             </button>

@@ -43,10 +43,21 @@ const healthCheck = ref<HealthCheckLog | null>(null)
 // Sleep Modal Form
 const sleepForm = ref({
   date: todayIso,
-  hours: 7.0,
+  bedtime: '23:00',
+  waketime: '06:30',
+  hours: 7.5,
   quality: 'Nyenyak',
   notes: '',
 })
+
+function calculateDurationFromTimes() {
+  if (!sleepForm.value.bedtime || !sleepForm.value.waketime) return
+  const [bH, bM] = sleepForm.value.bedtime.split(':').map(Number)
+  const [wH, wM] = sleepForm.value.waketime.split(':').map(Number)
+  let diffMin = (wH * 60 + wM) - (bH * 60 + bM)
+  if (diffMin < 0) diffMin += 24 * 60
+  sleepForm.value.hours = +(diffMin / 60).toFixed(1)
+}
 
 async function fetchHealthData() {
   loading.value = true
@@ -61,13 +72,13 @@ async function fetchHealthData() {
 
     hydration.value = hydraData
 
-    // 2. Sleep logs last 7 days
+    // 2. Sleep logs last 14 days
     const { data: sleepData } = await supabase
       .from('sleep_logs')
       .select('*')
       .eq('user_id', props.userId)
       .order('date', { ascending: false })
-      .limit(7)
+      .limit(14)
 
     sleepLogs.value = sleepData || []
 
@@ -88,12 +99,11 @@ async function fetchHealthData() {
 }
 
 // Hydration actions
-async function adjustHydration(delta: number) {
+async function setHydrationGlasses(targetValue: number) {
   if (saving.value) return
   saving.value = true
   try {
-    const currentGlasses = hydration.value?.glasses ?? 0
-    const newGlasses = Math.max(0, currentGlasses + delta)
+    const val = Math.max(0, targetValue)
     const target = hydration.value?.target_glasses ?? 8
 
     const { data, error } = await supabase
@@ -101,7 +111,7 @@ async function adjustHydration(delta: number) {
       .upsert({
         user_id: props.userId,
         date: todayIso,
-        glasses: newGlasses,
+        glasses: val,
         target_glasses: target,
       }, { onConflict: 'user_id,date' })
       .select()
@@ -115,6 +125,11 @@ async function adjustHydration(delta: number) {
   } finally {
     saving.value = false
   }
+}
+
+async function adjustHydration(delta: number) {
+  const currentGlasses = hydration.value?.glasses ?? 0
+  await setHydrationGlasses(currentGlasses + delta)
 }
 
 // Health check toggles
@@ -175,17 +190,42 @@ async function submitSleepLog() {
   }
 }
 
-// Computed
+async function deleteSleepLog(id: number) {
+  if (!confirm('Hapus catatan tidur ini?')) return
+  try {
+    await supabase.from('sleep_logs').delete().eq('id', id)
+    sleepLogs.value = sleepLogs.value.filter(s => s.id !== id)
+  } catch (err) {
+    console.error('Gagal menghapus log tidur:', err)
+  }
+}
+
+// Computed Values
 const hydrationPercent = computed(() => {
   const g = hydration.value?.glasses ?? 0
   const t = hydration.value?.target_glasses ?? 8
   return Math.min(100, Math.round((g / t) * 100))
 })
 
+const totalMl = computed(() => {
+  return (hydration.value?.glasses || 0) * 250
+})
+
+const targetMl = computed(() => {
+  return (hydration.value?.target_glasses || 8) * 250
+})
+
 const averageSleepHours = computed(() => {
   if (sleepLogs.value.length === 0) return 0
   const total = sleepLogs.value.reduce((acc, s) => acc + Number(s.hours), 0)
   return +(total / sleepLogs.value.length).toFixed(1)
+})
+
+const sleepDebtHours = computed(() => {
+  if (sleepLogs.value.length === 0) return 0
+  // Target 7 jam/hari
+  const debt = sleepLogs.value.reduce((acc, s) => acc + (7 - Number(s.hours)), 0)
+  return +(debt).toFixed(1)
 })
 
 const latestSleep = computed(() => {
@@ -198,9 +238,21 @@ const burnoutScore = computed(() => {
 
 const burnoutBadge = computed(() => {
   const score = burnoutScore.value
-  if (score <= 30) return { label: 'Rendah (Kondisi Prima 🟢)', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-  if (score <= 60) return { label: 'Sedang (Perlu Jeda 🟡)', color: 'text-amber-700 bg-amber-50 border-amber-200' }
-  return { label: 'Tinggi (Kritis Burnout 🔴)', color: 'text-rose-700 bg-rose-50 border-rose-200' }
+  if (score <= 30) return {
+    label: 'Rendah (Kondisi Prima 🟢)',
+    color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+    advice: 'Energi dan fokus Anda sangat stabil. Waktu yang tepat untuk mengerjakan tugas dengan bobot tinggi.',
+  }
+  if (score <= 60) return {
+    label: 'Sedang (Perlu Jeda 🟡)',
+    color: 'text-amber-700 bg-amber-50 border-amber-200',
+    advice: 'Mulai terasa kelelahan. Gunakan jeda Pomodoro 5 menit dan pastikan minum air serta peregangan.',
+  }
+  return {
+    label: 'Tinggi (Kritis Burnout 🔴)',
+    color: 'text-rose-700 bg-rose-50 border-rose-200',
+    advice: 'Beban kerja terlalu tinggi dengan tidur minim. Hentikan deep work sekarang dan prioritaskan tidur lebih awal.',
+  }
 })
 
 onMounted(() => {
@@ -216,19 +268,19 @@ onMounted(() => {
         <div>
           <div class="flex items-center gap-2">
             <span class="text-2xl">🩺</span>
-            <h2 class="text-lg font-bold text-gray-900 sm:text-xl">Radar Kesehatan & Energi Harian</h2>
+            <h2 class="text-lg font-bold text-gray-900 sm:text-xl">Radar Kesehatan &amp; Energi Harian</h2>
             <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Prioritas #1</span>
           </div>
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
-            Pantau asupan hidrasi, kualitas tidur, dan status pemulihan fisik untuk menjaga performa optimal.
+            Pantau asupan hidrasi, kualitas tidur semalam, dan skor pemulihan fisik untuk menjaga performa kerja stabil.
           </p>
         </div>
         <button
           @click="showSleepModal = true"
-          class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors"
+          class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors cursor-pointer"
         >
           <span>➕</span>
-          <span>Catat Tidur</span>
+          <span>Catat Tidur Semalam</span>
         </button>
       </div>
     </div>
@@ -238,7 +290,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <!-- 1. Hydration Tracker Card -->
+      <!-- 1. Interactive Hydration Station -->
       <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between">
@@ -246,54 +298,94 @@ onMounted(() => {
               <span class="text-xl">💧</span>
               <h3 class="text-sm font-bold text-gray-900">Hydration Tracker (Hari Ini)</h3>
             </div>
-            <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-              {{ (hydration?.glasses || 0) * 250 }} / {{ (hydration?.target_glasses || 8) * 250 }} ml
+            <span
+              class="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
+              :class="hydrationPercent >= 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+            >
+              {{ totalMl }} / {{ targetMl }} ml ({{ hydrationPercent }}%)
             </span>
           </div>
 
           <div class="mt-5">
             <div class="flex justify-between items-baseline mb-2">
-              <span class="text-3xl font-extrabold text-gray-900">{{ hydration?.glasses || 0 }} <span class="text-base font-normal text-gray-500">/ {{ hydration?.target_glasses || 8 }} Gelas</span></span>
-              <span class="text-sm font-bold text-blue-600">{{ hydrationPercent }}%</span>
+              <span class="text-3xl font-extrabold text-gray-900">
+                {{ hydration?.glasses || 0 }}
+                <span class="text-base font-normal text-gray-500">/ {{ hydration?.target_glasses || 8 }} Gelas</span>
+              </span>
+              <span v-if="hydrationPercent >= 100" class="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                ✓ Target Terpenuhi!
+              </span>
+              <span v-else class="text-xs font-medium text-gray-500">
+                Kurang {{ Math.max(0, targetMl - totalMl) }} ml lagi
+              </span>
             </div>
-            <!-- Progress Bar -->
-            <div class="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+
+            <!-- Animated Water Fill Bar -->
+            <div class="h-3.5 w-full rounded-full bg-gray-100 overflow-hidden relative">
               <div
-                class="h-full rounded-full bg-blue-500 transition-all duration-300"
+                class="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300"
                 :style="{ width: `${hydrationPercent}%` }"
               ></div>
             </div>
           </div>
 
-          <!-- Glass Icons Visualizer -->
-          <div class="mt-5 grid grid-cols-8 gap-1.5">
-            <div
-              v-for="i in (hydration?.target_glasses || 8)"
-              :key="i"
-              class="h-10 rounded-lg flex items-center justify-center text-sm border transition-all"
-              :class="i <= (hydration?.glasses || 0) ? 'bg-blue-500 text-white border-blue-600 shadow-xs' : 'bg-gray-50 text-gray-300 border-gray-200'"
-            >
-              🥛
+          <!-- Interactive 8 Glass Icons (Click to Jump) -->
+          <div class="mt-5">
+            <div class="text-[11px] text-gray-400 mb-2 font-medium">Klik gelas untuk set langsung:</div>
+            <div class="grid grid-cols-8 gap-1.5">
+              <button
+                v-for="i in (hydration?.target_glasses || 8)"
+                :key="i"
+                type="button"
+                @click="setHydrationGlasses(i)"
+                :title="`Set ${i} gelas (${i * 250} ml)`"
+                class="h-10 rounded-lg flex flex-col items-center justify-center text-xs border transition-all cursor-pointer hover:scale-105"
+                :class="i <= (hydration?.glasses || 0)
+                  ? 'bg-blue-500 text-white border-blue-600 shadow-2xs font-bold'
+                  : 'bg-gray-50 text-gray-300 border-gray-200 hover:border-blue-300'"
+              >
+                <span>🥛</span>
+                <span class="text-[9px] mt-0.5 leading-none">{{ i }}</span>
+              </button>
             </div>
           </div>
         </div>
 
-        <div class="mt-6 flex items-center gap-3 pt-4 border-t border-gray-100">
-          <button
-            @click="adjustHydration(-1)"
-            :disabled="saving || (hydration?.glasses || 0) <= 0"
-            class="flex-1 rounded-xl border border-gray-300 bg-white py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition-colors"
-          >
-            - 1 Gelas
-          </button>
-          <button
-            @click="adjustHydration(1)"
-            :disabled="saving"
-            class="flex-2 rounded-xl bg-blue-600 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <span>💧</span>
-            <span>+ Tambah Gelas (250ml)</span>
-          </button>
+        <!-- Hydration Quick Presets -->
+        <div class="mt-6 pt-4 border-t border-gray-100 space-y-2">
+          <div class="flex items-center gap-2">
+            <button
+              @click="adjustHydration(1)"
+              :disabled="saving"
+              class="flex-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>💧</span>
+              <span>+1 Gelas (250ml)</span>
+            </button>
+            <button
+              @click="adjustHydration(2)"
+              :disabled="saving"
+              class="flex-1 rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              +500ml Botol
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-1">
+            <button
+              @click="adjustHydration(-1)"
+              :disabled="saving || (hydration?.glasses || 0) <= 0"
+              class="text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer"
+            >
+              - 1 Gelas
+            </button>
+            <button
+              @click="setHydrationGlasses(0)"
+              :disabled="saving || (hydration?.glasses || 0) <= 0"
+              class="text-gray-400 hover:text-rose-600 disabled:opacity-30 text-[11px] cursor-pointer"
+            >
+              Reset Hari Ini
+            </button>
+          </div>
         </div>
       </div>
 
@@ -303,34 +395,34 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-xl">🧘</span>
-              <h3 class="text-sm font-bold text-gray-900">Recovery & Burnout Radar</h3>
+              <h3 class="text-sm font-bold text-gray-900">Recovery &amp; Burnout Radar</h3>
             </div>
             <span
-              class="text-xs font-semibold px-2 py-0.5 rounded-full border"
+              class="text-xs font-bold px-2.5 py-0.5 rounded-full border"
               :class="burnoutBadge.color"
             >
               Skor {{ burnoutScore }}/100
             </span>
           </div>
 
-          <!-- Burnout Explanation -->
-          <div class="mt-4 rounded-xl p-3.5 bg-gray-50 border border-gray-200">
+          <!-- Dynamic Advice Box -->
+          <div class="mt-4 rounded-xl p-3.5 bg-gray-50 border border-gray-200 space-y-1">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-medium text-gray-600">Status Beban Pikiran:</span>
+              <span class="font-medium text-gray-500">Status Pemulihan:</span>
               <span class="font-bold text-gray-900">{{ burnoutBadge.label }}</span>
             </div>
-            <p class="mt-1 text-[11px] text-gray-500">
-              Dihitung berdasarkan keseimbangan jam tidur dan intensitas waktu fokus kerja harian.
+            <p class="text-[11px] text-gray-600 leading-relaxed">
+              {{ burnoutBadge.advice }}
             </p>
           </div>
 
           <!-- Daily Health Check Items -->
           <div class="mt-5 space-y-2.5">
             <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">Checklist Pemulihan Hari Ini</h4>
-            
+
             <label
               class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-              :class="healthCheck?.took_vitamin ? 'bg-emerald-50/50 border-emerald-200' : ''"
+              :class="healthCheck?.took_vitamin ? 'bg-emerald-50/60 border-emerald-300' : ''"
             >
               <div class="flex items-center gap-3">
                 <input
@@ -338,19 +430,19 @@ onMounted(() => {
                   :checked="healthCheck?.took_vitamin"
                   @change="toggleHealthCheck('took_vitamin')"
                   :disabled="saving"
-                  class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                 />
                 <div>
                   <div class="text-xs font-semibold text-gray-800">Minum Vitamin &amp; Suplemen</div>
-                  <div class="text-[11px] text-gray-400">Menjaga imunitas saat jadwal padat</div>
+                  <div class="text-[11px] text-gray-400">Menjaga daya tahan tubuh saat beban kuliah &amp; riset tinggi</div>
                 </div>
               </div>
-              <span class="text-lg">💊</span>
+              <span class="text-xl">💊</span>
             </label>
 
             <label
               class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-              :class="healthCheck?.did_stretch ? 'bg-emerald-50/50 border-emerald-200' : ''"
+              :class="healthCheck?.did_stretch ? 'bg-emerald-50/60 border-emerald-300' : ''"
             >
               <div class="flex items-center gap-3">
                 <input
@@ -358,80 +450,95 @@ onMounted(() => {
                   :checked="healthCheck?.did_stretch"
                   @change="toggleHealthCheck('did_stretch')"
                   :disabled="saving"
-                  class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                 />
                 <div>
                   <div class="text-xs font-semibold text-gray-800">Peregangan (Stretching 5 Menit)</div>
-                  <div class="text-[11px] text-gray-400">Rileksasi leher, bahu, dan mata dari layar</div>
+                  <div class="text-[11px] text-gray-400">Rileksasi otot bahu, leher, dan mata dari monitor</div>
                 </div>
               </div>
-              <span class="text-lg">🧘</span>
+              <span class="text-xl">🧘</span>
             </label>
           </div>
         </div>
 
-        <div class="mt-5 pt-3 text-center border-t border-gray-100">
-          <span class="text-[11px] text-gray-400">💡 Night Cutoff otomatis menyala pukul 22:30 WIB</span>
+        <div class="mt-5 pt-3 flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-100">
+          <span>🌙 Night Cutoff Otomatis: <strong>22:30 WIB</strong></span>
+          <span class="text-gray-300">•</span>
+          <span>☀️ Brief Pagi: <strong>07:00 WIB</strong></span>
         </div>
       </div>
 
-      <!-- 3. Sleep Log History (Span 2 Cols) -->
+      <!-- 3. Sleep Log History & Sleep Debt Analysis -->
       <div class="md:col-span-2 rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-gray-100">
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl">💤</span>
-              <h3 class="text-sm font-bold text-gray-900">Riwayat Tidur &amp; Analisis Kualitas (7 Hari Terakhir)</h3>
+              <h3 class="text-sm font-bold text-gray-900">Riwayat Tidur &amp; Analisis Hutang Tidur (Sleep Debt)</h3>
             </div>
-            <p class="text-xs text-gray-500 mt-0.5">
-              Rata-rata 7 hari: <strong class="text-gray-900">{{ averageSleepHours }} jam/hari</strong>
-              <span v-if="averageSleepHours >= 7" class="text-emerald-600 font-medium ml-1.5">✓ Target tercukupi</span>
-              <span v-else class="text-amber-600 font-medium ml-1.5">⚠️ Kurang tidur (target minimal 7 jam)</span>
-            </p>
+            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+              <span>Rata-rata: <strong class="text-gray-900">{{ averageSleepHours }} jam/hari</strong></span>
+              <span class="text-gray-300">•</span>
+              <span v-if="sleepDebtHours <= 0" class="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                ✓ Tidak ada hutang tidur (Kondisi Segar)
+              </span>
+              <span v-else class="text-amber-800 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                ⚠️ Hutang Tidur: {{ sleepDebtHours }} jam (rekomendasi tidur lebih awal)
+              </span>
+            </div>
           </div>
 
-          <div v-if="latestSleep" class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs text-indigo-900">
-            <span>Terakhir: <strong>{{ latestSleep.hours }} jam</strong> ({{ latestSleep.quality }})</span>
+          <div v-if="latestSleep" class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs text-indigo-900 shrink-0">
+            <span>Semalam: <strong>{{ latestSleep.hours }} jam</strong> ({{ latestSleep.quality }})</span>
           </div>
         </div>
 
-        <!-- Sleep Table / List -->
+        <!-- Sleep List -->
         <div v-if="sleepLogs.length === 0" class="py-8 text-center text-xs text-gray-400">
-          Belum ada riwayat tidur tercatat. Klik tombol "Catat Tidur" untuk memasukkan data.
+          Belum ada riwayat tidur tercatat. Klik tombol "Catat Tidur Semalam" untuk memasukkan data.
         </div>
 
         <div v-else class="mt-4 divide-y divide-gray-100">
           <div
             v-for="log in sleepLogs"
             :key="log.id"
-            class="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            class="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 group"
           >
             <div class="flex items-center gap-3">
               <div
-                class="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                class="h-9 w-9 rounded-xl flex items-center justify-center text-xs font-extrabold shrink-0"
                 :class="log.hours >= 7 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
               >
-                {{ log.hours }}h
+                {{ log.hours }}j
               </div>
               <div>
                 <div class="text-xs font-bold text-gray-900">{{ log.date }}</div>
-                <div class="text-[11px] text-gray-500">
-                  Kualitas: <span class="font-medium text-gray-700">{{ log.quality }}</span>
-                  <span v-if="log.notes" class="text-gray-400 ml-1">• "{{ log.notes }}"</span>
+                <div class="text-[11px] text-gray-500 flex flex-wrap items-center gap-1.5">
+                  <span class="font-medium text-gray-700">Kualitas: {{ log.quality }}</span>
+                  <span v-if="log.notes" class="text-gray-400">• "{{ log.notes }}"</span>
                 </div>
               </div>
             </div>
 
-            <!-- Mini Visual Bar -->
-            <div class="flex items-center gap-2 sm:w-48">
+            <!-- Mini Visual Bar & Delete -->
+            <div class="flex items-center gap-3 sm:w-64">
               <div class="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
                 <div
-                  class="h-full rounded-full"
+                  class="h-full rounded-full transition-all duration-300"
                   :class="log.hours >= 7 ? 'bg-emerald-500' : 'bg-amber-500'"
                   :style="{ width: `${Math.min(100, (log.hours / 10) * 100)}%` }"
                 ></div>
               </div>
-              <span class="text-[11px] font-mono text-gray-500">{{ log.hours }} jam</span>
+              <span class="text-xs font-mono font-semibold text-gray-700 w-12 text-right shrink-0">{{ log.hours }} jam</span>
+              <button
+                type="button"
+                @click="deleteSleepLog(log.id)"
+                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 text-xs transition-opacity cursor-pointer"
+                title="Hapus log ini"
+              >
+                🗑️
+              </button>
             </div>
           </div>
         </div>
@@ -451,7 +558,7 @@ onMounted(() => {
           </div>
           <button
             @click="showSleepModal = false"
-            class="text-gray-400 hover:text-gray-600 text-sm"
+            class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer"
           >
             ✕
           </button>
@@ -459,7 +566,7 @@ onMounted(() => {
 
         <form @submit.prevent="submitSleepLog" class="space-y-3.5 text-xs">
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Tanggal</label>
+            <label class="block font-semibold text-gray-700 mb-1">Tanggal Bangun</label>
             <input
               v-model="sleepForm.date"
               type="date"
@@ -468,8 +575,33 @@ onMounted(() => {
             />
           </div>
 
+          <!-- Bedtime & Waketime Calculator -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Mulai Tidur (Malam)</label>
+              <input
+                v-model="sleepForm.bedtime"
+                type="time"
+                @change="calculateDurationFromTimes"
+                class="w-full rounded-lg border border-gray-300 p-2 text-xs focus:ring-2 focus:ring-gray-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Bangun (Pagi)</label>
+              <input
+                v-model="sleepForm.waketime"
+                type="time"
+                @change="calculateDurationFromTimes"
+                class="w-full rounded-lg border border-gray-300 p-2 text-xs focus:ring-2 focus:ring-gray-900 focus:outline-none"
+              />
+            </div>
+          </div>
+
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Durasi Tidur (Jam)</label>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-semibold text-gray-700">Durasi Tidur (Jam)</label>
+              <span class="font-bold text-indigo-700">{{ sleepForm.hours }} Jam</span>
+            </div>
             <input
               v-model.number="sleepForm.hours"
               type="number"
@@ -487,11 +619,11 @@ onMounted(() => {
               v-model="sleepForm.quality"
               class="w-full rounded-lg border border-gray-300 p-2 text-xs focus:ring-2 focus:ring-gray-900 focus:outline-none"
             >
-              <option value="Sangat Kurang">Sangat Kurang (Terbangun-bangun)</option>
-              <option value="Kurang">Kurang (Gelisah)</option>
-              <option value="Cukup">Cukup (Biasa)</option>
+              <option value="Sangat Kurang">Sangat Kurang (Terbangun berulang kali)</option>
+              <option value="Kurang">Kurang (Gelisah / Tidak lelap)</option>
+              <option value="Cukup">Cukup (Biasa saja)</option>
               <option value="Nyenyak">Nyenyak (Segar saat bangun)</option>
-              <option value="Sangat Nyenyak">Sangat Nyenyak (Optimal)</option>
+              <option value="Sangat Nyenyak">Sangat Nyenyak (Optimal &amp; Bugar)</option>
             </select>
           </div>
 
@@ -509,14 +641,14 @@ onMounted(() => {
             <button
               type="button"
               @click="showSleepModal = false"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               :disabled="saving"
-              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50"
+              class="rounded-lg bg-gray-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
             >
               {{ saving ? 'Menyimpan...' : 'Simpan Data Tidur' }}
             </button>
