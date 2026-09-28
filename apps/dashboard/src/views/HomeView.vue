@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
+import HealthTab from '../components/HealthTab.vue'
+import CourseworkTab from '../components/CourseworkTab.vue'
+import ResearchTab from '../components/ResearchTab.vue'
 
 interface ProfileItem {
   id?: string
@@ -77,8 +80,10 @@ interface GraphEdge {
 }
 
 const userEmail = ref<string | null>(null)
+const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -283,6 +288,7 @@ async function fetchData() {
     return
   }
   userEmail.value = session.user?.email ?? null
+  currentUserId.value = session.user.id
 
   try {
     const [
@@ -680,10 +686,74 @@ onMounted(() => {
           </button>
         </div>
       </div>
+
+      <!-- Navigation Tabs Bar -->
+      <div class="border-t border-gray-100 bg-white">
+        <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 sm:px-6 overflow-x-auto no-scrollbar">
+          <button
+            @click="activeTab = 'overview'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>🏠</span>
+            <span>Ringkasan</span>
+          </button>
+
+          <button
+            @click="activeTab = 'health'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'health' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>🩺</span>
+            <span>Kesehatan</span>
+            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">#1</span>
+          </button>
+
+          <button
+            @click="activeTab = 'coursework'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'coursework' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>🎓</span>
+            <span>Kuliah</span>
+            <span class="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800">#2</span>
+          </button>
+
+          <button
+            @click="activeTab = 'research'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'research' ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>🔬</span>
+            <span>Riset</span>
+            <span class="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-semibold text-purple-800">#3</span>
+          </button>
+        </div>
+      </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
-      <!-- Banner Onboarding Hubungkan Telegram (jika profil belum ada atau belum punya telegram_chat_id) -->
+      <!-- Tab 1: Kesehatan -->
+      <HealthTab
+        v-if="activeTab === 'health' && currentUserId"
+        :user-id="currentUserId"
+      />
+
+      <!-- Tab 2: Kuliah -->
+      <CourseworkTab
+        v-else-if="activeTab === 'coursework' && currentUserId"
+        :user-id="currentUserId"
+      />
+
+      <!-- Tab 3: Riset -->
+      <ResearchTab
+        v-else-if="activeTab === 'research' && currentUserId"
+        :user-id="currentUserId"
+      />
+
+      <!-- Tab Overview (Default) -->
+      <div v-else-if="activeTab === 'overview'" class="space-y-6">
+        <!-- Banner Onboarding Hubungkan Telegram (jika profil belum ada atau belum punya telegram_chat_id) -->
       <div
         v-if="profileLoaded && (!profile || !profile.telegram_chat_id)"
         class="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950 shadow-sm transition-all"
@@ -1197,6 +1267,7 @@ onMounted(() => {
             </div>
           </section>
         </div>
+      </div>
       </div>
     </main>
   </div>
