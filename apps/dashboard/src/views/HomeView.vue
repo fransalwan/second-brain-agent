@@ -315,8 +315,13 @@ async function fetchData() {
 
     profileLoaded.value = true
     profile.value = profileRes.data ?? null
-    areas.value = areasRes.data ?? []
-    tasks.value = tasksRes.data ?? []
+    const excludedAreaIds = new Set(
+      (areasRes.data ?? [])
+        .filter((a) => ['karir', 'usaha'].includes(a.name.trim().toLowerCase()))
+        .map((a) => a.id)
+    )
+    areas.value = (areasRes.data ?? []).filter((a) => !excludedAreaIds.has(a.id))
+    tasks.value = (tasksRes.data ?? []).filter((t) => !excludedAreaIds.has(t.area_id))
     habits.value = habitsRes.data ?? []
     habitLogs.value = habitLogsRes.data ?? []
     timeLogs.value = timeLogsRes.data ?? []
@@ -912,29 +917,6 @@ onMounted(() => {
             {{ notes.length }}
           </p>
           <span class="text-[11px] text-gray-400 mt-0.5 block">Tersimpan dari chat</span>
-        </div>
-      </div>
-
-      <!-- Area Hidup Chips (Prinsip Urutan Prioritas) -->
-      <div v-if="areas.length > 0" class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-        <div class="flex items-center justify-between mb-2.5">
-          <div class="flex items-center gap-1.5">
-            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Urutan Prioritas Area Hidup</span>
-            <span class="text-xs text-gray-400">(Bobot tugas ditentukan urutan ini)</span>
-          </div>
-          <span class="text-[11px] text-gray-400">Atur lewat bot: <code>ubah urutan area: ...</code></span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <div
-            v-for="area in areas"
-            :key="area.id"
-            class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50/80 px-2.5 py-1 text-xs font-medium text-gray-800"
-          >
-            <span class="h-4 w-4 rounded-full bg-gray-900 text-[10px] text-white flex items-center justify-center font-bold">
-              {{ area.position }}
-            </span>
-            <span>{{ area.name }}</span>
-          </div>
         </div>
       </div>
 
