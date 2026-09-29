@@ -5,6 +5,7 @@
 [![Vite](https://img.shields.io/badge/Bundler-Vite-646CFF.svg)](https://vitejs.dev)
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Postgres%20%2B%20RLS-3ECF8E.svg)](https://supabase.com)
 [![Notifications](https://img.shields.io/badge/Alerts-Web%20Push%20%26%20In--App%20Center-FF6F00.svg)](apps/dashboard)
+[![Quick Capture](https://img.shields.io/badge/Input-Ctrl%2BK%20%26%20Voice%20Dictation-8B5CF6.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
 [![Zero Cost](https://img.shields.io/badge/Deploy-100%25%20Free%20Tier-success.svg)](netlify.toml)
 
@@ -12,7 +13,10 @@
 
 **Second Brain (Student Edition)** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
 
-Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Pusat Notifikasi Cerdas (In-App Notification Center)** dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+
+🌐 **Akses Aplikasi (Gratis):**  
+👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
 
 ---
 
@@ -26,6 +30,24 @@ Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas determinist
 | **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | Bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, *Deliverables Checklist*, dan kartu penguasaan kisi-kisi UTS/UAS (*Topic Mastery*). |
 | **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
 | **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), backlog game & buku, serta *Dopamine Return Index*. |
+
+---
+
+## ⚡ Universal Quick Capture & Voice Input (`Ctrl + K` & FAB `+`)
+
+Mencatat tugas kuliah atau ide riset kini tidak perlu lagi mengisi form panjang yang melelahkan:
+
+* **Akses Cepat 1 Detik:**
+  * **Di Laptop:** Tekan shortcut keyboard **`Ctrl + K`** (atau `Cmd + K` di Mac).
+  * **Di Smartphone / HP:** Tap tombol bulat **`+`** (FAB) melayang di pojok kanan bawah layar.
+* **Smart Client-Side Regex Parser:** Ketik bebas satu baris, sistem otomatis mengenali kategori & tenggat waktunya:
+  * 🎓 `tugas kuis kalkulus besok mendesak` ➔ Otomatis masuk jadi **Tugas Kuliah** dengan deadline besok & badge *Urgent*.
+  * 💧 `minum 300ml` (atau `minum 2 gelas`) ➔ Otomatis menambah log hidrasi **Kesehatan**.
+  * 😴 `tidur 7.5 jam` ➔ Otomatis tercatat di log tidur.
+  * ⏱️ `fokus: riset paper IEEE` ➔ Otomatis menyalakan timer sesi fokus deep work.
+  * 💡 `ide: arsitektur state management` ➔ Otomatis jadi catatan baru & simpul baru di **Knowledge Graph**.
+* **Dikte Suara (Voice to Text 🎤):** Cukup klik tombol mic dan bicara dalam Bahasa Indonesia menggunakan *Web Speech Recognition* bawaan browser (100% gratis, tanpa kuota AI server).
+* **Template Cepat:** Tombol chip 1-klik untuk input instan (`+ Tugas Kuliah`, `+ Minum 250ml`, `+ Tidur 7.5 Jam`, `+ Mulai Timer`).
 
 ---
 
@@ -57,6 +79,16 @@ Seluruh pengelolaan dapat diselesaikan langsung dalam genggaman:
 
 ---
 
+## 💬 Curhat & Feedback Mahasiswa Terintegrasi
+
+Dashboard dilengkapi saluran masukan langsung agar mahasiswa bisa memberikan feedback, lapor kendala, atau request fitur baru:
+
+* **Tombol Melayang:** `💬 Curhat / Request Fitur` di pojok kiri bawah dashboard.
+* **Modal Penilaian Instan:** Pilih kategori (*Request Fitur*, *Lapor Bug*, *Review*), beri rating 1–5 ⭐, dan tuliskan pesan yang langsung tersimpan di database.
+* **Script Generator Google Form:** Disediakan script otomatis Google Apps Script di [`scripts/google_form_creator.js`](scripts/google_form_creator.js) untuk menghasilkan form kuesioner evaluasi 9 pertanyaan dalam 1 klik via [script.new](https://script.new).
+
+---
+
 ## 📱 Mobile-First Design (Thumb Zone)
 
 Dashboard web didesain dengan filosofi **True Mobile-First**:
@@ -75,6 +107,7 @@ Aplikasi berjalan sepenuhnya tanpa biaya server cloud:
 flowchart TD
     subgraph Client ["Pengguna (Smartphone & Laptop)"]
         UI["Vue 3 SPA Dashboard<br/>(PWA Mobile-First)"]
+        QC["Universal Quick Capture<br/>(Ctrl+K + Web Speech API)"]
         NOTIF["In-App Notification Hub<br/>+ Web Push API"]
         GRAPH["Interactive Knowledge Graph<br/>(Canvas Touch-Ready)"]
     end
@@ -86,11 +119,12 @@ flowchart TD
 
     NETLIFY -->|Serve Static SPA| UI
     UI <-->|Auth, RLS Query & Realtime Data| SUPABASE
+    UI --> QC
     UI --> NOTIF
     UI --> GRAPH
 ```
 
-1. **Frontend Dashboard di Netlify (100% Free):** Hosting statis SPA yang terhubung langsung ke Supabase client-side. Live 24/7 di `https://rain-agent.netlify.app`.
+1. **Frontend Dashboard di Netlify (100% Free):** Hosting statis SPA yang terhubung langsung ke Supabase client-side. Live 24/7 di `https://second-brain-agent.netlify.app`.
 2. **Database & Auth di Supabase (100% Free):** PostgreSQL cloud dengan proteksi data ketat via *Row Level Security* (RLS).
 3. **Optional Backend (FastAPI / Bot Daemon):** Tersedia di folder `apps/backend` bagi pengguna tingkat lanjut yang ingin mengaktifkan sinkronisasi bot Telegram headless di komputer lokal.
 
@@ -99,17 +133,16 @@ flowchart TD
 ## 🚀 Panduan Memulai Cepat
 
 ### 1. Buka Web Dashboard
-Kunjungi dashboard yang sudah aktif di:
-👉 **[rain-agent.netlify.app](https://rain-agent.netlify.app)**
+Kunjungi dashboard resmi di:
+👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
 
 ### 2. Buat Akun Mahasiswa
 1. Di tab **Daftar Baru (Sign Up)**, isi Nama Lengkap, Email Kampus/Pribadi, dan Password.
 2. Klik **Buat Akun Mahasiswa Baru** — akun langsung aktif dan otomatis masuk ke dashboard.
 
-### 3. Aktifkan Notifikasi Web
-1. Klik ikon lonceng **🔔** di kanan atas navbar.
-2. Klik tombol **Aktifkan 🔔** untuk mengizinkan Browser Push Notifications.
-3. Selesai! Kamu siap mengelola kuliah, riset, dan kesehatan dalam satu tempat.
+### 3. Aktifkan Notifikasi & Quick Capture
+1. Klik ikon lonceng **🔔** di kanan atas navbar ➔ klik **Aktifkan 🔔** untuk mengizinkan Web Push.
+2. Tekan **`Ctrl + K`** (atau tombol **`+`** di HP) untuk langsung mencoba mencatat tugas pertamamu!
 
 ---
 
