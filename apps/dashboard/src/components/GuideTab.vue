@@ -4,9 +4,10 @@ import { ref } from 'vue'
 const emit = defineEmits<{
   (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'hobby'): void
   (e: 'open-quick-capture'): void
+  (e: 'open-privacy', tab?: 'policy' | 'export' | 'delete'): void
 }>()
 
-const activeSection = ref<'all' | 'routine' | 'pillars' | 'quickcapture' | 'faq'>('all')
+const activeSection = ref<'all' | 'routine' | 'pillars' | 'quickcapture' | 'privacy' | 'faq'>('all')
 
 const copiedIndex = ref<number | null>(null)
 
@@ -132,6 +133,14 @@ function toggleFaq(index: number) {
         :class="activeSection === 'quickcapture' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'"
       >
         ⚡ Cheat Sheet Input
+      </button>
+      <button
+        type="button"
+        @click="activeSection = 'privacy'"
+        class="rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+        :class="activeSection === 'privacy' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'"
+      >
+        🛡️ Privasi & Data
       </button>
       <button
         type="button"
@@ -537,7 +546,83 @@ function toggleFaq(index: number) {
       </div>
     </section>
 
-    <!-- 4. Tanya Jawab Mahasiswa (FAQ) -->
+    <!-- 4. Privasi, Keamanan & Kedaulatan Data -->
+    <section v-if="activeSection === 'all' || activeSection === 'privacy'" class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+          <span>🛡️</span>
+          <span>Privasi, Keamanan & Kedaulatan Data Mahasiswa</span>
+        </h3>
+        <button
+          type="button"
+          @click="emit('open-privacy', 'policy')"
+          class="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+        >
+          Buka Janji Privasi ↗
+        </button>
+      </div>
+
+      <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🚫</span>
+              <h4 class="text-xs font-bold text-gray-900">Zero Commercial Ads</h4>
+            </div>
+            <p class="text-[11px] text-gray-500 leading-relaxed">
+              100% bebas iklan dan tidak pernah menjual atau membagikan data catatan skripsimu kepada pengiklan pihak ketiga.
+            </p>
+          </div>
+
+          <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🔒</span>
+              <h4 class="text-xs font-bold text-gray-900">Row Level Security (RLS)</h4>
+            </div>
+            <p class="text-[11px] text-gray-500 leading-relaxed">
+              Setiap catatan dan tugas dilindungi aturan PostgreSQL RLS ketat. Hanya akunmu yang memiliki hak baca dan tulis.
+            </p>
+          </div>
+
+          <div class="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">💻</span>
+              <h4 class="text-xs font-bold text-gray-900">Client-Side First</h4>
+            </div>
+            <p class="text-[11px] text-gray-500 leading-relaxed">
+              Regex Quick Capture & Speech-to-Text diproses langsung di RAM browsermu tanpa merekam audio ke cloud.
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="text-[11px] text-gray-500">
+            Ingin cadangkan datamu atau memeriksa matriks privasi lengkap?
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="emit('open-privacy', 'export')"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
+            >
+              <span>📦</span>
+              <span>Unduh Backup JSON</span>
+            </button>
+            <button
+              type="button"
+              @click="emit('open-privacy', 'policy')"
+              class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
+            >
+              <span>🛡️</span>
+              <span>Pusat Kedaulatan Data</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Tanya Jawab Mahasiswa (FAQ) -->
     <section v-if="activeSection === 'all' || activeSection === 'faq'" class="space-y-3">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">

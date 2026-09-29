@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import PrivacyModal from '../components/PrivacyModal.vue'
 
 const router = useRouter()
+const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
 
 const authMode = ref<'login' | 'register'>('login')
 const loginMethod = ref<'password' | 'magic_link'>('password')
@@ -489,12 +491,24 @@ async function handleRegister() {
           </form>
         </div>
 
-        <!-- Footer Help Link -->
-        <div class="pt-2 text-center text-[11px] text-slate-500">
-          <span>Akses mandiri & terlindungi via </span>
-          <span class="text-indigo-400 font-semibold">Supabase Row-Level Security</span>
+        <!-- Footer Trust & Privacy Link -->
+        <div class="pt-2 text-center text-[11px] text-slate-400 space-y-1">
+          <p>
+            <span>Akses mandiri & terlindungi via </span>
+            <span class="text-indigo-400 font-semibold">Supabase Row-Level Security</span>
+          </p>
+          <button
+            type="button"
+            @click="privacyModalRef?.openModal('policy')"
+            class="text-indigo-300 hover:text-indigo-200 underline font-medium cursor-pointer"
+          >
+            🛡️ Janji Privasi Mahasiswa (0 Pelacak / 0 Iklan) ↗
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- Privacy & Data Sovereignty Center Modal -->
+    <PrivacyModal ref="privacyModalRef" />
   </div>
 </template>

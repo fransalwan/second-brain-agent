@@ -7,6 +7,7 @@
 [![Notifications](https://img.shields.io/badge/Alerts-Web%20Push%20%26%20In--App%20Center-FF6F00.svg)](apps/dashboard)
 [![Quick Capture](https://img.shields.io/badge/Input-Ctrl%2BK%20%26%20Voice%20Dictation-8B5CF6.svg)](apps/dashboard)
 [![Guide](https://img.shields.io/badge/Guide-In--App%20Handbook-6366F1.svg)](apps/dashboard)
+[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Zero%20Tracking-10B981.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
 [![Zero Cost](https://img.shields.io/badge/Deploy-100%25%20Free%20Tier-success.svg)](netlify.toml)
 
@@ -98,6 +99,20 @@ Dashboard dilengkapi saluran masukan langsung agar mahasiswa bisa memberikan fee
 * **Tombol Melayang:** `💬 Curhat / Request Fitur` di pojok kiri bawah dashboard.
 * **Modal Penilaian Instan:** Pilih kategori (*Request Fitur*, *Lapor Bug*, *Review*), beri rating 1–5 ⭐, dan tuliskan pesan yang langsung tersimpan di database.
 * **Script Generator Google Form:** Disediakan script otomatis Google Apps Script di [`scripts/google_form_creator.js`](scripts/google_form_creator.js) untuk menghasilkan form kuesioner evaluasi 9 pertanyaan dalam 1 klik via [script.new](https://script.new).
+
+---
+
+## 🛡️ Privasi, Keamanan & Kedaulatan Data Mahasiswa
+
+Kekhawatiran bahwa data ide riset skripsi atau rutinitas pribadi dilacak adalah hal yang sangat wajar. Oleh karena itu, Second Brain dibangun dengan filosofi **Zero-Trust & Privacy-First**:
+
+* **🚫 Tanpa Iklan & Tanpa Tracker Pihak Ketiga:** Tidak ada Google Analytics, Facebook Pixel, Hotjar, atau adware komersial. Data kamu tidak pernah dijual atau dimonetisasi.
+* **🔒 Isolasi Ketat PostgreSQL RLS:** Seluruh baris database diproteksi oleh *Row Level Security* (RLS) di Supabase. Hanya kamu yang memegang hak akses untuk membaca dan memodifikasi data akunmu.
+* **💻 Pemrosesan Sisi-Klien (Client-Side First):**
+  * *Smart Regex Quick Capture* berjalan 100% di memori browser (RAM perangkatmu), bukan dikirim ke server backend.
+  * *Speech Recognition (Dikte Suara)* memanfaatkan Web Speech API bawaan perangkat tanpa menyimpan rekaman audio di server.
+* **📦 Kedaulatan Data (1-Click JSON Backup):** Kamu tidak terkunci di aplikasi ini. Kapan pun kamu butuh salinan fisik seluruh tugas kuliah, catatan riset, atau riwayat waktu fokus, unduh semuanya dalam format JSON standar melalui menu **🛡️ Privasi**.
+* **🗑️ Hak Penghapusan Permanen (Right to Erasure / Self-Destruct):** Tombol 1-klik untuk menghapus akun dan seluruh baris datamu dari database cloud seketika tanpa jejak.
 
 ---
 

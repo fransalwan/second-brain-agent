@@ -10,13 +10,19 @@ import DailyBriefCard from '../components/DailyBriefCard.vue'
 import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
+import PrivacyModal from '../components/PrivacyModal.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
+const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
 
 function handleOpenQuickCapture() {
   quickCaptureRef.value?.openModal()
+}
+
+function handleOpenPrivacy(tab: 'policy' | 'export' | 'delete' = 'policy') {
+  privacyModalRef.value?.openModal(tab)
 }
 
 function handleQuickCreated(payload: { type: string; data?: any }) {
@@ -824,10 +830,21 @@ onMounted(() => {
             <span>🌙 Malam: <strong class="text-gray-800">{{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</strong></span>
           </div>
 
+          <!-- Privacy & Data Sovereignty Center Button -->
+          <button
+            type="button"
+            @click="handleOpenPrivacy('policy')"
+            class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer"
+            title="Pusat Privasi & Kedaulatan Data"
+          >
+            <span>🛡️</span>
+            <span class="hidden sm:inline">Privasi</span>
+          </button>
+
           <button
             @click="handleLogout"
             :disabled="loggingOut"
-            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 transition-colors cursor-pointer"
           >
             {{ loggingOut ? 'Keluar...' : 'Logout' }}
           </button>
@@ -929,6 +946,7 @@ onMounted(() => {
         v-else-if="activeTab === 'guide'"
         @navigate-tab="(tab) => activeTab = tab"
         @open-quick-capture="handleOpenQuickCapture"
+        @open-privacy="handleOpenPrivacy"
       />
 
       <!-- Tab Overview (Default) -->
@@ -1579,6 +1597,13 @@ onMounted(() => {
     <!-- In-App Student Feedback / Request Fitur Button & Modal -->
     <FeedbackModal
       v-if="currentUserId"
+      :user-id="currentUserId"
+      :user-email="userEmail"
+    />
+
+    <!-- Privacy & Data Sovereignty Center Modal -->
+    <PrivacyModal
+      ref="privacyModalRef"
       :user-id="currentUserId"
       :user-email="userEmail"
     />
