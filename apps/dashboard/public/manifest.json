@@ -1,0 +1,23 @@
+{
+  "name": "Second Brain (Student Edition)",
+  "short_name": "SecondBrain",
+  "description": "Autonomous Life & Study Balance Hub untuk Mahasiswa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "lang": "id"
+}

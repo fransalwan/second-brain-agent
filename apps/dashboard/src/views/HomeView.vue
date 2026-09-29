@@ -11,6 +11,7 @@ import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
+import PwaInstallPrompt from '../components/PwaInstallPrompt.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
@@ -1607,5 +1608,8 @@ onMounted(() => {
       :user-id="currentUserId"
       :user-email="userEmail"
     />
+
+    <!-- PWA Install to Home Screen Prompt -->
+    <PwaInstallPrompt />
   </div>
 </template>

@@ -130,6 +130,17 @@ Dashboard web didesain dengan filosofi **True Mobile-First**:
 
 ---
 
+## 📲 Progressive Web App (PWA) & Pasang di Layar Utama HP
+
+Aplikasi ini dapat dipasang (*install*) layaknya aplikasi *native* langsung ke layar utama smartphone (Android & iOS) tanpa perlu mengunduh dari toko aplikasi:
+
+* **Android (Chrome / Edge):** Banner otomatis akan muncul ("📲 Pasang di Layar Utama HP"). Cukup tap **"Pasang Aplikasi"**, dan ikon Second Brain akan langsung berada di home screen dan app drawer HP kamu.
+* **iOS / iPhone / iPad (Safari):** Tap ikon **Share (Bagikan)** di bilah bawah Safari, lalu pilih **"Add to Home Screen" (Tambahkan ke Layar Utama)**. Panduan interaktif visual tersedia langsung di dalam aplikasi.
+* **Standalone Experience:** Berjalan dalam layar penuh (*full screen*) tanpa bilah URL browser, memberikan *feel* aplikasi native yang responsif dan fokus.
+* **Offline-Ready Caching (`sw.js`):** Asset inti aplikasi (*app shell*) di-cache secara otomatis via Service Worker untuk pemuatan halaman secepat kilat (*instant loading*) bahkan saat jaringan internet kampus sedang lambat.
+
+---
+
 ## 🏗️ Arsitektur 100% Free Tier ($0 / Bulan)
 
 Aplikasi berjalan sepenuhnya tanpa biaya server cloud:
