@@ -20,7 +20,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'hobby'): void
+  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide'): void
   (e: 'action', payload: { type: string; data?: any }): void
 }>()
 

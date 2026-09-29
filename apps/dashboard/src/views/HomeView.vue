@@ -9,8 +9,15 @@ import NotificationCenter from '../components/NotificationCenter.vue'
 import DailyBriefCard from '../components/DailyBriefCard.vue'
 import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
+import GuideTab from '../components/GuideTab.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
+
+const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
+
+function handleOpenQuickCapture() {
+  quickCaptureRef.value?.openModal()
+}
 
 function handleQuickCreated(payload: { type: string; data?: any }) {
   if (payload.type === 'task' && payload.data) {
@@ -101,7 +108,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby'>('overview')
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -878,6 +885,16 @@ onMounted(() => {
             <span>Hobby</span>
             <span class="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800">#4</span>
           </button>
+
+          <button
+            @click="activeTab = 'guide'"
+            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'guide' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+          >
+            <span>📖</span>
+            <span>Panduan</span>
+            <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-800">Tips</span>
+          </button>
         </div>
       </div>
     </header>
@@ -905,6 +922,13 @@ onMounted(() => {
       <HobbyTab
         v-else-if="activeTab === 'hobby' && currentUserId"
         :user-id="currentUserId"
+      />
+
+      <!-- Tab 5: Panduan Penggunaan -->
+      <GuideTab
+        v-else-if="activeTab === 'guide'"
+        @navigate-tab="(tab) => activeTab = tab"
+        @open-quick-capture="handleOpenQuickCapture"
       />
 
       <!-- Tab Overview (Default) -->
@@ -1545,6 +1569,7 @@ onMounted(() => {
 
     <!-- Universal Quick Capture Modal & Floating FAB Button (Ctrl+K) -->
     <QuickCaptureModal
+      ref="quickCaptureRef"
       v-if="currentUserId"
       :user-id="currentUserId"
       :areas="areas"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps<{
   userId: string
@@ -25,68 +25,84 @@ interface HobbySession {
   rechargeScore: number // 1-5 (1: draining, 5: highly rejuvenating)
 }
 
-// Data Dummy / Initial State Mahasiswa
-const hobbies = ref<HobbyItem[]>([
-  {
-    id: 1,
-    title: 'Main Black Myth: Wukong',
-    category: 'gaming',
-    status: 'in_progress',
-    targetDurationMinutes: 120,
-    totalSpentMinutes: 80,
-    notes: 'Reward setelah beres revisi Bab 2 Skripsi',
-    rating: 5,
-  },
-  {
-    id: 2,
-    title: 'Baca Buku "Atomic Habits"',
-    category: 'reading',
-    status: 'in_progress',
-    targetDurationMinutes: 30,
-    totalSpentMinutes: 20,
-    notes: '15 menit sebelum tidur malam',
-    rating: 4,
-  },
-  {
-    id: 3,
-    title: 'Futsal bareng temen kampus',
-    category: 'sports',
-    status: 'wishlist',
-    targetDurationMinutes: 90,
-    totalSpentMinutes: 0,
-    notes: 'Jadwal rutin Jumat sore lapangan kampus',
-    rating: 5,
-  },
-  {
-    id: 4,
-    title: 'Nonton Frieren: Beyond Journey\'s End',
-    category: 'movies',
-    status: 'completed',
-    targetDurationMinutes: 180,
-    totalSpentMinutes: 180,
-    notes: 'Sangat menenangkan & inspiratif',
-    rating: 5,
-  },
-])
+// Storage Key per user
+const STORAGE_KEY_HOBBIES = `secondbrain_hobbies_${props.userId}`
+const STORAGE_KEY_SESSIONS = `secondbrain_hobby_sessions_${props.userId}`
 
-const recentSessions = ref<HobbySession[]>([
-  {
-    id: 101,
-    hobbyTitle: 'Main Black Myth: Wukong',
-    category: 'gaming',
-    durationMinutes: 45,
-    loggedAt: 'Kemarin, 21:00',
-    rechargeScore: 5,
+function loadHobbies(): HobbyItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_HOBBIES)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    // Bersihkan sisa data dummy lama jika pernah tersimpan di browser
+    return parsed.filter(
+      (item: any) =>
+        item &&
+        item.title &&
+        !item.title.includes('Black Myth: Wukong') &&
+        !item.title.includes('Atomic Habits') &&
+        !item.title.includes('Frieren')
+    )
+  } catch {
+    return []
+  }
+}
+
+function loadSessions(): HobbySession[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SESSIONS)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (item: any) =>
+        item &&
+        item.hobbyTitle &&
+        !item.hobbyTitle.includes('Black Myth: Wukong') &&
+        !item.hobbyTitle.includes('Atomic Habits')
+    )
+  } catch {
+    return []
+  }
+}
+
+// State Mandiri (dimulai kosong/clean untuk user baru)
+const hobbies = ref<HobbyItem[]>(loadHobbies())
+const recentSessions = ref<HobbySession[]>(loadSessions())
+
+// Simpan otomatis ke localStorage saat ada perubahan
+watch(
+  hobbies,
+  (val) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_HOBBIES, JSON.stringify(val))
+    } catch (e) {
+      console.error('Failed to save hobbies to localStorage', e)
+    }
   },
-  {
-    id: 102,
-    hobbyTitle: 'Baca Buku "Atomic Habits"',
-    category: 'reading',
-    durationMinutes: 20,
-    loggedAt: 'Hari ini, 13:00',
-    rechargeScore: 4,
+  { deep: true }
+)
+
+watch(
+  recentSessions,
+  (val) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(val))
+    } catch (e) {
+      console.error('Failed to save sessions to localStorage', e)
+    }
   },
-])
+  { deep: true }
+)
+
+function deleteHobby(id: number) {
+  hobbies.value = hobbies.value.filter((h) => h.id !== id)
+}
+
+function deleteSession(id: number) {
+  recentSessions.value = recentSessions.value.filter((s) => s.id !== id)
+}
 
 // Filter & Category
 const selectedCategory = ref<string>('all')
@@ -379,6 +395,26 @@ function cycleStatus(item: HobbyItem) {
 
     <!-- Daftar Hobi & Aktivitas Santai -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Empty State Hobi -->
+      <div
+        v-if="filteredHobbies.length === 0"
+        class="col-span-full rounded-2xl border border-dashed border-amber-200 bg-amber-50/50 p-8 text-center space-y-3"
+      >
+        <div class="text-3xl select-none">🎯</div>
+        <h4 class="text-sm font-bold text-gray-900">Belum Ada Wishlist Hobi atau Hiburan</h4>
+        <p class="text-xs text-gray-600 max-w-md mx-auto">
+          Jangan biarkan kuliah membuatmu burnout! Tambahkan game yang ingin kamu mainkan, buku santai, film favorit, atau jadwal olahraga sebagai reward terencana.
+        </p>
+        <button
+          type="button"
+          @click="showAddModal = true"
+          class="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition-colors shadow-xs cursor-pointer"
+        >
+          <span>➕</span>
+          <span>Tambah Wishlist Hobi Pertama</span>
+        </button>
+      </div>
+
       <div
         v-for="item in filteredHobbies"
         :key="item.id"
@@ -395,19 +431,31 @@ function cycleStatus(item: HobbyItem) {
               </div>
             </div>
 
-            <!-- Status Badge Clickable -->
-            <button
-              @click="cycleStatus(item)"
-              class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-transform active:scale-95 cursor-pointer shrink-0"
-              :class="{
-                'bg-amber-100 text-amber-800': item.status === 'in_progress',
-                'bg-gray-100 text-gray-700': item.status === 'wishlist',
-                'bg-emerald-100 text-emerald-800': item.status === 'completed',
-              }"
-              title="Klik untuk mengubah status"
-            >
-              {{ item.status === 'in_progress' ? '⚡ Sedang Berjalan' : item.status === 'wishlist' ? '📋 Wishlist' : '✅ Selesai' }}
-            </button>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <!-- Status Badge Clickable -->
+              <button
+                @click="cycleStatus(item)"
+                class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-transform active:scale-95 cursor-pointer"
+                :class="{
+                  'bg-amber-100 text-amber-800': item.status === 'in_progress',
+                  'bg-gray-100 text-gray-700': item.status === 'wishlist',
+                  'bg-emerald-100 text-emerald-800': item.status === 'completed',
+                }"
+                title="Klik untuk mengubah status"
+              >
+                {{ item.status === 'in_progress' ? '⚡ Sedang Berjalan' : item.status === 'wishlist' ? '📋 Wishlist' : '✅ Selesai' }}
+              </button>
+
+              <!-- Delete Button -->
+              <button
+                type="button"
+                @click="deleteHobby(item.id)"
+                class="text-gray-300 hover:text-rose-500 p-1 text-xs cursor-pointer transition-colors"
+                title="Hapus hobi ini"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <!-- Notes -->
@@ -457,7 +505,12 @@ function cycleStatus(item: HobbyItem) {
         <span class="text-xs text-gray-400">{{ recentSessions.length }} sesi tercatat</span>
       </div>
 
-      <div class="divide-y divide-gray-100">
+      <div v-if="recentSessions.length === 0" class="py-8 text-center text-xs text-gray-400 space-y-1">
+        <p>☕ Belum ada sesi me-time yang dicatat.</p>
+        <p class="text-[11px] text-gray-400">Istirahatlah sejenak dan catat recharge energimu agar tidak burnout!</p>
+      </div>
+
+      <div v-else class="divide-y divide-gray-100">
         <div
           v-for="session in recentSessions"
           :key="session.id"
@@ -471,8 +524,18 @@ function cycleStatus(item: HobbyItem) {
             </div>
           </div>
 
-          <div class="flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-            <span class="text-[11px] font-semibold text-emerald-800">Energy Return: {{ session.rechargeScore }}/5 ⚡</span>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+              <span class="text-[11px] font-semibold text-emerald-800">Energy Return: {{ session.rechargeScore }}/5 ⚡</span>
+            </div>
+            <button
+              type="button"
+              @click="deleteSession(session.id)"
+              class="text-gray-300 hover:text-rose-500 p-1 text-xs cursor-pointer transition-colors"
+              title="Hapus sesi"
+            >
+              ✕
+            </button>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Postgres%20%2B%20RLS-3ECF8E.svg)](https://supabase.com)
 [![Notifications](https://img.shields.io/badge/Alerts-Web%20Push%20%26%20In--App%20Center-FF6F00.svg)](apps/dashboard)
 [![Quick Capture](https://img.shields.io/badge/Input-Ctrl%2BK%20%26%20Voice%20Dictation-8B5CF6.svg)](apps/dashboard)
+[![Guide](https://img.shields.io/badge/Guide-In--App%20Handbook-6366F1.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
 [![Zero Cost](https://img.shields.io/badge/Deploy-100%25%20Free%20Tier-success.svg)](netlify.toml)
 
@@ -13,7 +14,7 @@
 
 **Second Brain (Student Edition)** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
 
-Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
 
 🌐 **Akses Aplikasi (Gratis):**  
 👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
@@ -29,7 +30,18 @@ Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas determinist
 | **#1** | **🩺 Kesehatan & Vitalitas** | Paling Utama | Hidrasi 8 gelas/hari, pelacak durasi & kualitas tidur (*Sleep Debt*), jam malam (*Bedtime Guardian*), & radar risiko *burnout*. |
 | **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | Bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, *Deliverables Checklist*, dan kartu penguasaan kisi-kisi UTS/UAS (*Topic Mastery*). |
 | **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
-| **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), backlog game & buku, serta *Dopamine Return Index*. |
+| **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), wishlist personal (bersih per akun tanpa data dummy), evaluasi *Energy Return* (1–5 ⚡), dan tombol hapus wishlist. |
+
+---
+
+## 📖 Tab Panduan Penggunaan Mahasiswa (In-App Student Handbook)
+
+Agar mahasiswa baru dapat langsung menguasai ritme aplikasi tanpa kebingungan, kini tersedia tab khusus **📖 Panduan**:
+
+* **🌅 4 Langkah Alur Harian:** Panduan alur konkret dari briefing pagi (05:00), catat tugas kuliah siang, sesi riset sore, hingga cutoff malam (23:00).
+* **🎯 Kupas Tuntas 4 Pilar:** Alasan ilmiah di balik urutan prioritas Kesehatan (#1) > Kuliah (#2) > Riset (#3) > Hobby (#4).
+* **⚡ Cheat Sheet Interaktif:** Daftar sintaks Quick Capture dengan tombol **1-Klik Salin (Copy)** dan tombol **Langsung Coba Palette**.
+* **❓ FAQ Mahasiswa:** Jawaban lengkap tentang keamanan cloud (Supabase RLS), cara install PWA di HP, dan tanpa biaya langganan.
 
 ---
 

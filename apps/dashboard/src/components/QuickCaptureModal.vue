@@ -100,6 +100,13 @@ function toggleModal() {
   }
 }
 
+function openModal() {
+  isOpen.value = true
+  nextTick(() => {
+    inputRef.value?.focus()
+  })
+}
+
 function closeModal() {
   isOpen.value = false
   rawInput.value = ''
@@ -108,6 +115,12 @@ function closeModal() {
     isListening.value = false
   }
 }
+
+defineExpose({
+  openModal,
+  closeModal,
+  toggleModal,
+})
 
 // 2. Smart Client-Side Parser
 interface ParsedIntent {
