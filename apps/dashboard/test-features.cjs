@@ -172,6 +172,18 @@ const hydrationMl = hydrationGlasses * 250;
 assert(hydrationPct === 75, `Hydration percentage calculated correctly (75%)`);
 assert(hydrationMl === 1500, `Hydration volume in ml calculated correctly (1500 ml)`);
 
+// Interactive Glass Click & Toggle Logic
+function handleGlassClick(currentGlasses, clickedGlass) {
+  if (currentGlasses === clickedGlass) {
+    return clickedGlass - 1; // undo/decrement
+  }
+  return clickedGlass;
+}
+assert(handleGlassClick(0, 3) === 3, 'Clicking glass 3 when 0 filled sets to 3 glasses');
+assert(handleGlassClick(3, 3) === 2, 'Clicking active glass 3 again decrements to 2 glasses (undo)');
+assert(handleGlassClick(1, 1) === 0, 'Clicking active glass 1 decrements to 0 glasses');
+assert(handleGlassClick(2, 5) === 5, 'Clicking glass 5 when at 2 jumps to 5 glasses');
+
 // -----------------------------------------------------------------------------
 // 5. UNIVERSAL QUICK CAPTURE CLIENT-SIDE REGEX PARSER TESTS
 // -----------------------------------------------------------------------------

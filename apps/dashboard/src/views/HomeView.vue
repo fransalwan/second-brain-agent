@@ -11,14 +11,11 @@ import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
-import PwaInstallPrompt from '../components/PwaInstallPrompt.vue'
-import PomodoroModal from '../components/PomodoroModal.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
 const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
-const pomodoroModalRef = ref<InstanceType<typeof PomodoroModal> | null>(null)
 
 function handleOpenQuickCapture() {
   quickCaptureRef.value?.openModal()
@@ -803,7 +800,7 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold tracking-tight text-gray-900 sm:text-lg">Second Brain</h1>
-              <span class="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">v2.1.0 Student</span>
+              <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Dashboard</span>
             </div>
             <p class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
               <span v-if="profile?.full_name" class="font-semibold text-gray-800">{{ profile.full_name }}</span>
@@ -825,19 +822,6 @@ onMounted(() => {
             :active-timer="activeTimer"
             @navigate-tab="(tab) => activeTab = tab"
           />
-
-          <!-- Pomodoro Focus Timer Pill -->
-          <button
-            type="button"
-            @click="pomodoroModalRef?.openModal()"
-            class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer select-none"
-            :class="pomodoroModalRef?.isRunning ? 'border-rose-300 bg-rose-50 text-rose-800 animate-pulse' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'"
-            title="Focus & Pomodoro Timer Hub"
-          >
-            <span>🍅</span>
-            <span>{{ pomodoroModalRef?.formattedTime || '25:00' }}</span>
-            <span v-if="pomodoroModalRef?.isRunning" class="hidden md:inline text-[10px] font-bold text-rose-600">(Aktif)</span>
-          </button>
 
           <!-- Indikator Jadwal -->
           <div v-if="profile" class="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
@@ -1623,15 +1607,5 @@ onMounted(() => {
       :user-id="currentUserId"
       :user-email="userEmail"
     />
-
-    <!-- Pomodoro Focus Timer Modal -->
-    <PomodoroModal
-      ref="pomodoroModalRef"
-      v-if="currentUserId"
-      :user-id="currentUserId"
-    />
-
-    <!-- PWA Install to Home Screen Prompt -->
-    <PwaInstallPrompt />
   </div>
 </template>
