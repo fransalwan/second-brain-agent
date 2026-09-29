@@ -5,6 +5,10 @@ import HealthTab from '../components/HealthTab.vue'
 import CourseworkTab from '../components/CourseworkTab.vue'
 import ResearchTab from '../components/ResearchTab.vue'
 import HobbyTab from '../components/HobbyTab.vue'
+import NotificationCenter from '../components/NotificationCenter.vue'
+import DailyBriefCard from '../components/DailyBriefCard.vue'
+
+const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
 interface ProfileItem {
   id?: string
@@ -190,6 +194,109 @@ function getTodayIso(): string {
 }
 
 const todayIso = getTodayIso()
+
+async function handleToggleTask(taskId: number) {
+  const target = tasks.value.find((t) => t.id === taskId)
+  if (!target) return
+  const newStatus = target.status === 'completed' ? 'pending' : 'completed'
+  const completedAt = newStatus === 'completed' ? new Date().toISOString() : null
+
+  target.status = newStatus
+  target.completed_at = completedAt
+
+  try {
+    await supabase
+      .from('tasks')
+      .update({
+        status: newStatus,
+        completed_at: completedAt,
+      })
+      .eq('id', taskId)
+  } catch (err) {
+    console.error('Failed to update task status:', err)
+  }
+}
+
+const newTimerProject = ref('')
+const startingTimer = ref(false)
+const stoppingTimer = ref(false)
+
+async function handleStartTimer() {
+  if (!newTimerProject.value.trim() || !currentUserId.value) return
+  startingTimer.value = true
+  try {
+    const startedAt = new Date().toISOString()
+    const { data } = await supabase
+      .from('time_logs')
+      .insert({
+        user_id: currentUserId.value,
+        project_name: newTimerProject.value.trim(),
+        started_at: startedAt,
+        ended_at: null,
+        duration_minutes: null,
+      })
+      .select()
+      .single()
+
+    if (data) {
+      timeLogs.value.unshift(data)
+      newTimerProject.value = ''
+    }
+  } catch (err) {
+    console.error('Failed to start timer:', err)
+  } finally {
+    startingTimer.value = false
+  }
+}
+
+async function handleStopTimer(logId: number) {
+  stoppingTimer.value = true
+  try {
+    const end = new Date()
+    const target = timeLogs.value.find((t) => t.id === logId)
+    if (target) {
+      const start = new Date(target.started_at)
+      const diffMinutes = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60)))
+      target.ended_at = end.toISOString()
+      target.duration_minutes = diffMinutes
+
+      await supabase
+        .from('time_logs')
+        .update({
+          ended_at: end.toISOString(),
+          duration_minutes: diffMinutes,
+        })
+        .eq('id', logId)
+    }
+  } catch (err) {
+    console.error('Failed to stop timer:', err)
+  } finally {
+    stoppingTimer.value = false
+  }
+}
+
+async function handleToggleHabit(habitId: number) {
+  const existingLogIndex = habitLogs.value.findIndex(
+    (l) => l.habit_id === habitId && l.completed_date === todayIso
+  )
+  if (existingLogIndex >= 0) {
+    const logId = habitLogs.value[existingLogIndex].id
+    habitLogs.value.splice(existingLogIndex, 1)
+    await supabase.from('habit_logs').delete().eq('id', logId)
+  } else {
+    const { data } = await supabase
+      .from('habit_logs')
+      .insert({
+        habit_id: habitId,
+        completed_date: todayIso,
+      })
+      .select()
+      .single()
+    if (data) {
+      habitLogs.value.push(data)
+    }
+  }
+}
 
 const areaMap = computed(() => {
   const map: Record<number, string> = {}
@@ -678,6 +785,18 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-2.5">
+          <!-- Notification Center In-App -->
+          <NotificationCenter
+            v-if="currentUserId"
+            :user-id="currentUserId"
+            :tasks="tasks"
+            :habits="habits"
+            :habit-logs="habitLogs"
+            :profile="profile"
+            :active-timer="activeTimer"
+            @navigate-tab="(tab) => activeTab = tab"
+          />
+
           <!-- Indikator Jadwal -->
           <div v-if="profile" class="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
             <span>☀️ Brief: <strong class="text-gray-800">{{ profile.brief_time?.slice(0, 5) || '07:00' }}</strong></span>
@@ -777,10 +896,25 @@ onMounted(() => {
 
       <!-- Tab Overview (Default) -->
       <div v-else-if="activeTab === 'overview'" class="space-y-6">
-      <!-- Card Status & Penautan Telegram (Selalu Aksesibel di Smartphone & Desktop) -->
-      <div
-        v-if="profileLoaded"
-        class="rounded-2xl border transition-all shadow-xs"
+        <!-- Daily In-App Brief & Evening Review Widget -->
+        <DailyBriefCard
+          v-if="profileLoaded"
+          :full-name="profile?.full_name"
+          :email="userEmail"
+          :brief-time="profile?.brief_time"
+          :night-cutoff-time="profile?.night_cutoff_time"
+          :tasks="tasks"
+          :time-logs="timeLogs"
+          :habits="habits"
+          :habit-logs="habitLogs"
+          @navigate-tab="(tab) => activeTab = tab"
+          @toggle-task="handleToggleTask"
+        />
+
+        <!-- Card Status & Penautan Telegram (Hidden by default, fokus dashboard mandiri) -->
+        <div
+          v-if="SHOW_TELEGRAM_INTEGRATION && profileLoaded"
+          class="rounded-2xl border transition-all shadow-xs"
         :class="profile?.telegram_chat_id ? 'border-emerald-200 bg-emerald-50/70 p-4 sm:p-5' : 'border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950'"
       >
         <!-- KONDISI 1: SUDAH TERHUBUNG -->
@@ -936,9 +1070,14 @@ onMounted(() => {
               </h2>
             </div>
           </div>
-          <div class="text-xs text-emerald-800 bg-emerald-100/70 border border-emerald-200 rounded-lg px-3 py-1.5 self-start sm:self-auto">
-            Ketik <strong>/stop</strong> di Telegram untuk menghentikan sesi ini
-          </div>
+          <button
+            type="button"
+            @click="handleStopTimer(activeTimer.id)"
+            :disabled="stoppingTimer"
+            class="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+          >
+            {{ stoppingTimer ? 'Menyimpan...' : '⏹️ Selesai Sesi Fokus' }}
+          </button>
         </div>
       </div>
 
@@ -1056,6 +1195,17 @@ onMounted(() => {
                 :key="task.id"
                 class="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3 group"
               >
+                <!-- Quick Checkbox Toggle -->
+                <button
+                  type="button"
+                  @click="handleToggleTask(task.id)"
+                  class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all cursor-pointer"
+                  :class="task.status === 'completed' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 hover:border-gray-500 bg-white'"
+                  :title="task.status === 'completed' ? 'Tandai belum selesai' : 'Tandai selesai'"
+                >
+                  <span v-if="task.status === 'completed'" class="text-xs font-bold leading-none">✓</span>
+                </button>
+
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-1.5">
                     <span
@@ -1130,24 +1280,34 @@ onMounted(() => {
 
             <div v-if="habits.length === 0" class="py-6 text-center text-xs text-gray-500">
               Belum ada habit yang didaftarkan.<br />
-              Kirim <code>tambah habit [nama]</code> di Telegram.
+              Pantau rutinitas belajarmu di sini setiap hari.
             </div>
 
             <ul v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <li
                 v-for="h in habitsWithStatus"
                 :key="h.id"
+                @click="handleToggleHabit(h.id)"
                 :class="[
-                  'rounded-lg border p-3 flex items-center justify-between transition-all',
-                  h.isCompletedToday ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50/40'
+                  'rounded-xl border p-3 flex items-center justify-between transition-all cursor-pointer hover:shadow-xs',
+                  h.isCompletedToday ? 'border-emerald-200 bg-emerald-50/60' : 'border-gray-200 bg-gray-50/50 hover:bg-white'
                 ]"
+                :title="h.isCompletedToday ? 'Klik untuk batal centang' : 'Klik untuk menyelesaikan habit hari ini'"
               >
                 <div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-sm">{{ h.isCompletedToday ? '✅' : '⏳' }}</span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all text-xs font-bold leading-none cursor-pointer"
+                      :class="h.isCompletedToday ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white text-transparent'"
+                    >
+                      ✓
+                    </button>
                     <span class="text-sm font-semibold text-gray-900">{{ h.name }}</span>
                   </div>
-                  <span class="text-[11px] text-gray-500 mt-0.5 block">ID #{{ h.id }}</span>
+                  <span class="text-[11px] text-gray-500 mt-1 ml-7 block">
+                    {{ h.isCompletedToday ? '✓ Selesai hari ini' : 'Ketuk untuk ceklis' }}
+                  </span>
                 </div>
                 <div class="text-right">
                   <span
@@ -1175,8 +1335,27 @@ onMounted(() => {
               <span class="text-xs text-gray-400">30 sesi terakhir</span>
             </div>
 
+            <!-- Quick Start Timer Input In-App -->
+            <div class="mb-3.5 flex items-center gap-2">
+              <input
+                v-model="newTimerProject"
+                type="text"
+                placeholder="Nama tugas atau materi kuliah..."
+                class="block w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-gray-900 focus:outline-none min-h-[40px]"
+                @keyup.enter="handleStartTimer"
+              />
+              <button
+                type="button"
+                @click="handleStartTimer"
+                :disabled="startingTimer || !newTimerProject.trim()"
+                class="rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-gray-800 disabled:opacity-50 transition-colors shrink-0 min-h-[40px] cursor-pointer shadow-2xs"
+              >
+                {{ startingTimer ? '...' : '▶️ Mulai' }}
+              </button>
+            </div>
+
             <div v-if="timeLogs.length === 0" class="py-6 text-center text-xs text-gray-500">
-              Belum ada riwayat fokus. Mulai dengan mengirim <code>mulai [project]</code> di Telegram.
+              Belum ada riwayat fokus. Masukkan nama tugas di atas lalu klik Mulai.
             </div>
 
             <ul v-else class="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">

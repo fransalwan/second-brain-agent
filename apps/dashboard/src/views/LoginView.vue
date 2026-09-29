@@ -282,8 +282,8 @@ async function handleRegister() {
               <span>Anti-Ghosting Dosen Radar (&gt;14 Hari)</span>
             </span>
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800/80 px-3 py-1.5 text-slate-300 border border-slate-700/60">
-              <span>🤖</span>
-              <span>Google Gemini 2.5 Flash + Telegram</span>
+              <span>🔔</span>
+              <span>In-App Smart Briefing & Web Push</span>
             </span>
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800/80 px-3 py-1.5 text-slate-300 border border-slate-700/60">
               <span>⚡</span>
@@ -491,8 +491,8 @@ async function handleRegister() {
 
         <!-- Footer Help Link -->
         <div class="pt-2 text-center text-[11px] text-slate-500">
-          <span>Tersinkronisasi otomatis dengan bot Telegram Second Brain via </span>
-          <code class="text-indigo-400 font-mono">/connect [email]</code>
+          <span>Akses mandiri & terlindungi via </span>
+          <span class="text-indigo-400 font-semibold">Supabase Row-Level Security</span>
         </div>
       </div>
     </div>
