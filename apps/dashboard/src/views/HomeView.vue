@@ -7,8 +7,21 @@ import ResearchTab from '../components/ResearchTab.vue'
 import HobbyTab from '../components/HobbyTab.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
 import DailyBriefCard from '../components/DailyBriefCard.vue'
+import QuickCaptureModal from '../components/QuickCaptureModal.vue'
+import FeedbackModal from '../components/FeedbackModal.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
+
+function handleQuickCreated(payload: { type: string; data?: any }) {
+  if (payload.type === 'task' && payload.data) {
+    tasks.value.unshift(payload.data)
+  } else if (payload.type === 'note' && payload.data) {
+    notes.value.unshift(payload.data)
+    initGraphData()
+  } else if (payload.type === 'timer' && payload.data) {
+    timeLogs.value.unshift(payload.data)
+  }
+}
 
 interface ProfileItem {
   id?: string
@@ -1529,5 +1542,20 @@ onMounted(() => {
       </div>
       </div>
     </main>
+
+    <!-- Universal Quick Capture Modal & Floating FAB Button (Ctrl+K) -->
+    <QuickCaptureModal
+      v-if="currentUserId"
+      :user-id="currentUserId"
+      :areas="areas"
+      @created="handleQuickCreated"
+    />
+
+    <!-- In-App Student Feedback / Request Fitur Button & Modal -->
+    <FeedbackModal
+      v-if="currentUserId"
+      :user-id="currentUserId"
+      :user-email="userEmail"
+    />
   </div>
 </template>
