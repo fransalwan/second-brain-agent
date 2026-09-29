@@ -803,7 +803,7 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold tracking-tight text-gray-900 sm:text-lg">Second Brain</h1>
-              <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Dashboard</span>
+              <span class="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">v2.1.0 Student</span>
             </div>
             <p class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
               <span v-if="profile?.full_name" class="font-semibold text-gray-800">{{ profile.full_name }}</span>

@@ -64,7 +64,7 @@ async function handleExportData() {
 
     const backupPayload = {
       app: 'Second Brain (Student Edition)',
-      version: '2.0.0',
+      version: '2.1.0',
       exportedAt: new Date().toISOString(),
       account: {
         id: props.userId,

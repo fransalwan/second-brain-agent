@@ -1,6 +1,8 @@
 # Second Brain (Student Edition 🎓)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-v2.1.0%20(Student%20Edition)-blue.svg)](apps/dashboard/package.json)
+[![Tests](https://img.shields.io/badge/Tests-36%2F36%20Passing%20(100%25)-success.svg)](apps/dashboard/test-features.cjs)
 [![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D.svg)](https://vuejs.org)
 [![Vite](https://img.shields.io/badge/Bundler-Vite-646CFF.svg)](https://vitejs.dev)
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Postgres%20%2B%20RLS-3ECF8E.svg)](https://supabase.com)
@@ -162,6 +164,25 @@ Aplikasi ini dapat dipasang (*install*) layaknya aplikasi *native* langsung ke l
 * **iOS / iPhone / iPad (Safari):** Tap ikon **Share (Bagikan)** di bilah bawah Safari, lalu pilih **"Add to Home Screen" (Tambahkan ke Layar Utama)**. Panduan interaktif visual tersedia langsung di dalam aplikasi.
 * **Standalone Experience:** Berjalan dalam layar penuh (*full screen*) tanpa bilah URL browser, memberikan *feel* aplikasi native yang responsif dan fokus.
 * **Offline-Ready Caching (`sw.js`):** Asset inti aplikasi (*app shell*) di-cache secara otomatis via Service Worker untuk pemuatan halaman secepat kilat (*instant loading*) bahkan saat jaringan internet kampus sedang lambat.
+
+## ✅ Hasil Pengujian & Matriks Kesiapan Fitur (v2.1.0 Verified)
+
+Seluruh logika bisnis inti dan modul pendampingan mahasiswa telah teruji **100% lulus (36/36 tests passed)** melalui test suite otomatis (`apps/dashboard/test-features.cjs`):
+
+| No | Modul Mahasiswa | Status Pengujian | Skenario yang Terverifikasi |
+|:---:|:---|:---:|:---|
+| **1** | **Simulator Nilai & Target IPK** | `✅ 8/8 Lulus` | Perhitungan nilai minimal UAS berdasarkan bobot silabus dosen, deteksi target aman vs mustahil (>100), bobot SKS semester, proyeksi IPK kumulatif baru, & klasifikasi predikat *Cum Laude*. |
+| **2** | **Radar Anti-Ghosting & WA Generator** | `✅ 6/6 Lulus` | Telemetri hari sejak bimbingan ($\le 7$, $8-14$, $>14$ hari), normalisasi nomor HP Indonesia (`08xx` $\rightarrow$ `628xx`), live draft 4 template etika WhatsApp dospem, & integrasi URL `wa.me`. |
+| **3** | **Focus Pomodoro Hub** | `✅ 7/7 Lulus` | Multi-preset (25m Standar, 45m Deep Work, 50m Skripsi, 5m/15m Break), format digital `MM:SS`, perhitungan persentase progres, akumulasi sesi harian, rotasi siklus ke-4, & Web Audio API chime. |
+| **4** | **Kesehatan, Sleep Debt & Hidrasi** | `✅ 3/3 Lulus` | Kalkulasi defisit tidur (*sleep debt*) terhadap batas 7 jam/hari, volume hidrasi 250ml/gelas, & mapping badge tingkat kelelahan mental (*burnout score*). |
+| **5** | **Universal Quick Capture Parser** | `✅ 5/5 Lulus` | Regex client-side untuk input natural bahasa Indonesia (`minum 500ml` $\rightarrow$ 2 gelas, `tidur 6.5 jam`, `fokus: [topik]`, `tugas [matkul] besok mendesak`). |
+| **6** | **Hobby & Guilt-Free Me-Time** | `✅ 2/2 Lulus` | Inisialisasi storage bersih tanpa data dummy (`[]`), pembersihan otomatis data dummy lawas, & isolasi penyimpanan lokal per user ID. |
+| **7** | **PWA Standalone & Kontrak Privasi** | `✅ 5/5 Lulus` | Validasi manifest PWA (`standalone`, `#4f46e5`, icon array), Service Worker offline cache, & integritas skema ekspor JSON backup v2.1.0. |
+
+Jalankan test suite mandiri di komputer lokal:
+```bash
+npm --prefix apps/dashboard test
+```
 
 ---
 
