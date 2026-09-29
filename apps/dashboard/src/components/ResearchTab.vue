@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { supabase } from '../lib/supabase'
+import DospemFollowupModal from './DospemFollowupModal.vue'
 
 const props = defineProps<{
   userId: string
@@ -40,6 +41,11 @@ const metrics = ref<ExperimentMetric[]>([])
 
 const showSupervisionModal = ref(false)
 const showMetricModal = ref(false)
+const dospemModalRef = ref<InstanceType<typeof DospemFollowupModal> | null>(null)
+
+function openDospemModal(template?: 'request_schedule' | 'submit_draft' | 'gentle_followup' | 'exam_approval') {
+  dospemModalRef.value?.openModal(template)
+}
 
 // Forms
 const supervisionForm = ref({
@@ -302,6 +308,14 @@ onMounted(() => {
         </div>
         <div class="flex flex-wrap gap-2">
           <button
+            type="button"
+            @click="openDospemModal('request_schedule')"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-xs font-semibold text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer"
+          >
+            <span>💬</span>
+            <span>Draft WA Dospem</span>
+          </button>
+          <button
             @click="showSupervisionModal = true"
             class="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-gray-800 transition-colors cursor-pointer"
           >
@@ -421,17 +435,48 @@ onMounted(() => {
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6 flex flex-col justify-between">
           <div>
-            <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
               <div class="flex items-center gap-2">
                 <span class="text-xl">👨‍🏫</span>
                 <h3 class="text-sm font-bold text-gray-900">Catatan Bimbingan Dospem</h3>
               </div>
-              <span
-                class="text-xs px-2.5 py-0.5 rounded-full border shadow-2xs"
-                :class="antiGhostingStatus.color"
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="openDospemModal(daysSinceLastSupervision && daysSinceLastSupervision >= 14 ? 'gentle_followup' : 'request_schedule')"
+                  class="text-[11px] font-bold text-purple-700 hover:text-purple-900 cursor-pointer flex items-center gap-1 hover:underline"
+                  title="Buat draf pesan chat WhatsApp ke dosen"
+                >
+                  <span>💬 Chat Dospem</span>
+                </button>
+                <span
+                  class="text-xs px-2.5 py-0.5 rounded-full border shadow-2xs"
+                  :class="antiGhostingStatus.color"
+                >
+                  {{ antiGhostingStatus.text }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Anti-Ghosting Urgent Alert Banner (>= 14 hari) -->
+            <div
+              v-if="daysSinceLastSupervision !== null && daysSinceLastSupervision >= 14"
+              class="mt-3 rounded-xl border border-rose-200 bg-rose-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-pulse"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-lg">⚠️</span>
+                <p class="text-xs text-rose-900 leading-snug">
+                  <strong>Radar Anti-Ghosting:</strong> Sudah <strong>{{ daysSinceLastSupervision }} hari</strong> tidak bimbingan. Hubungi dospem hari ini agar skripsi tidak macet!
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="openDospemModal('gentle_followup')"
+                class="shrink-0 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
               >
-                {{ antiGhostingStatus.text }}
-              </span>
+                <span>💬</span>
+                <span>Follow-Up Santun</span>
+              </button>
             </div>
 
             <div v-if="supervisionLogs.length === 0" class="py-8 text-center text-xs text-gray-400">
@@ -700,5 +745,13 @@ onMounted(() => {
         </form>
       </div>
     </div>
+
+    <!-- Dospem WhatsApp Generator Modal -->
+    <DospemFollowupModal
+      ref="dospemModalRef"
+      :user-id="props.userId"
+      :last-supervision-days="daysSinceLastSupervision"
+      :active-chapters="chapters"
+    />
   </div>
 </template>
