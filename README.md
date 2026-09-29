@@ -6,6 +6,7 @@
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Postgres%20%2B%20RLS-3ECF8E.svg)](https://supabase.com)
 [![Notifications](https://img.shields.io/badge/Alerts-Web%20Push%20%26%20In--App%20Center-FF6F00.svg)](apps/dashboard)
 [![Quick Capture](https://img.shields.io/badge/Input-Ctrl%2BK%20%26%20Voice%20Dictation-8B5CF6.svg)](apps/dashboard)
+[![Simulator](https://img.shields.io/badge/Academic-Grade%20%26%20GPA%20Simulator-3B82F6.svg)](apps/dashboard)
 [![Guide](https://img.shields.io/badge/Guide-In--App%20Handbook-6366F1.svg)](apps/dashboard)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Zero%20Tracking-10B981.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
@@ -15,7 +16,7 @@
 
 **Second Brain (Student Edition)** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
 
-Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Simulator Target Nilai & IPK Semester**, **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
 
 🌐 **Akses Aplikasi (Gratis):**  
 👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
@@ -29,7 +30,7 @@ Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas determinist
 | No | Pilar | Prioritas | Fitur Unggulan Mahasiswa |
 |:---:|:---|:---:|:---|
 | **#1** | **🩺 Kesehatan & Vitalitas** | Paling Utama | Hidrasi 8 gelas/hari, pelacak durasi & kualitas tidur (*Sleep Debt*), jam malam (*Bedtime Guardian*), & radar risiko *burnout*. |
-| **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | Bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, *Deliverables Checklist*, dan kartu penguasaan kisi-kisi UTS/UAS (*Topic Mastery*). |
+| **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | **Simulator Target Nilai Ujian & IPK Semester**, bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, dan kisi-kisi UTS/UAS. |
 | **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
 | **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), wishlist personal (bersih per akun tanpa data dummy), evaluasi *Energy Return* (1–5 ⚡), dan tombol hapus wishlist. |
 
@@ -43,6 +44,23 @@ Agar mahasiswa baru dapat langsung menguasai ritme aplikasi tanpa kebingungan, k
 * **🎯 Kupas Tuntas 4 Pilar:** Alasan ilmiah di balik urutan prioritas Kesehatan (#1) > Kuliah (#2) > Riset (#3) > Hobby (#4).
 * **⚡ Cheat Sheet Interaktif:** Daftar sintaks Quick Capture dengan tombol **1-Klik Salin (Copy)** dan tombol **Langsung Coba Palette**.
 * **❓ FAQ Mahasiswa:** Jawaban lengkap tentang keamanan cloud (Supabase RLS), cara install PWA di HP, dan tanpa biaya langganan.
+
+---
+
+## 🎯 Simulator Nilai Ujian & Target IPK Semester (Academic Simulator)
+
+Menghapus kecemasan mahasiswa menjelang musim ujian akhir:
+
+* **🎯 Target Skor Ujian (Komponen Silabus Dosen):**
+  * Masukkan bobot komponen silabus dosen: Tugas (20%), Kuis/Lab (15%), UTS (30%), UAS (35%).
+  * Masukkan nilai yang sudah didapat dan pilih target huruf mutu akhir (A / AB / B / BC / C).
+  * Sistem menghitung secara otomatis nilai UAS minimal yang harus dicapai:
+    > *"Kamu butuh nilai minimal **78.5 pada UAS** untuk mengamankan nilai **A (4.0)**."*
+  * Jika target mustahil (> 100), sistem otomatis merekomendasikan target terbaik berikutnya.
+* **📈 Simulator IPK Semester & Kumulatif:**
+  * Input SKS per mata kuliah dan target nilai huruf (A, AB, B, BC, C, D, E).
+  * Menghitung proyeksi **IPS (Indeks Prestasi Semester)** dan proyeksi **IPK Kumulatif Baru** beserta indikator kenaikan/penurunan (contoh: `+0.08` 🔺) dan status predikat (*Cum Laude / Sangat Memuaskan*).
+  * Tersimpan otomatis per akun secara lokal (*localStorage persistent*).
 
 ---
 
@@ -99,20 +117,6 @@ Dashboard dilengkapi saluran masukan langsung agar mahasiswa bisa memberikan fee
 * **Tombol Melayang:** `💬 Curhat / Request Fitur` di pojok kiri bawah dashboard.
 * **Modal Penilaian Instan:** Pilih kategori (*Request Fitur*, *Lapor Bug*, *Review*), beri rating 1–5 ⭐, dan tuliskan pesan yang langsung tersimpan di database.
 * **Script Generator Google Form:** Disediakan script otomatis Google Apps Script di [`scripts/google_form_creator.js`](scripts/google_form_creator.js) untuk menghasilkan form kuesioner evaluasi 9 pertanyaan dalam 1 klik via [script.new](https://script.new).
-
----
-
-## 🛡️ Privasi, Keamanan & Kedaulatan Data Mahasiswa
-
-Kekhawatiran bahwa data ide riset skripsi atau rutinitas pribadi dilacak adalah hal yang sangat wajar. Oleh karena itu, Second Brain dibangun dengan filosofi **Zero-Trust & Privacy-First**:
-
-* **🚫 Tanpa Iklan & Tanpa Tracker Pihak Ketiga:** Tidak ada Google Analytics, Facebook Pixel, Hotjar, atau adware komersial. Data kamu tidak pernah dijual atau dimonetisasi.
-* **🔒 Isolasi Ketat PostgreSQL RLS:** Seluruh baris database diproteksi oleh *Row Level Security* (RLS) di Supabase. Hanya kamu yang memegang hak akses untuk membaca dan memodifikasi data akunmu.
-* **💻 Pemrosesan Sisi-Klien (Client-Side First):**
-  * *Smart Regex Quick Capture* berjalan 100% di memori browser (RAM perangkatmu), bukan dikirim ke server backend.
-  * *Speech Recognition (Dikte Suara)* memanfaatkan Web Speech API bawaan perangkat tanpa menyimpan rekaman audio di server.
-* **📦 Kedaulatan Data (1-Click JSON Backup):** Kamu tidak terkunci di aplikasi ini. Kapan pun kamu butuh salinan fisik seluruh tugas kuliah, catatan riset, atau riwayat waktu fokus, unduh semuanya dalam format JSON standar melalui menu **🛡️ Privasi**.
-* **🗑️ Hak Penghapusan Permanen (Right to Erasure / Self-Destruct):** Tombol 1-klik untuk menghapus akun dan seluruh baris datamu dari database cloud seketika tanpa jejak.
 
 ---
 

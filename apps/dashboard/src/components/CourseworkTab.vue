@@ -62,6 +62,10 @@ const assignments = ref<Assignment[]>([])
 const exams = ref<Exam[]>([])
 const projects = ref<CourseProject[]>([])
 
+// Sub-View Switcher: Tasks/Exams vs Simulator
+import GradeGpaSimulator from './GradeGpaSimulator.vue'
+const activeSubView = ref<'tasks' | 'simulator'>('tasks')
+
 // Filter & Sort
 const assignmentFilter = ref<'all' | 'pending' | 'completed'>('pending')
 const courseFilter = ref<string>('all')
@@ -453,8 +457,41 @@ onMounted(() => {
     </div>
 
     <div v-else class="space-y-6">
-      <!-- 1. Assignments Section -->
-      <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
+      <!-- Sub-View Navigation Switcher -->
+      <div class="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          type="button"
+          @click="activeSubView = 'tasks'"
+          class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer"
+          :class="activeSubView === 'tasks' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'"
+        >
+          <span>📋</span>
+          <span>Tugas, Ujian &amp; Tubes</span>
+        </button>
+
+        <button
+          type="button"
+          @click="activeSubView = 'simulator'"
+          class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer"
+          :class="activeSubView === 'simulator' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'"
+        >
+          <span>🎯</span>
+          <span>Simulator Nilai &amp; Target IPK</span>
+          <span class="rounded-full bg-amber-400 text-amber-950 px-1.5 py-0.2 text-[10px] font-extrabold uppercase">Baru ✨</span>
+        </button>
+      </div>
+
+      <!-- Tab Content: Simulator Nilai & IPK -->
+      <GradeGpaSimulator
+        v-if="activeSubView === 'simulator'"
+        :user-id="props.userId"
+        :existing-courses="distinctCourses"
+      />
+
+      <!-- Tab Content: Tugas, Ujian & Tubes -->
+      <div v-else-if="activeSubView === 'tasks'" class="space-y-6">
+        <!-- 1. Assignments Section -->
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-gray-100">
           <div>
             <div class="flex items-center gap-2">
@@ -765,6 +802,7 @@ onMounted(() => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
