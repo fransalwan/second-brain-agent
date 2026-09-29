@@ -1,98 +1,139 @@
-# Second Brain Agent (Student Edition 🎓)
+# Second Brain (Student Edition 🎓)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D.svg)](https://vuejs.org)
-[![Telegram](https://img.shields.io/badge/Interface-Telegram%20Bot-24A1DE.svg)](https://t.me/BotFather)
+[![Vite](https://img.shields.io/badge/Bundler-Vite-646CFF.svg)](https://vitejs.dev)
+[![Supabase](https://img.shields.io/badge/Backend-Supabase%20Postgres%20%2B%20RLS-3ECF8E.svg)](https://supabase.com)
+[![Notifications](https://img.shields.io/badge/Alerts-Web%20Push%20%26%20In--App%20Center-FF6F00.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
 [![Zero Cost](https://img.shields.io/badge/Deploy-100%25%20Free%20Tier-success.svg)](netlify.toml)
 
 > **"Lulus Skripsi & Kuliah Sukses, Tetap Sehat, dan Me-Time Tanpa Rasa Bersalah."**
 
-**Second Brain Agent (Student Edition)** adalah asisten kecerdasan buatan (*Autonomous AI Copilot*) hibrida yang menyatukan kenyamanan bot Telegram ambient dengan Web Dashboard interaktif modern berbasis **Mobile-First**. Dirancang khusus untuk memecahkan beban mental mahasiswa, skripsi yang macet, dan burnout akibat tugas menumpuk.
+**Second Brain (Student Edition)** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
+
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Pusat Notifikasi Cerdas (In-App Notification Center)** dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
 
 ---
 
 ## 🧭 4 Pilar Kehidupan Mahasiswa
 
-Second Brain Agent mengatur ritme hidup mahasiswa dengan prinsip prioritas deterministik teruji:
+Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas deterministik teruji:
 
 | No | Pilar | Prioritas | Fitur Unggulan Mahasiswa |
 |:---:|:---|:---:|:---|
-| **#1** | **🩺 Kesehatan & Vitalitas** | Paling Utama | Hidrasi 8 gelas/hari, kalkulator *Sleep Debt*, batas jam malam (*Bedtime Guardian*), & radar risiko *burnout*. |
-| **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | Filter bobot SKS & urgensi tugas, *Tubes Milestone Hub* 4-tahap, dan radar kesiapan UTS/UAS. |
+| **#1** | **🩺 Kesehatan & Vitalitas** | Paling Utama | Hidrasi 8 gelas/hari, pelacak durasi & kualitas tidur (*Sleep Debt*), jam malam (*Bedtime Guardian*), & radar risiko *burnout*. |
+| **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | Bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, *Deliverables Checklist*, dan kartu penguasaan kisi-kisi UTS/UAS (*Topic Mastery*). |
 | **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
 | **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), backlog game & buku, serta *Dopamine Return Index*. |
 
 ---
 
-## 📱 Mobile-First Experience
+## 🔔 In-App Notification Center & Web Push Engine
 
-Dashboard web didesain dengan filosofi **True Mobile-First** agar mahasiswa dapat mengaksesnya langsung dari smartphone saat di kampus, perpustakaan, atau kosan:
+Tidak perlu lagi bergantung pada aplikasi chat eksternal. Semua pengingat dan briefing penting dikelola langsung dari dalam dashboard:
 
-- **Bottom Floating Navigation Bar (Thumb Zone):** Navigasi pilar hidup ditaruh di bawah layar layaknya aplikasi native iOS/Android, mudah dijangkau dengan jempol satu tangan.
-- **Touch-Ready Interactive Knowledge Graph:** Graf simpul catatan ide dan koneksi riset dapat digeser dan ditata langsung via layar sentuh (*touch gestures*).
-- **Zero-Friction Student Onboarding:** Mahasiswa dengan email kampus (`@mail.ugm.ac.id`, `@ui.ac.id`, `@itb.ac.id`, dll.) langsung terverifikasi instan via database trigger tanpa tersangkut spam filter.
-- **Standar Sentuh 44px+:** Semua tombol, input, dan switch dirancang empuk dan bebas dari bug auto-zoom Safari iOS.
+* **Lonceng Notifikasi di Navbar:** Dilengkapi *Badge Counter* merah yang berdenyut aktif jika ada tugas mendesak (*urgent*).
+* **Notification Drawer Interaktif:**
+  * ☀️ **Morning Briefing:** Rangkuman otomatis tugas pending dan target fokus setiap pagi (05.00–12.00).
+  * 🌙 **Night Wind-Down:** Peringatan ramah saat kamu masih membuka tugas melewati jam tidur malam (`23:00`).
+  * 🚨 **Alert Deadline:** Peringatan tugas yang jatuh tempo hari ini atau H-2 dengan tombol aksi langsung.
+  * 🧘 **Habit Reminder:** Peringatan kebiasaan aktif yang belum dicentang hari ini.
+  * ⏱️ **Active Focus Session:** Indikator waktu deep work yang sedang berjalan.
+* **Browser Push Notification (PWA):** Cukup klik *"Aktifkan 🔔"*, dan perangkatmu (HP & Laptop) akan memunculkan pop-up notifikasi resmi bahkan saat tab browser sedang diminimalkan.
+* **Gentle Sound Chime (Web Audio API):** Efek suara sintetis lembut bawaan browser tanpa perlu aset audio eksternal.
 
 ---
 
-## ⚡ Arsitektur 100% Free ($0 / Bulan)
+## ⚡ Kontrol Interaktif End-to-End di Web
 
-Aplikasi ini dirancang cerdas agar mahasiswa dapat menjalankannya secara **100% GRATIS seumur hidup** tanpa biaya server:
+Seluruh pengelolaan dapat diselesaikan langsung dalam genggaman:
+
+* **Daily Briefing Card Adaptif:** Menyapa ramah di beranda, menyajikan 4 metrik kilat (Pending, Selesai, Waktu Fokus, Habit), dan kartu tugas genting yang bisa diceklis langsung.
+* **Centang Tugas Instan:** Tombol ceklis `[✓]` di samping setiap tugas pada daftar.
+* **Timer Fokus Terintegrasi:** Masukkan nama proyek di Riwayat Fokus, tekan `▶️ Mulai`, dan akhiri dengan tombol `⏹️ Selesai Sesi Fokus` kapan saja.
+* **Checklist Kebiasaan 1-Tap:** Ketuk kartu habit untuk langsung mencatat pencapaian harian dan menghitung streak berturut-turut.
+* **Interactive Knowledge Graph:** Graf simpul catatan ide dan koneksi riset yang dapat digeser dan ditata langsung via layar sentuh (*touch gestures*).
+
+---
+
+## 📱 Mobile-First Design (Thumb Zone)
+
+Dashboard web didesain dengan filosofi **True Mobile-First**:
+
+* **Bottom Floating Navigation Bar:** Navigasi 4 pilar di bawah layar ramah jempol (*Thumb Zone*), mempermudah navigasi satu tangan di smartphone.
+* **Touch Target Nyaman (44px+):** Seluruh tombol dan form dirancang empuk dan bebas dari gangguan auto-zoom pada browser smartphone.
+* **Zero-Friction Student Onboarding:** Mahasiswa dapat mendaftar langsung menggunakan email kampus atau pribadi dengan verifikasi otomatis instan.
+
+---
+
+## 🏗️ Arsitektur 100% Free Tier ($0 / Bulan)
+
+Aplikasi berjalan sepenuhnya tanpa biaya server cloud:
 
 ```mermaid
 flowchart TD
-    subgraph Cloud_Free ["100% Free Cloud Services"]
-        N["Netlify Free Hosting<br/>(apps/dashboard Vue 3 SPA)"] -->|Auth & Query Data| S[("Supabase Cloud Free Tier<br/>(PostgreSQL + RLS + Auto-Confirm)")]
-        User["Mahasiswa di Smartphone / Laptop"] -->|Akses Dashboard 24/7| N
+    subgraph Client ["Pengguna (Smartphone & Laptop)"]
+        UI["Vue 3 SPA Dashboard<br/>(PWA Mobile-First)"]
+        NOTIF["In-App Notification Hub<br/>+ Web Push API"]
+        GRAPH["Interactive Knowledge Graph<br/>(Canvas Touch-Ready)"]
     end
 
-    subgraph Local_Device ["Laptop Pribadi (1-Click run_local.bat)"]
-        B["FastAPI Backend & Telegram Bot<br/>(Long-Polling: Tanpa IP Publik / Port)"] -->|Sync State / Logs| S
-        TG["Telegram Cloud"] <-->|Long-Polling Polling| B
-        EXP["Local Git: thesis-experiments"] -->|Bridge Telemetry| B
-        MAN["Local Git: thesis-manuscripts"] -->|Supervision Sync| B
+    subgraph Cloud ["100% Free Cloud Infrastructure"]
+        NETLIFY["Netlify Free Hosting<br/>(SSL + Global CDN)"]
+        SUPABASE[("Supabase Cloud Free Tier<br/>PostgreSQL + Auth + Row Level Security")]
     end
+
+    NETLIFY -->|Serve Static SPA| UI
+    UI <-->|Auth, RLS Query & Realtime Data| SUPABASE
+    UI --> NOTIF
+    UI --> GRAPH
 ```
 
-1. **Frontend Dashboard di Netlify (100% Free):** Hosting statis SPA yang terhubung langsung ke Supabase client-side. Live 24/7 di `https://your-app.netlify.app`.
-2. **Database & Auth di Supabase (100% Free):** PostgreSQL cloud dengan enkripsi *Row Level Security* (RLS).
-3. **Backend & Bot Telegram di Local Laptop (`run_local.bat`):** Menggunakan mekanisme **Long-Polling** — bot langsung aktif menjemput pesan ke server Telegram tanpa membutuhkan domain, IP publik, atau biaya server cloud.
+1. **Frontend Dashboard di Netlify (100% Free):** Hosting statis SPA yang terhubung langsung ke Supabase client-side. Live 24/7 di `https://rain-agent.netlify.app`.
+2. **Database & Auth di Supabase (100% Free):** PostgreSQL cloud dengan proteksi data ketat via *Row Level Security* (RLS).
+3. **Optional Backend (FastAPI / Bot Daemon):** Tersedia di folder `apps/backend` bagi pengguna tingkat lanjut yang ingin mengaktifkan sinkronisasi bot Telegram headless di komputer lokal.
 
 ---
 
-## 🚀 Panduan Cepat Memulai (3 Langkah)
+## 🚀 Panduan Memulai Cepat
 
-### Langkah 1: Buat Akun di Web Dashboard
-1. Buka dashboard web Second Brain (`http://localhost:5173` atau link Netlify kamu).
-2. Di tab **Daftar Baru (Sign Up)**, isi Nama Lengkap, Email Kampus/Pribadi, dan Password.
-3. Klik **Buat Akun Sekarang** — akun langsung aktif dan otomatis masuk ke dashboard.
+### 1. Buka Web Dashboard
+Kunjungi dashboard yang sudah aktif di:
+👉 **[rain-agent.netlify.app](https://rain-agent.netlify.app)**
 
-### Langkah 2: Tautkan Akun ke Bot Telegram
-Kirim perintah ini ke bot Telegram Second Brain kamu:
-```
-/connect email@kampus.ac.id
-```
-*(Akun langsung tersinkronisasi detik itu juga!)*
+### 2. Buat Akun Mahasiswa
+1. Di tab **Daftar Baru (Sign Up)**, isi Nama Lengkap, Email Kampus/Pribadi, dan Password.
+2. Klik **Buat Akun Mahasiswa Baru** — akun langsung aktif dan otomatis masuk ke dashboard.
 
-### Langkah 3: Gunakan Kapan Saja!
-- **Kirim Voice Note:** Rekam suara saat di jalan; Gemini Audio mentranskripsikannya otomatis menjadi tugas atau catatan riset.
-- **Log Bimbingan:** Kirim `/bimbingan dosen minta revisi metodologi Bab 3`
-- **Catat Metrik Eksperimen:** `/metric ResNet50 Akurasi: 92.4% | Epoch: 50`
-- **Jaga Kesehatan:** Kirim `/minum` (+250ml) atau `/tidur 7.5`
-- **Me-Time Santai:** Kirim `/chill` saat penat untuk rekomendasi recharge.
+### 3. Aktifkan Notifikasi Web
+1. Klik ikon lonceng **🔔** di kanan atas navbar.
+2. Klik tombol **Aktifkan 🔔** untuk mengizinkan Browser Push Notifications.
+3. Selesai! Kamu siap mengelola kuliah, riset, dan kesehatan dalam satu tempat.
 
 ---
 
-## 🛠️ Modul Akademik & Riset (IEEE LaTeX Ready)
+## 💻 Menjalankan di Komputer Lokal
 
-Second Brain Agent memiliki jembatan telemetri khusus ke repository riset:
-* [`thesis-experiments`](https://github.com/fransalwan/thesis-experiments): Melacak metrik evaluasi model (FDR, SRA, Wilcoxon).
-* [`thesis-manuscripts`](https://github.com/fransalwan/thesis-manuscripts): Notulensi bimbingan bab 1–5 & peringatan dospem.
+Jika ingin mengembangkan dashboard secara lokal:
 
-### 📄 1-Klik Ekspor Tabel LaTeX untuk Overleaf
+```bash
+# 1. Clone repository
+git clone https://github.com/fransalwan/second-brain-agent.git
+cd second-brain-agent/apps/dashboard
+
+# 2. Pasang dependensi
+npm install
+
+# 3. Jalankan server lokal
+npm run dev
+```
+Buka browser di `http://localhost:5173`.
+
+---
+
+## 🛠️ Modul Riset (IEEE LaTeX Ready)
+
 Di tab **🔬 Riset**, cukup klik tombol **"Ekspor LaTeX"**, dan sistem otomatis menghasilkan kode tabel standar IEEE yang siap di-paste ke naskah Overleaf kamu:
 
 ```latex
@@ -111,49 +152,6 @@ ResNet-18 Benchmark & Batch: 64 & Akurasi: 88.2\% \\
 \end{tabular}
 \end{table}
 ```
-
----
-
-## 💻 Menjalankan di Komputer Lokal
-
-### 1. Clone & Setup Backend
-```bash
-git clone https://github.com/fransalwan/second-brain-agent.git
-cd second-brain-agent/apps/backend
-uv sync
-cp .env.example .env
-```
-Isi konfigurasi di `.env` (Token Telegram, Supabase URL, Google Gemini API Key).
-
-### 2. Jalankan Sekali Klik (Windows)
-Cukup **double-click** file di root folder:
-```
-run_local.bat
-```
-FastAPI backend dan Telegram Bot polling akan langsung menyala secara bersamaan!
-
-### 3. Jalankan Frontend Dashboard
-```bash
-cd apps/dashboard
-npm install
-npm run dev
-```
-Buka browser di `http://localhost:5173/login`.
-
----
-
-## 🌐 Deploy Dashboard ke Netlify (2 Menit)
-
-1. Buka [app.netlify.com](https://app.netlify.com) dan login dengan akun GitHub kamu.
-2. Klik **"Add new site"** ➔ **"Import an existing project"** ➔ Pilih repo `second-brain-agent`.
-3. Konfigurasi build (otomatis terbaca dari `netlify.toml`):
-   - **Base directory:** `apps/dashboard`
-   - **Build command:** `npm run build`
-   - **Publish directory:** `dist`
-4. Tambahkan Environment Variables:
-   - `VITE_SUPABASE_URL` = `<url_supabase>`
-   - `VITE_SUPABASE_ANON_KEY` = `<anon_key>`
-5. Klik **Deploy**! Dashboard langsung live di domain Netlify gratis dengan HTTPS.
 
 ---
 
