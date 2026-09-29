@@ -164,6 +164,33 @@ async function toggleHealthCheck(field: 'took_vitamin' | 'did_stretch') {
   }
 }
 
+async function setBurnoutScore(score: number) {
+  if (saving.value) return
+  saving.value = true
+  try {
+    const current = healthCheck.value
+    const { data, error } = await supabase
+      .from('health_check_logs')
+      .upsert({
+        user_id: props.userId,
+        date: todayIso,
+        took_vitamin: current?.took_vitamin ?? false,
+        did_stretch: current?.did_stretch ?? false,
+        burnout_score: Math.max(0, Math.min(100, score)),
+      }, { onConflict: 'user_id,date' })
+      .select()
+      .single()
+
+    if (!error && data) {
+      healthCheck.value = data
+    }
+  } catch (err) {
+    console.error('Gagal update skor burnout:', err)
+  } finally {
+    saving.value = false
+  }
+}
+
 // Sleep Modal Submit
 async function submitSleepLog() {
   if (saving.value) return
@@ -414,6 +441,45 @@ onMounted(() => {
             <p class="text-[11px] text-gray-600 leading-relaxed">
               {{ burnoutBadge.advice }}
             </p>
+          </div>
+
+          <!-- Interactive Burnout Level Presets -->
+          <div class="mt-3.5 space-y-1.5">
+            <span class="text-[11px] font-bold text-gray-700">Set Tingkat Kelelahan Mental Hari Ini:</span>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+              <button
+                type="button"
+                @click="setBurnoutScore(20)"
+                class="rounded-xl px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer text-center"
+                :class="burnoutScore <= 30 ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-emerald-50'"
+              >
+                🟢 Prima (20)
+              </button>
+              <button
+                type="button"
+                @click="setBurnoutScore(50)"
+                class="rounded-xl px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer text-center"
+                :class="burnoutScore > 30 && burnoutScore <= 60 ? 'bg-amber-600 text-white border-amber-600 shadow-2xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-amber-50'"
+              >
+                🟡 Lelah (50)
+              </button>
+              <button
+                type="button"
+                @click="setBurnoutScore(75)"
+                class="rounded-xl px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer text-center"
+                :class="burnoutScore > 60 && burnoutScore <= 80 ? 'bg-orange-600 text-white border-orange-600 shadow-2xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-orange-50'"
+              >
+                🟠 Ngebul (75)
+              </button>
+              <button
+                type="button"
+                @click="setBurnoutScore(95)"
+                class="rounded-xl px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer text-center"
+                :class="burnoutScore > 80 ? 'bg-rose-600 text-white border-rose-600 shadow-2xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-rose-50'"
+              >
+                🔴 Drop (95)
+              </button>
+            </div>
           </div>
 
           <!-- Daily Health Check Items -->

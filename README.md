@@ -8,6 +8,7 @@
 [![Quick Capture](https://img.shields.io/badge/Input-Ctrl%2BK%20%26%20Voice%20Dictation-8B5CF6.svg)](apps/dashboard)
 [![Simulator](https://img.shields.io/badge/Academic-Grade%20%26%20GPA%20Simulator-3B82F6.svg)](apps/dashboard)
 [![Anti Ghosting](https://img.shields.io/badge/Thesis-Anti--Ghosting%20Dospem-EC4899.svg)](apps/dashboard)
+[![Pomodoro Focus](https://img.shields.io/badge/Focus-Pomodoro%20%26%20Deep%20Work-E11D48.svg)](apps/dashboard)
 [![Guide](https://img.shields.io/badge/Guide-In--App%20Handbook-6366F1.svg)](apps/dashboard)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Zero%20Tracking-10B981.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
@@ -62,6 +63,28 @@ Menghapus kecemasan mahasiswa menjelang musim ujian akhir:
   * Input SKS per mata kuliah dan target nilai huruf (A, AB, B, BC, C, D, E).
   * Menghitung proyeksi **IPS (Indeks Prestasi Semester)** dan proyeksi **IPK Kumulatif Baru** beserta indikator kenaikan/penurunan (contoh: `+0.08` 🔺) dan status predikat (*Cum Laude / Sangat Memuaskan*).
   * Tersimpan otomatis per akun secara lokal (*localStorage persistent*).
+
+---
+
+## 🍅 Focus Pomodoro Hub & Stasiun Pemulihan Energi Mahasiswa
+
+Beban belajar mahasiswa menuntut ritme kerja terstruktur tanpa memicu kelelahan mental (*brain fog*):
+
+* **Live Navbar Timer Pill (`🍅 25:00`):**
+  * Terpasang langsung di bilah navigasi atas dashboard. Timer tetap berdetak dan berkedip aktif (*pulse animation*) saat mahasiswa berpindah-pindah antar tab (*Coursework, Research, Health, Hobby*).
+* **Multi-Preset Durasi Deep Work:**
+  * **🍅 25m (Standar Pomodoro):** Pilihan optimal untuk kuis, latihan soal, atau membaca materi kuliah.
+  * **🎯 45m (Deep Work):** Sesi mendalam untuk modul koding, analisis data, atau pengerjaan tugas besar (*tubes*).
+  * **📖 50m (Penulisan Skripsi):** Sesi intensif untuk menyusun draf bab naskah tugas akhir.
+  * **☕ 5m (Short Break):** Jeda rileksasi mata dan peregangan leher/bahu.
+  * **🌿 15m (Long Break):** Istirahat panjang setiap menyelesaikan 4 siklus fokus.
+* **Auto-Chime & Browser Push:**
+  * Lonceng lembut sintetis berbunyi instan via Web Audio API saat timer usai, disertai pesan notifikasi resmi browser.
+* **Target Fokus & Rekap Sesi Harian:**
+  * Kolom catatan fokus: *"Sedang fokus pada: [Tugas/Bab]"*.
+  * Pelacak akumulasi harian: *"🔥 4 Sesi (100 Menit Fokus) hari ini"*.
+* **Status Pemulihan Mental Interaktif (Health Tab):**
+  * Tombol 1-klik untuk memilih kondisi fisik/mental hari ini: **🟢 Prima (20)**, **🟡 Lelah (50)**, **🟠 Overload/Ngebul (75)**, atau **🔴 Drop/Zombie Mode (95)** yang tersimpan ke cloud Supabase realtime.
 
 ---
 
