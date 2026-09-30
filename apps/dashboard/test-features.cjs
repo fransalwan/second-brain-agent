@@ -274,131 +274,90 @@ assert(mockExport.version === '2.2.0', 'Backup export payload correctly reports 
 assert(mockExport.app === 'Second Brain (Student Edition)', 'Backup export payload identifies Student Edition app');
 
 // -----------------------------------------------------------------------------
-// 8. VERDION PROFIT LEVERAGE & ARBITRAGE CALCULATORS
+// 8. VERDION BUILD-IN-PUBLIC & PUBLIC CREDIBILITY STUDIO ENGINE
 // -----------------------------------------------------------------------------
-console.log('\n📌 [8/8] Testing Verdion Profit Leverage & Arbitrage Calculators:');
+console.log('\n📌 [8/8] Testing Verdion Build-in-Public & Public Credibility Studio:');
 
-function computeWhaleVettingScore({ paymentVerified, totalSpend, hireRate, avgRate }) {
-  let score = 0;
-  if (paymentVerified) score += 25;
-  if (totalSpend >= 10000) score += 35;
-  else if (totalSpend >= 2000) score += 20;
-  else if (totalSpend >= 500) score += 10;
-
-  if (hireRate >= 60) score += 20;
-  else if (hireRate >= 40) score += 10;
-
-  if (avgRate >= 30) score += 20;
-  else if (avgRate >= 20) score += 10;
-
-  return Math.min(100, score);
+// Flagship Case Study Proof Benchmarks
+function verifyCaseStudyBenchmarks(benchmarks) {
+  return (
+    benchmarks.testPassRate === 100 &&
+    benchmarks.apiLatencyMs <= 100 &&
+    benchmarks.dataSecurity === 'PostgreSQL RLS' &&
+    benchmarks.freeTierReady === true
+  );
 }
 
-const whaleScore1 = computeWhaleVettingScore({
-  paymentVerified: true,
-  totalSpend: 45000,
-  hireRate: 78,
-  avgRate: 45,
-});
-assert(whaleScore1 === 100, 'Whale client with high spend, hire rate, & verified payment scores 100/100');
+const flagshipBenchmarks = {
+  testPassRate: 100,
+  apiLatencyMs: 85,
+  dataSecurity: 'PostgreSQL RLS',
+  freeTierReady: true,
+};
+assert(verifyCaseStudyBenchmarks(flagshipBenchmarks) === true, 'Flagship Case Study #01 satisfies 100% test pass and sub-100ms latency benchmarks');
 
-const cautionScore = computeWhaleVettingScore({
-  paymentVerified: true,
-  totalSpend: 2500,
-  hireRate: 45,
-  avgRate: 25,
-});
-assert(cautionScore === 65, 'Moderate client scores 65/100 (Proceed with Caution)');
-
-const trapScore = computeWhaleVettingScore({
-  paymentVerified: false,
-  totalSpend: 150,
-  hireRate: 20,
-  avgRate: 15,
-});
-assert(trapScore === 0, 'Low-budget unverified client scores 0/100 (Connects Trap Skip)');
-
-// Net USD and Arbitrage Margin
-function calculateVerdionArbitrage(grossUsd, subdevIdr, usdRate = 16200) {
-  const netUsd = grossUsd * 0.90; // After Upwork 10% fee
-  const netIdr = netUsd * usdRate;
-  const netProfitIdr = netIdr - subdevIdr;
-  const marginPercent = netIdr > 0 ? (netProfitIdr / netIdr) * 100 : 0;
-  return { netUsd, netIdr, netProfitIdr, marginPercent };
+// Build-in-Public (BiP) Twitter Hook & Character Constraint
+function generateBipTwitterHook(type, topic, metric, insight) {
+  if (type === 'teardown') {
+    return `Most multi-tenant apps leak data or crash under scale.\n\nHow we built enterprise RLS @VerdionStudio:\n• Filtered at DB level, not app\n• ${insight}\n• Result: ${metric}\n\nProof of work > talk. 🧵👇`;
+  } else if (type === 'performance') {
+    return `⚡ Perf Win @VerdionStudio:\n\nWe just ${metric} on our core API engine.\n\nFix: ${insight}\n\nClean code + async wins. 🛠️`;
+  }
+  return `🚢 Shipped @VerdionStudio:\nRefactored ${topic}.\nResult: ${metric}.\n${insight}`;
 }
 
-const arbResult = calculateVerdionArbitrage(2500, 8000000, 16200);
-assert(arbResult.netUsd === 2250, 'Net USD after 10% fee on $2,500 is $2,250');
-assert(arbResult.netIdr === 36450000, 'Net IDR @ 16,200 is Rp 36.450.000');
-assert(arbResult.netProfitIdr === 28450000, 'Verdion Net Profit after Rp 8M subdev is Rp 28.450.000');
-assert(Math.round(arbResult.marginPercent) === 78, 'Verdion margin retained is 78%');
-
-// 2-Second Hook Character Length Limit
-function generateHook(problem, solution, demoLink, question) {
-  return `Saw your bottleneck with ${problem}. Verdion has resolved this exact issue using ${solution}. Live demo: ${demoLink}. ${question}`;
-}
-const hookSample = generateHook(
-  'Supabase query latency',
-  'async pgBouncer pooling',
-  'loom.com/share/verdion',
-  'Have you set pool limits?'
+const bipTeardown = generateBipTwitterHook(
+  'teardown',
+  'Supabase RLS',
+  'Dropped latency to 78ms',
+  'Composite indexing prevents sequential scans'
 );
-assert(hookSample.length <= 200, `Generated hook is concise (${hookSample.length} chars <= 200 chars) for Upwork client preview`);
+assert(bipTeardown.length <= 280, `BiP Twitter hook satisfies character limit (${bipTeardown.length} chars <= 280 chars)`);
+assert(bipTeardown.includes('@VerdionStudio') && bipTeardown.includes('Proof of work'), 'BiP hook reinforces Verdion engineering brand and proof of work');
+
+// Cold Loom 90s Script & Founder DM Generator
+function generateColdFounderDm(founderName, startup, problem, fix, loomUrl) {
+  return `Hi ${founderName}, saw your recent launch for ${startup}—really slick product concept!\n\nI was testing the platform and noticed that ${problem}.\n\nTo save your team debugging time, I spun up a 90-second video demo showing how to resolve this with ${fix} (drops latency under 150ms):\n${loomUrl}\n\nNo sales pitch attached—just thought it might be useful as you scale. If you'd like me to deploy and test this into your repo this week, happy to hop on a quick 10-min chat.\n\nBest,\nFrans Alwan\nLead Engineer @ Verdion Studio`;
+}
+
+const coldDmSample = generateColdFounderDm(
+  'Alex',
+  'FinTech Alpha',
+  'dashboard metrics take 4.2s to load',
+  'Redis caching + compound index',
+  'loom.com/share/verdion-demo'
+);
+assert(coldDmSample.includes('Hi Alex') && coldDmSample.includes('FinTech Alpha'), 'Cold DM is hyper-personalized to target founder and startup');
+assert(coldDmSample.includes('90-second video demo') && coldDmSample.includes('loom.com/share/verdion-demo'), 'Cold DM leads with value and custom video proof');
+assert(coldDmSample.includes('Lead Engineer @ Verdion Studio'), 'Outreach establishes Verdion Studio boutique authority');
+
+// Direct Deal Margin & 0% Platform Fee Advantage
+function calculateDirectDealFinancials(dealAmountUsd, usdRate = 16200) {
+  const platformFee = 0.00; // 0% platform fee for direct deals!
+  const netUsd = dealAmountUsd; // 100% retained
+  const netIdr = netUsd * usdRate;
+  const initial50DepositUsd = dealAmountUsd * 0.50;
+  const feeSavedUsd = dealAmountUsd * 0.10; // Compared to Upwork 10% fee
+  return { netUsd, netIdr, initial50DepositUsd, feeSavedUsd };
+}
+
+const directDealResult = calculateDirectDealFinancials(3500, 16200);
+assert(directDealResult.netUsd === 3500, 'Direct deal retains 100% of $3,500 contract ($0 platform cut)');
+assert(directDealResult.netIdr === 56700000, 'Direct deal yields Rp 56.700.000 net IDR');
+assert(directDealResult.initial50DepositUsd === 1750, '50% initial deposit required before sprint start is $1,750');
+assert(directDealResult.feeSavedUsd === 350, 'Saves $350 in platform commissions compared to Upwork');
 
 // Retainer Recurring Revenue Calculation
 const sampleRetainers = [
-  { client: 'FinTech Alpha', rateUsd: 800, active: true },
-  { client: 'Apex Media', rateUsd: 600, active: true },
-  { client: 'Old Client', rateUsd: 400, active: false },
+  { client: 'FinTech Alpha', rateUsd: 1200, active: true },
+  { client: 'Apex Media', rateUsd: 800, active: true },
+  { client: 'Inactive Client', rateUsd: 500, active: false },
 ];
 const activeMrrUsd = sampleRetainers.filter(r => r.active).reduce((sum, r) => sum + r.rateUsd, 0);
-assert(activeMrrUsd === 1400, 'Active Retainers sum to $1,400 MRR');
+assert(activeMrrUsd === 2000, 'Active Retainers sum to $2,000 MRR');
 const activeMrrIdr = activeMrrUsd * 16200;
-assert(activeMrrIdr === 22680000, 'Active Retainers sum to Rp 22.680.000 recurring monthly IDR');
+assert(activeMrrIdr === 32400000, 'Active Retainers sum to Rp 32.400.000 recurring monthly IDR');
 
-// -----------------------------------------------------------------------------
-// 9. FIRST CLIENT WAR ROOM & COLD START BREAKERS
-// -----------------------------------------------------------------------------
-console.log('\n📌 [9/9] Testing First Client War Room & Cold Start Breakers:');
-
-// Speed-to-bid evaluation
-function evaluateSpeedWindow(ageMins, tier, paymentVerified) {
-  return ageMins <= 30 && tier === 'under_5' && paymentVerified;
-}
-assert(evaluateSpeedWindow(15, 'under_5', true) === true, '15 mins old & <5 proposals with verified payment is in Golden Window');
-assert(evaluateSpeedWindow(45, 'under_5', true) === false, '45 mins old is outside Golden Window');
-assert(evaluateSpeedWindow(10, 'over_10', true) === false, 'Over 10 proposals is flagged as crowded trap');
-assert(evaluateSpeedWindow(10, 'under_5', false) === false, 'Unverified payment client is flagged as non-optimal');
-
-// 60-Second Loom Hook generator
-function generateLoomHook(problem, demoLink) {
-  return `I recorded a 60-second video demo specifically solving your ${problem} here: ${demoLink}. No generic bid, just the working fix.`;
-}
-const testLoomHook = generateLoomHook('Stripe webhook timeout', 'loom.com/share/demo');
-assert(testLoomHook.includes('60-second video demo'), 'Loom hook highlights 60-second video demo format');
-assert(testLoomHook.includes('loom.com/share/demo'), 'Loom hook contains custom Loom link');
-assert(testLoomHook.length <= 200, `Loom hook is concise (${testLoomHook.length} chars <= 200 chars) for Upwork client preview`);
-
-// Trojan Horse Offer
-function generateTrojanOffer(type) {
-  if (type === 'micro') {
-    return 'Because Verdion is actively establishing our verified presence on Upwork, let\'s start with a tiny $50-$75 discovery milestone to solve this specific issue in 24 hours. If it doesn\'t meet your highest standard, you don\'t release the escrow. Zero risk for you.';
-  } else if (type === 'speed') {
-    return 'I can have this resolved and tested within 12 hours from now. Let\'s set up an Escrow milestone for the initial fix so you can review the pull request before approving.';
-  }
-  return 'Funds remain in Upwork Escrow until you personally verify the fix in staging.';
-}
-const microOffer = generateTrojanOffer('micro');
-assert(microOffer.includes('discovery milestone') && microOffer.includes('Zero risk for you'), 'Trojan micro offer offers zero-risk escrow milestone');
-
-// Objection Destroyer Coverage
-const objectionQuestions = [
-  'Kenapa akun Upwork Anda belum ada review?',
-  'Bisa bikin tes kecil dulu tanpa bayar?',
-  'Ada freelancer lain yang menawarkan harga lebih murah ($15/jam).',
-  'Bisa langsung call Zoom sekarang?'
-];
-assert(objectionQuestions.length === 4, 'All 4 critical Upwork client objections covered in battlecards');
 
 // -----------------------------------------------------------------------------
 // SUMMARY

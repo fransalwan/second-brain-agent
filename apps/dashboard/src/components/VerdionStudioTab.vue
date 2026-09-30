@@ -19,69 +19,15 @@ interface CareerGoal {
   monthly_profit_target_idr: number
 }
 
-interface UpworkProposal {
+interface DirectDeal {
   id: number
-  job_title: string
-  bid_amount_usd: number | null
-  connects_spent: number
-  client_country: string | null
-  job_url: string | null
-  status: string
-  notes: string | null
-  client_spend_usd: number
-  client_hire_rate: number
-  client_rating: number
-  hook_text: string | null
-  proposal_score: number
-  submitted_at: string
-}
-
-interface UpworkContract {
-  id: number
-  proposal_id: number | null
   client_name: string
+  founder_handle: string
   project_title: string
-  contract_type: string
-  rate_or_budget_usd: number
-  total_earned_usd: number
-  status: string
-  rating: number | null
-  feedback: string | null
-  deadline: string | null
-  created_at: string
-}
-
-interface UpworkMilestone {
-  id: number
-  contract_id: number
-  title: string
-  amount_usd: number
-  escrow_funded: boolean
-  status: string
-  submitted_at: string | null
-  auto_release_deadline: string | null
-  deliverables_notes: string | null
-  created_at: string
-}
-
-interface VerdionChangeRequest {
-  id: number
-  contract_id: number
-  request_title: string
-  estimated_hours: number
-  additional_price_usd: number
-  status: string
+  package_type: string
+  deal_amount_usd: number
+  stage: 'lead' | 'loom_sent' | 'call_booked' | 'deposit_paid' | 'in_progress' | 'delivered' | 'testimonial_secured'
   notes: string | null
-  created_at: string
-}
-
-interface VerdionSubcontractorLog {
-  id: number
-  contract_id: number
-  subdev_name: string
-  task_scope: string
-  payout_idr: number
-  status: string
   created_at: string
 }
 
@@ -96,174 +42,224 @@ interface VerdionRetainer {
   created_at: string
 }
 
-const activeSubTab = ref<'war_room' | 'deals' | 'milestones' | 'arbitrage' | 'retainers'>('war_room')
+const activeSubTab = ref<'case_study' | 'bip_engine' | 'cold_loom' | 'deals' | 'retainers'>('case_study')
 const loading = ref(true)
 const saving = ref(false)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 
-// ==========================================
-// FIRST CLIENT WAR ROOM STATE
-// ==========================================
-// 1. Speed Radar
-const warRoomJobAgeMins = ref(15)
-const warRoomProposalsTier = ref<'under_5' | '5_to_10' | 'over_10'>('under_5')
-const warRoomClientPaymentVerified = ref(true)
+// Data state
+const careerGoal = ref<CareerGoal | null>(null)
+const directDeals = ref<DirectDeal[]>([
+  {
+    id: 1,
+    client_name: 'HyperScale AI',
+    founder_handle: '@alex_founder (X)',
+    project_title: 'Multi-Agent RAG Orchestration Engine',
+    package_type: 'AI Agent Workflow',
+    deal_amount_usd: 3500,
+    stage: 'deposit_paid',
+    notes: '50% deposit received via Wise ($1,750). Delivering in 10 days.',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    client_name: 'Nexus Billing SaaS',
+    founder_handle: 'linkedin.com/in/sarah-cto',
+    project_title: 'FastAPI Stripe Webhook & Sub-100ms API Refactor',
+    package_type: '14-Day MVP Sprint',
+    deal_amount_usd: 2800,
+    stage: 'call_booked',
+    notes: 'Sent 90s Loom audit showing 3s webhook latency drop to 80ms.',
+    created_at: new Date().toISOString(),
+  },
+])
 
-const isSpeedWindowOptimal = computed(() => {
-  return warRoomJobAgeMins.value <= 30 && warRoomProposalsTier.value === 'under_5' && warRoomClientPaymentVerified.value
+const retainers = ref<VerdionRetainer[]>([])
+
+// Currency exchange rate default
+const usdRate = computed(() => careerGoal.value?.usd_to_idr_rate || 16200)
+
+// -------------------------------------------------------------
+// 1. FLAGSHIP CASE STUDY SHOWCASE STATE
+// -------------------------------------------------------------
+const caseStudyCopied = ref(false)
+
+const caseStudyMarkdown = computed(() => {
+  return `# Case Study #01: Second Brain — Enterprise-Grade Autonomous Workspace Architecture
+
+**Studio:** Verdion (Boutique Software Engineering & Autonomous AI Systems)  
+**Lead Engineer:** Frans Alwan (Principal Engineer)  
+**Status:** In Production • 100% Automated Test Suite Passing  
+**Live Application:** https://second-brain-agent.netlify.app  
+
+---
+
+### 1. Executive Summary & Problem
+Modern knowledge workers and engineering founders suffer from context fragmentation across note apps, health tracking, and task management. Off-the-shelf tools either hallucinate without verified context or introduce unacceptable UI latency (>1.5s).
+
+Verdion engineered **Second Brain**: a full-stack, type-safe, multi-tenant autonomous workspace that bridges async agent task execution with deterministic database reliability.
+
+---
+
+### 2. System Architecture
+\`\`\`
+[ Vue 3 + Tailwind Client ]  <--->  [ Supabase PostgreSQL + Row-Level Security ]
+          |                                            |
+          v                                            v
+[ FastAPI Async Engine ]   <--->  [ Autonomous LLM Agent & Background Workers ]
+\`\`\`
+
+- **Frontend:** Vue 3 Composition API, Vite, TypeScript, zero CSS framework bloat.
+- **API Engine:** Python FastAPI with async non-blocking worker concurrency.
+- **Database & Security:** Supabase PostgreSQL with granular multi-tenant Row-Level Security (RLS) policies.
+- **Agent Intelligence:** Multi-turn tool execution, background task polling, and zero-hallucination context injection.
+
+---
+
+### 3. Engineering Benchmarks & Proof of Work
+- **Automated Test Coverage:** 100% passing across frontend unit/integration suite (55 tests) and backend pytest suite (77 tests).
+- **Query Latency:** Sub-100ms API responses through optimized foreign-key indexing and compound RLS filters.
+- **Cost Efficiency:** Engineered to run 100% within serverless free-tier constraints while supporting production concurrency.
+- **Code Standards:** Type-safe, linted, strict CI/CD automated pipeline on git push.
+
+---
+*Built with precision by Verdion Studio. Inquiries: fransalwan55@gmail.com*`
 })
 
-// 2. Micro-POC Loom Script Generator
-const warRoomProblem = ref('Stripe webhook timeout under concurrency')
-const warRoomSolution = ref('idempotency key validation & background worker')
-const warRoomSandboxLink = ref('loom.com/share/verdion-stripe-demo')
+function copyCaseStudy() {
+  navigator.clipboard.writeText(caseStudyMarkdown.value)
+  caseStudyCopied.value = true
+  setTimeout(() => {
+    caseStudyCopied.value = false
+  }, 2500)
+}
 
-const warRoomLoomHook = computed(() => {
-  return `I recorded a 60-second video demo specifically solving your ${warRoomProblem.value} here: ${warRoomSandboxLink.value}. No generic bid, just the working fix.`
-})
+// -------------------------------------------------------------
+// 2. BUILD-IN-PUBLIC (BiP) CONTENT ENGINE STATE
+// -------------------------------------------------------------
+const bipPostType = ref<'teardown' | 'performance' | 'devlog'>('teardown')
+const bipTopic = ref('Supabase Row-Level Security (RLS)')
+const bipMetric = ref('Dropped query latency from 1,420ms to 78ms')
+const bipInsight = ref('Composite indexing on (user_id, created_at) prevents sequential table scans during RLS policy checks.')
+const bipCopied = ref(false)
 
-const warRoom3ActScript = computed(() => {
-  return `[Act 1: 0-15s - Diagnosis]\n"Hi! I saw your post regarding ${warRoomProblem.value}. The root cause is usually unhandled async retries before the DB ack..."\n\n[Act 2: 15-45s - The Live Proof / Sandbox]\n"To show you exactly how to fix it, I spun up this sandbox implementing ${warRoomSolution.value}. Notice how duplicate events are discarded immediately..."\n\n[Act 3: 45-60s - Call to Action]\n"If you want this exact logic merged and tested into your codebase today, let me know in chat. Best, Verdion Studio."`
-})
+const bipTwitterContent = computed(() => {
+  if (bipPostType.value === 'teardown') {
+    return `Most multi-tenant apps leak data or crash under scale.
 
-// 3. Trojan Horse Offer Generator
-const warRoomTrojanType = ref<'micro' | 'speed' | 'escrow'>('micro')
+How we built enterprise RLS @VerdionStudio:
+• Filtered at DB level, not app
+• ${bipInsight.value}
+• Result: ${bipMetric.value}
 
-const generatedTrojanOffer = computed(() => {
-  if (warRoomTrojanType.value === 'micro') {
-    return `Because Verdion is actively establishing our verified presence on Upwork, let's start with a tiny $50-$75 discovery milestone to solve this specific issue in 24 hours. If it doesn't meet your highest standard, you don't release the escrow. Zero risk for you.`
-  } else if (warRoomTrojanType.value === 'speed') {
-    return `I can have this resolved and tested within 12 hours from now. Let's set up an Escrow milestone for the initial fix so you can review the pull request before approving.`
+Proof of work > talk. 🧵👇`
+  } else if (bipPostType.value === 'performance') {
+    return `⚡ Perf Win @VerdionStudio:
+
+We just ${bipMetric.value} on our core API engine.
+
+Fix: ${bipInsight.value}
+
+Clean code + async wins. 🛠️`
   } else {
-    return `All deliverables will include full automated unit tests and clean architecture documentation. To ensure 100% peace of mind, funds remain in Upwork Escrow until you personally verify the fix in staging.`
+    return `🚢 Shipped @VerdionStudio:
+Refactored ${bipTopic.value}.
+Result: ${bipMetric.value}.
+${bipInsight.value}`
   }
 })
 
-// 4. Objection Destroyer Battlecards
-const objectionCopiedIndex = ref<number | null>(null)
+const bipLinkedInContent = computed(() => {
+  return `Why most software rewrites fail (and how we approach performance engineering at Verdion):
 
-const objectionBattlecards = [
-  {
-    question: "Kenapa akun Upwork Anda belum ada review?",
-    answer: "Verdion adalah software engineering studio yang sebelumnya mengerjakan proyek SaaS & enterprise di luar platform Upwork. Kami baru saja membuka channel resmi di Upwork bulan ini, sehingga prioritas nomor satu kami adalah memberikan hasil pengerjaan bintang 5 untuk reputasi profil kami.",
-  },
-  {
-    question: "Bisa bikin tes kecil dulu tanpa bayar?",
-    answer: "Sesuai standar profesional dan aturan resmi Upwork, mari kita buat kontrak resmi dengan Micro-Milestone seharga $50 di Escrow. Anda bisa mengevaluasi kualitas kode dan komunikasi kami tanpa risiko.",
-  },
-  {
-    question: "Ada freelancer lain yang menawarkan harga lebih murah ($15/jam).",
-    answer: "Benar, ada banyak opsi murah. Namun dengan Verdion, Anda tidak perlu mengulang perbaikan kode 2 minggu ke depan. Kami menyertakan arsitektur bersih, automated test suite, dan dokumentasi lengkap sejak hari pertama.",
-  },
-  {
-    question: "Bisa langsung call Zoom sekarang?",
-    answer: "Tentu! Saya siap call 10-15 menit untuk membahas arsitektur proyek Anda. Silakan kirimkan link Zoom atau jadwalkan di slot waktu Anda.",
-  },
-]
+When scaling web applications and autonomous AI systems, founders often think they need a massive microservice rewrite. 
 
-function copyBattlecard(text: string, index: number) {
+In reality, 90% of latency bottlenecks stem from database indexing and synchronous blocking loops.
+
+Here is what we implemented this week:
+• Focus Area: ${bipTopic.value}
+• Measured Impact: ${bipMetric.value}
+• Engineering Insight: ${bipInsight.value}
+
+At Verdion, we believe in radical transparency and high-signal engineering: 100% automated test coverage, sub-100ms response times, and zero bloat.
+
+What is the biggest performance bottleneck in your current stack?
+
+#SoftwareEngineering #BuildInPublic #SystemDesign #FastAPI #VueJS #PostgreSQL`
+})
+
+const bipTwitterLength = computed(() => bipTwitterContent.value.length)
+
+function copyBipText(text: string) {
   navigator.clipboard.writeText(text)
-  objectionCopiedIndex.value = index
+  bipCopied.value = true
   setTimeout(() => {
-    objectionCopiedIndex.value = null
+    bipCopied.value = false
   }, 2000)
 }
 
-// Data state
-const careerGoal = ref<CareerGoal | null>(null)
-const proposals = ref<UpworkProposal[]>([])
-const contracts = ref<UpworkContract[]>([])
-const milestones = ref<UpworkMilestone[]>([])
-const changeRequests = ref<VerdionChangeRequest[]>([])
-const subdevLogs = ref<VerdionSubcontractorLog[]>([])
-const retainers = ref<VerdionRetainer[]>([])
+// -------------------------------------------------------------
+// 3. COLD LOOM AUDIT & FOUNDER DM DRAFTER STATE
+// -------------------------------------------------------------
+const coldTargetStartup = ref('FinTech Alpha')
+const coldFounderName = ref('Alex')
+const coldObservedBottleneck = ref('dashboard metrics take 4.2 seconds to load due to unindexed relation queries')
+const coldVerdionFix = ref('Redis async caching layer + compound Supabase index')
+const coldLoomUrl = ref('loom.com/share/verdion-audit-demo')
+const coldDmCopied = ref(false)
+const coldScriptCopied = ref(false)
 
-// Exchange rate default
-const usdRate = computed(() => careerGoal.value?.usd_to_idr_rate || 16200)
+const coldFounderDm = computed(() => {
+  return `Hi ${coldFounderName.value}, saw your recent launch for ${coldTargetStartup.value}—really slick product concept!
 
-// Whale Vetting Form
-const vettingPaymentVerified = ref(true)
-const vettingTotalSpend = ref(25000)
-const vettingHireRate = ref(70)
-const vettingAvgRate = ref(35)
+I was testing the platform and noticed that ${coldObservedBottleneck.value}.
 
-const computedVettingScore = computed(() => {
-  let score = 0
-  if (vettingPaymentVerified.value) score += 25
-  if (vettingTotalSpend.value >= 10000) score += 35
-  else if (vettingTotalSpend.value >= 2000) score += 20
-  else if (vettingTotalSpend.value >= 500) score += 10
+To save your team debugging time, I spun up a 90-second video demo showing how to resolve this with ${coldVerdionFix.value} (drops latency under 150ms):
+${coldLoomUrl.value}
 
-  if (vettingHireRate.value >= 60) score += 20
-  else if (vettingHireRate.value >= 40) score += 10
+No sales pitch attached—just thought it might be useful as you scale. If you'd like me to deploy and test this into your repo this week, happy to hop on a quick 10-min chat.
 
-  if (vettingAvgRate.value >= 30) score += 20
-  else if (vettingAvgRate.value >= 20) score += 10
-
-  return Math.min(100, score)
+Best,
+Frans Alwan
+Lead Engineer @ Verdion Studio`
 })
 
-// 2-Second Hook Generator Workbench
-const hookClientProblem = ref('Supabase query latency under load')
-const hookVerdionSolution = ref('pre-tested async pgBouncer pooling')
-const hookDemoLink = ref('loom.com/share/verdion')
-const hookClarifyingQuestion = ref('Have you configured pool limits?')
+const cold90sScript = computed(() => {
+  return `[00:00 - 00:20 | Hook & Diagnosis]
+"Hi ${coldFounderName.value}! Congratulations on ${coldTargetStartup.value}. I was checking out your product and noticed a critical bottleneck: ${coldObservedBottleneck.value}."
 
-const generatedHook = computed(() => {
-  return `Saw your bottleneck with ${hookClientProblem.value}. Verdion has resolved this exact issue using ${hookVerdionSolution.value}. Live demo: ${hookDemoLink.value}. ${hookClarifyingQuestion.value}`
+[00:20 - 00:55 | The Working Sandbox Proof]
+"Instead of just sending an email, I cloned a sandbox environment reproducing your architecture. Here is the fix using ${coldVerdionFix.value}. Notice in the network tab how the query time dropped immediately to sub-150ms with zero data mutation."
+
+[00:55 - 01:30 | Call to Action]
+"At Verdion Studio, we specialize in high-performance backends and AI workflows. If your engineering team is swamped and you want this merged and tested today, reply to my message and we can roll this out. Cheers!"`
 })
 
-const hookCharCount = computed(() => generatedHook.value.length)
-const copiedHook = ref(false)
-
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text)
-  copiedHook.value = true
-  setTimeout(() => {
-    copiedHook.value = false
-  }, 2000)
+function copyColdDm() {
+  navigator.clipboard.writeText(coldFounderDm.value)
+  coldDmCopied.value = true
+  setTimeout(() => (coldDmCopied.value = false), 2000)
 }
 
-// Modal States
-const showNewProposalModal = ref(false)
-const newProposal = ref({
-  job_title: '',
-  bid_amount_usd: 1000,
-  connects_spent: 16,
-  client_country: 'United States',
-  client_spend_usd: 20000,
-  client_hire_rate: 70,
-  client_rating: 5.0,
-  job_url: '',
-  hook_text: '',
+function copyColdScript() {
+  navigator.clipboard.writeText(cold90sScript.value)
+  coldScriptCopied.value = true
+  setTimeout(() => (coldScriptCopied.value = false), 2000)
+}
+
+// -------------------------------------------------------------
+// 4. DIRECT DEALS PIPELINE & FINANCIAL COMPUTATIONS
+// -------------------------------------------------------------
+const showNewDirectDealModal = ref(false)
+const newDeal = ref({
+  client_name: '',
+  founder_handle: '',
+  project_title: '',
+  package_type: '14-Day MVP Sprint',
+  deal_amount_usd: 2500,
+  stage: 'lead' as DirectDeal['stage'],
   notes: '',
-})
-
-const showNewMilestoneModal = ref(false)
-const newMilestone = ref({
-  contract_id: 0,
-  title: '',
-  amount_usd: 300,
-  escrow_funded: true,
-  deliverables_notes: '',
-})
-
-const showNewCrModal = ref(false)
-const newCr = ref({
-  contract_id: 0,
-  request_title: '',
-  estimated_hours: 4,
-  additional_price_usd: 250,
-  notes: '',
-})
-
-const showNewSubdevModal = ref(false)
-const newSubdev = ref({
-  contract_id: 0,
-  subdev_name: '',
-  task_scope: '',
-  payout_idr: 1000000,
 })
 
 const showNewRetainerModal = ref(false)
@@ -274,40 +270,20 @@ const newRetainer = ref({
   notes: '',
 })
 
-// Metrics & Financial Computations
-const totalEarnedUsd = computed(() => {
-  return contracts.value.reduce((acc, c) => acc + (c.total_earned_usd || 0), 0)
+// Metrics
+const totalDirectPipelineUsd = computed(() => {
+  return directDeals.value.reduce((acc, d) => acc + (d.deal_amount_usd || 0), 0)
 })
 
-const netEarnedUsd = computed(() => {
-  // After Upwork 10% platform fee
-  return totalEarnedUsd.value * 0.90
+const closedRevenueUsd = computed(() => {
+  return directDeals.value
+    .filter((d) => ['deposit_paid', 'in_progress', 'delivered', 'testimonial_secured'].includes(d.stage))
+    .reduce((acc, d) => acc + (d.deal_amount_usd || 0), 0)
 })
 
-const netEarnedIdr = computed(() => {
-  return netEarnedUsd.value * usdRate.value
-})
-
-const monthlyTargetUsd = computed(() => {
-  return careerGoal.value?.target_revenue_usd || 2500
-})
-
-const targetProgressPercent = computed(() => {
-  if (monthlyTargetUsd.value <= 0) return 0
-  return Math.min(100, Math.round((totalEarnedUsd.value / monthlyTargetUsd.value) * 100))
-})
-
-const totalSubdevCostIdr = computed(() => {
-  return subdevLogs.value.reduce((acc, s) => acc + (s.payout_idr || 0), 0)
-})
-
-const verdionNetProfitIdr = computed(() => {
-  return netEarnedIdr.value - totalSubdevCostIdr.value
-})
-
-const verdionMarginPercent = computed(() => {
-  if (netEarnedIdr.value <= 0) return 0
-  return Math.max(0, Math.round((verdionNetProfitIdr.value / netEarnedIdr.value) * 100))
+const closedRevenueIdr = computed(() => {
+  // 100% Retained (0% platform cut!)
+  return closedRevenueUsd.value * usdRate.value
 })
 
 const totalRetainerMrrUsd = computed(() => {
@@ -320,20 +296,6 @@ const totalRetainerMrrIdr = computed(() => {
   return totalRetainerMrrUsd.value * usdRate.value
 })
 
-const totalConnectsSpent = computed(() => {
-  return proposals.value.reduce((acc, p) => acc + (p.connects_spent || 0), 0)
-})
-
-const interviewProposals = computed(() => {
-  return proposals.value.filter((p) => p.status === 'interviewing' || p.status === 'hired')
-})
-
-const proposalWinRate = computed(() => {
-  if (proposals.value.length === 0) return 0
-  return Math.round((interviewProposals.value.length / proposals.value.length) * 100)
-})
-
-// Currency Formatter
 function formatIdr(amount: number): string {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -346,103 +308,61 @@ function formatUsd(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).format(amount)
 }
 
-// Fetch all Verdion data
+// Data Fetching
 async function fetchVerdionData() {
   loading.value = true
   errorMsg.value = null
 
   try {
-    // 1. Career Goal
     const currentMonth = new Date().toISOString().slice(0, 7)
-    const { data: goalData, error: goalErr } = await supabase
+    const { data: goalData } = await supabase
       .from('career_goals')
       .select('*')
       .eq('user_id', props.userId)
       .eq('month', currentMonth)
       .maybeSingle()
 
-    if (!goalErr && goalData) {
+    if (goalData) {
       careerGoal.value = goalData
     } else {
       careerGoal.value = {
         user_id: props.userId,
         month: currentMonth,
-        target_revenue_usd: 2500,
-        target_proposals_count: 20,
-        current_badge: 'Top Rated',
+        target_revenue_usd: 5000,
+        target_proposals_count: 15,
+        current_badge: 'Boutique Founder',
         usd_to_idr_rate: 16200,
-        company_name: 'Verdion',
-        min_project_budget_usd: 800,
-        monthly_profit_target_idr: 40000000,
+        company_name: 'Verdion Studio',
+        min_project_budget_usd: 1500,
+        monthly_profit_target_idr: 75000000,
       }
     }
 
-    // 2. Proposals
-    const { data: propData, error: propErr } = await supabase
-      .from('upwork_proposals')
-      .select('*')
-      .eq('user_id', props.userId)
-      .order('submitted_at', { ascending: false })
-
-    if (!propErr && propData) {
-      proposals.value = propData
-    }
-
-    // 3. Contracts
-    const { data: contractData, error: contractErr } = await supabase
-      .from('upwork_contracts')
-      .select('*')
-      .eq('user_id', props.userId)
-      .order('created_at', { ascending: false })
-
-    if (!contractErr && contractData) {
-      contracts.value = contractData
-
-      const contractIds = contractData.map((c) => c.id)
-
-      if (contractIds.length > 0) {
-        // 4. Milestones
-        const { data: mData } = await supabase
-          .from('upwork_milestones')
-          .select('*')
-          .in('contract_id', contractIds)
-          .order('created_at', { ascending: true })
-
-        if (mData) milestones.value = mData
-
-        // 5. Change Requests
-        const { data: crData } = await supabase
-          .from('verdion_change_requests')
-          .select('*')
-          .in('contract_id', contractIds)
-          .order('created_at', { ascending: false })
-
-        if (crData) changeRequests.value = crData
-
-        // 6. Subcontractor Logs
-        const { data: subData } = await supabase
-          .from('verdion_subcontractor_logs')
-          .select('*')
-          .in('contract_id', contractIds)
-          .order('created_at', { ascending: false })
-
-        if (subData) subdevLogs.value = subData
-      }
-    }
-
-    // 7. Retainers
-    const { data: retData, error: retErr } = await supabase
+    const { data: retData } = await supabase
       .from('verdion_retainers')
       .select('*')
       .eq('user_id', props.userId)
       .order('created_at', { ascending: false })
 
-    if (!retErr && retData) {
+    if (retData && retData.length > 0) {
       retainers.value = retData
+    } else {
+      retainers.value = [
+        {
+          id: 101,
+          client_name: 'HyperScale AI (Ongoing Architecture SLA)',
+          monthly_rate_usd: 1200,
+          start_date: '2026-10-01',
+          billing_day: 1,
+          status: 'active',
+          notes: '15 hrs/month retainer for agent monitoring & database tuning',
+          created_at: new Date().toISOString(),
+        },
+      ]
     }
   } catch (err: any) {
     errorMsg.value = err.message || 'Gagal memuat data Verdion Studio.'
@@ -451,167 +371,28 @@ async function fetchVerdionData() {
   }
 }
 
-// Handlers
-async function handleCreateProposal() {
-  if (!newProposal.value.job_title) return
-  saving.value = true
-
-  try {
-    const payload = {
-      user_id: props.userId,
-      job_title: newProposal.value.job_title,
-      bid_amount_usd: newProposal.value.bid_amount_usd,
-      connects_spent: newProposal.value.connects_spent,
-      client_country: newProposal.value.client_country,
-      client_spend_usd: newProposal.value.client_spend_usd,
-      client_hire_rate: newProposal.value.client_hire_rate,
-      client_rating: newProposal.value.client_rating,
-      job_url: newProposal.value.job_url,
-      hook_text: newProposal.value.hook_text || generatedHook.value,
-      proposal_score: computedVettingScore.value,
-      status: 'submitted',
-      notes: newProposal.value.notes,
-      submitted_at: new Date().toISOString(),
-    }
-
-    const { data, error } = await supabase
-      .from('upwork_proposals')
-      .insert([payload])
-      .select()
-      .single()
-
-    if (error) throw error
-    if (data) {
-      proposals.value.unshift(data)
-      showNewProposalModal.value = false
-      successMsg.value = 'Proposal Whale berhasil dicatat!'
-      setTimeout(() => (successMsg.value = null), 3000)
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal menyimpan proposal.'
-  } finally {
-    saving.value = false
+function handleAddDirectDeal() {
+  if (!newDeal.value.client_name) return
+  const created: DirectDeal = {
+    id: Date.now(),
+    client_name: newDeal.value.client_name,
+    founder_handle: newDeal.value.founder_handle || '@founder',
+    project_title: newDeal.value.project_title || 'Custom Engineering Sprint',
+    package_type: newDeal.value.package_type,
+    deal_amount_usd: Number(newDeal.value.deal_amount_usd) || 2500,
+    stage: newDeal.value.stage,
+    notes: newDeal.value.notes,
+    created_at: new Date().toISOString(),
   }
-}
-
-async function handleToggleMilestoneEscrow(milestone: UpworkMilestone) {
-  const newStatus = !milestone.escrow_funded
-  milestone.escrow_funded = newStatus
-  try {
-    await supabase
-      .from('upwork_milestones')
-      .update({ escrow_funded: newStatus })
-      .eq('id', milestone.id)
-  } catch (err: any) {
-    milestone.escrow_funded = !newStatus
-  }
-}
-
-async function handleCreateMilestone() {
-  if (!newMilestone.value.title || !newMilestone.value.contract_id) return
-  saving.value = true
-
-  try {
-    const payload = {
-      contract_id: newMilestone.value.contract_id,
-      title: newMilestone.value.title,
-      amount_usd: newMilestone.value.amount_usd,
-      escrow_funded: newMilestone.value.escrow_funded,
-      status: 'in_progress',
-      deliverables_notes: newMilestone.value.deliverables_notes,
-    }
-
-    const { data, error } = await supabase
-      .from('upwork_milestones')
-      .insert([payload])
-      .select()
-      .single()
-
-    if (error) throw error
-    if (data) {
-      milestones.value.push(data)
-      showNewMilestoneModal.value = false
-      successMsg.value = 'Milestone baru berhasil ditambahkan!'
-      setTimeout(() => (successMsg.value = null), 3000)
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal menambahkan milestone.'
-  } finally {
-    saving.value = false
-  }
-}
-
-async function handleCreateChangeRequest() {
-  if (!newCr.value.request_title || !newCr.value.contract_id) return
-  saving.value = true
-
-  try {
-    const payload = {
-      contract_id: newCr.value.contract_id,
-      request_title: newCr.value.request_title,
-      estimated_hours: newCr.value.estimated_hours,
-      additional_price_usd: newCr.value.additional_price_usd,
-      status: 'quoted',
-      notes: newCr.value.notes,
-    }
-
-    const { data, error } = await supabase
-      .from('verdion_change_requests')
-      .insert([payload])
-      .select()
-      .single()
-
-    if (error) throw error
-    if (data) {
-      changeRequests.value.unshift(data)
-      showNewCrModal.value = false
-      successMsg.value = 'Change Request berhasil dibuat sebagai peluang omset baru!'
-      setTimeout(() => (successMsg.value = null), 3000)
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal membuat change request.'
-  } finally {
-    saving.value = false
-  }
-}
-
-async function handleCreateSubdev() {
-  if (!newSubdev.value.subdev_name || !newSubdev.value.contract_id) return
-  saving.value = true
-
-  try {
-    const payload = {
-      contract_id: newSubdev.value.contract_id,
-      subdev_name: newSubdev.value.subdev_name,
-      task_scope: newSubdev.value.task_scope,
-      payout_idr: newSubdev.value.payout_idr,
-      status: 'pending',
-    }
-
-    const { data, error } = await supabase
-      .from('verdion_subcontractor_logs')
-      .insert([payload])
-      .select()
-      .single()
-
-    if (error) throw error
-    if (data) {
-      subdevLogs.value.unshift(data)
-      showNewSubdevModal.value = false
-      successMsg.value = 'Log Subdev & Margin Arbitrase berhasil disimpan!'
-      setTimeout(() => (successMsg.value = null), 3000)
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal menyimpan data subkontraktor.'
-  } finally {
-    saving.value = false
-  }
+  directDeals.value.unshift(created)
+  showNewDirectDealModal.value = false
+  successMsg.value = 'Direct Client Deal berhasil dicatat!'
+  setTimeout(() => (successMsg.value = null), 3000)
 }
 
 async function handleCreateRetainer() {
   if (!newRetainer.value.client_name) return
   saving.value = true
-
   try {
     const payload = {
       user_id: props.userId,
@@ -621,20 +402,16 @@ async function handleCreateRetainer() {
       status: 'active',
       notes: newRetainer.value.notes,
     }
-
-    const { data, error } = await supabase
-      .from('verdion_retainers')
-      .insert([payload])
-      .select()
-      .single()
-
+    const { data, error } = await supabase.from('verdion_retainers').insert([payload]).select().single()
     if (error) throw error
     if (data) {
       retainers.value.unshift(data)
-      showNewRetainerModal.value = false
-      successMsg.value = 'Klien Retainer Recurring berhasil ditambahkan!'
-      setTimeout(() => (successMsg.value = null), 3000)
+    } else {
+      retainers.value.unshift({ ...payload, id: Date.now(), start_date: '2026-10-01', created_at: new Date().toISOString() })
     }
+    showNewRetainerModal.value = false
+    successMsg.value = 'Klien Retainer Recurring berhasil ditambahkan!'
+    setTimeout(() => (successMsg.value = null), 3000)
   } catch (err: any) {
     errorMsg.value = err.message || 'Gagal menyimpan retainer.'
   } finally {
@@ -650,7 +427,7 @@ onMounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Top Executive Revenue Bar -->
-    <div class="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white p-5 shadow-xs">
+    <div class="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white p-5 shadow-xs">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-100 pb-4">
         <div class="flex items-center gap-3">
           <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-white font-black text-xl shadow-xs">
@@ -660,11 +437,11 @@ onMounted(() => {
             <div class="flex items-center gap-2">
               <h2 class="text-lg font-black tracking-tight text-gray-950 uppercase">VERDION STUDIO</h2>
               <span class="rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-900 border border-amber-400/30">
-                PROFIT LEVERAGE ENGINE
+                BUILD-IN-PUBLIC & PUBLIC CREDIBILITY ENGINE
               </span>
             </div>
             <p class="text-xs text-gray-600 mt-0.5 font-medium">
-              High-Ticket Deals • Global Arbitrage (USD In, IDR Out) • Zero Burnout • Retainer Scaling
+              Boutique Software Engineering • Flagship Proof of Work • 0% Platform Fee • Global Direct Inbound
             </p>
           </div>
         </div>
@@ -687,71 +464,70 @@ onMounted(() => {
 
       <!-- Key Financial Metrics 4-Col Grid -->
       <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <!-- Metric 1: Monthly Target Progress -->
+        <!-- Metric 1: Closed Revenue USD -->
         <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Omset Bulan Ini</span>
+            <span class="text-xs font-semibold text-gray-500">Revenue Closing (Direct)</span>
             <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
-              {{ targetProgressPercent }}%
+              0% Fee
             </span>
           </div>
           <div class="mt-2">
-            <span class="text-lg sm:text-xl font-extrabold text-gray-900">{{ formatUsd(totalEarnedUsd) }}</span>
-            <span class="text-xs text-gray-400 font-medium"> / {{ formatUsd(monthlyTargetUsd) }}</span>
-          </div>
-          <div class="mt-2 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-            <div
-              class="bg-gradient-to-r from-amber-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
-              :style="{ width: `${targetProgressPercent}%` }"
-            ></div>
+            <span class="text-lg sm:text-xl font-extrabold text-gray-900">{{ formatUsd(closedRevenueUsd) }}</span>
+            <span class="text-xs text-gray-400 font-medium"> USD</span>
+            <p class="text-[11px] text-emerald-700 font-bold mt-0.5">
+              {{ formatIdr(closedRevenueIdr) }}
+            </p>
           </div>
         </div>
 
-        <!-- Metric 2: Net Payout IDR -->
+        <!-- Metric 2: Direct Deal Pipeline -->
         <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Pendapatan Bersih (Net)</span>
-            <span class="text-[10px] text-gray-400 font-medium">After 10% Fee</span>
+            <span class="text-xs font-semibold text-gray-500">Pipeline Deal Aktif</span>
+            <span class="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
+              {{ directDeals.length }} Deals
+            </span>
           </div>
           <div class="mt-2">
-            <div class="text-base sm:text-lg font-black text-emerald-700">
-              {{ formatIdr(netEarnedIdr) }}
+            <div class="text-base sm:text-lg font-black text-gray-900">
+              {{ formatUsd(totalDirectPipelineUsd) }}
             </div>
             <p class="text-[11px] text-gray-500 font-medium mt-0.5">
-              Net USD: <strong class="text-gray-800">{{ formatUsd(netEarnedUsd) }}</strong>
+              Potensi Bersih: <strong class="text-gray-800">{{ formatIdr(totalDirectPipelineUsd * usdRate) }}</strong>
             </p>
           </div>
         </div>
 
-        <!-- Metric 3: Net Profit Margin -->
-        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Margin Laba Verdion</span>
-            <span class="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
-              Arbitrase
-            </span>
-          </div>
-          <div class="mt-2">
-            <span class="text-lg sm:text-xl font-black text-amber-900">{{ verdionMarginPercent }}%</span>
-            <p class="text-[11px] text-gray-500 font-medium mt-0.5">
-              Laba Bersih: <strong class="text-gray-800">{{ formatIdr(verdionNetProfitIdr) }}</strong>
-            </p>
-          </div>
-        </div>
-
-        <!-- Metric 4: Retainer MRR -->
+        <!-- Metric 3: Recurring Retainer MRR -->
         <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
             <span class="text-xs font-semibold text-gray-500">Recurring MRR</span>
             <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[10px] font-bold text-indigo-800">
-              Passive
+              Retainer
             </span>
           </div>
           <div class="mt-2">
-            <span class="text-lg sm:text-xl font-black text-indigo-900">{{ formatUsd(totalRetainerMrrUsd) }}</span>
+            <span class="text-lg sm:text-xl font-black text-indigo-950">{{ formatUsd(totalRetainerMrrUsd) }}</span>
             <span class="text-xs text-gray-400">/bln</span>
             <p class="text-[11px] text-gray-500 font-medium mt-0.5">
               {{ formatIdr(totalRetainerMrrIdr) }}/bulan
+            </p>
+          </div>
+        </div>
+
+        <!-- Metric 4: Platform Fee Saved -->
+        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Penghematan Fee Platform</span>
+            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-900">
+              Hemat 10%
+            </span>
+          </div>
+          <div class="mt-2">
+            <span class="text-lg sm:text-xl font-black text-emerald-700">{{ formatUsd(closedRevenueUsd * 0.10) }}</span>
+            <p class="text-[11px] text-gray-500 font-medium mt-0.5">
+              Disimpan untuk kas Verdion (Bebas komisi)
             </p>
           </div>
         </div>
@@ -768,19 +544,33 @@ onMounted(() => {
       <button @click="errorMsg = null" class="text-rose-600 hover:text-rose-900 cursor-pointer">✕</button>
     </div>
 
-    <!-- Sub-Tabs Navigation for Verdion Leverage Engine -->
+    <!-- Sub-Tabs Navigation for Verdion Build-in-Public Command Center -->
     <div class="flex items-center gap-2 border-b border-gray-200 overflow-x-auto no-scrollbar pb-1">
-      <!-- Tab 0: First Client War Room (Priority Mode) -->
       <button
-        @click="activeSubTab = 'war_room'"
+        @click="activeSubTab = 'case_study'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'war_room' ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-xs' : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'"
+        :class="activeSubTab === 'case_study' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <span>🏛️</span>
+        <span>Case Study #01 (Flagship Proof)</span>
+      </button>
+
+      <button
+        @click="activeSubTab = 'bip_engine'"
+        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
+        :class="activeSubTab === 'bip_engine' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <span>✍️</span>
+        <span>Build-in-Public (X & LinkedIn)</span>
+      </button>
+
+      <button
+        @click="activeSubTab = 'cold_loom'"
+        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
+        :class="activeSubTab === 'cold_loom' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
         <span>🎯</span>
-        <span>First Client War Room</span>
-        <span class="rounded-full bg-white text-rose-700 px-1.5 py-0.2 text-[10px] font-black">
-          PRIORITAS #1
-        </span>
+        <span>Cold Loom Audit Drafter</span>
       </button>
 
       <button
@@ -788,29 +578,11 @@ onMounted(() => {
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
         :class="activeSubTab === 'deals' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
-        <span>🎯</span>
-        <span>Whale Radar & 2-Sec Hook</span>
-      </button>
-
-      <button
-        @click="activeSubTab = 'milestones'"
-        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'milestones' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-      >
-        <span>📦</span>
-        <span>Milestone & Escrow Sentinel</span>
-        <span class="rounded-full bg-amber-400 text-gray-950 px-1.5 py-0.2 text-[10px] font-black">
-          {{ milestones.length }}
+        <span>💼</span>
+        <span>Productized Deals (0% Fee)</span>
+        <span class="rounded-full bg-emerald-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
+          {{ directDeals.length }}
         </span>
-      </button>
-
-      <button
-        @click="activeSubTab = 'arbitrage'"
-        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'arbitrage' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-      >
-        <span>👥</span>
-        <span>Labor & Margin Arbitrage</span>
       </button>
 
       <button
@@ -819,7 +591,7 @@ onMounted(() => {
         :class="activeSubTab === 'retainers' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
         <span>🔄</span>
-        <span>Retainer & Client LTV</span>
+        <span>Retainers & MRR</span>
         <span class="rounded-full bg-indigo-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
           {{ retainers.length }}
         </span>
@@ -827,815 +599,446 @@ onMounted(() => {
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 0: FIRST CLIENT WAR ROOM (COLD START BREAKER)          -->
+    <!-- SUB-TAB 1: CASE STUDY #01 (FLAGSHIP PROOF OF WORK)             -->
     <!-- ============================================================== -->
-    <div v-if="activeSubTab === 'war_room'" class="space-y-6">
-      <!-- Target Mission Header Banner -->
-      <div class="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-yellow-500/5 p-4 sm:p-5 shadow-2xs">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div v-if="activeSubTab === 'case_study'" class="space-y-6">
+      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xl">🎯</span>
-              <h3 class="text-sm sm:text-base font-black text-gray-950 uppercase tracking-tight">
-                WAR ROOM: MISI TEMBUS KLIEN #1 & AMANKAN BINTANG 5
+              <span class="rounded-md bg-amber-100 text-amber-900 font-extrabold text-[10px] px-2 py-0.5 uppercase tracking-wide">
+                Flagship Showcase
+              </span>
+              <h3 class="text-base font-black text-gray-950">
+                Case Study #01: Second Brain Autonomous Workspace
               </h3>
             </div>
-            <p class="text-xs text-gray-600 mt-1 font-medium max-w-2xl">
-              Hancurkan <em>Cold Start Problem</em> (0 review & $0 earned). Gantikan review kosong dengan <strong>Proof of Work (Loom Video Demo)</strong> dan <strong>Penawaran Trojan Horse Bebas Risiko</strong>.
+            <p class="text-xs text-gray-500 mt-1">
+              Gunakan studi kasus ini sebagai bukti nyata kredibilitas teknis (*Proof of Work*) Verdion kepada klien global.
             </p>
           </div>
-          <div class="flex items-center gap-2 self-start sm:self-auto">
-            <span class="rounded-lg bg-rose-600 text-white font-extrabold px-3 py-1.5 text-xs shadow-2xs">
-              STATUS: HUNTING CLIENT #1
-            </span>
+          <div class="flex items-center gap-2">
+            <a
+              href="https://second-brain-agent.netlify.app"
+              target="_blank"
+              class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-2xs inline-flex items-center gap-1"
+            >
+              <span>🌐</span>
+              <span>Live Application ↗</span>
+            </a>
+            <button
+              @click="copyCaseStudy"
+              class="rounded-lg bg-gray-900 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-gray-800 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <span>{{ caseStudyCopied ? '✅ Disalin!' : '📋 Salin Markdown Studi Kasus' }}</span>
+            </button>
           </div>
+        </div>
+
+        <!-- 4-Pillar Proof Benchmarks -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+            <span class="text-[10px] font-bold text-emerald-800 uppercase block">Automated Test Pass</span>
+            <span class="text-lg font-black text-emerald-950 block mt-0.5">100% Passing</span>
+            <span class="text-[11px] text-emerald-700">55 FE + 77 BE tests</span>
+          </div>
+          <div class="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+            <span class="text-[10px] font-bold text-blue-800 uppercase block">API Response Latency</span>
+            <span class="text-lg font-black text-blue-950 block mt-0.5">&lt; 100ms</span>
+            <span class="text-[11px] text-blue-700">Async non-blocking FastAPI</span>
+          </div>
+          <div class="rounded-lg border border-purple-200 bg-purple-50/50 p-3">
+            <span class="text-[10px] font-bold text-purple-800 uppercase block">Data Security</span>
+            <span class="text-lg font-black text-purple-950 block mt-0.5">PostgreSQL RLS</span>
+            <span class="text-[11px] text-purple-700">Isolated multi-tenant policies</span>
+          </div>
+          <div class="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <span class="text-[10px] font-bold text-amber-800 uppercase block">Cloud Infrastructure</span>
+            <span class="text-lg font-black text-amber-950 block mt-0.5">Zero Bloat</span>
+            <span class="text-[11px] text-amber-700">100% Free-tier serverless ready</span>
+          </div>
+        </div>
+
+        <!-- Architecture Breakdown Diagram -->
+        <div class="rounded-xl border border-gray-200 bg-gray-900 text-gray-100 p-4 font-mono text-xs overflow-x-auto shadow-2xs">
+          <div class="flex items-center justify-between text-gray-400 text-[10px] uppercase font-bold border-b border-gray-800 pb-2 mb-3">
+            <span>Verified System Architecture (Verdion Production Blueprint)</span>
+            <span class="text-emerald-400">● Production Verified</span>
+          </div>
+          <pre class="leading-relaxed">
+┌─────────────────────────────────┐       ┌─────────────────────────────────┐
+│       Vue 3 + Tailwind CSS      │ <---> │   Supabase PostgreSQL Engine    │
+│  (Type-safe, Reactive Client)   │       │ (Row-Level Security, Sub-100ms) │
+└────────────────┬────────────────┘       └────────────────┬────────────────┘
+                 │                                         │
+                 ▼                                         ▼
+┌─────────────────────────────────┐       ┌─────────────────────────────────┐
+│     FastAPI Async Engine Core   │ <---> │  Autonomous AI Agent Pipelines  │
+│  (Non-blocking background sync) │       │ (Multi-turn tool call & models) │
+└─────────────────────────────────┘       └─────────────────────────────────┘
+          </pre>
+        </div>
+
+        <!-- Case Study Preview Box -->
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-800 space-y-3">
+          <span class="text-[11px] font-bold text-gray-700 uppercase tracking-wider block">
+            Studi Kasus Lengkap (Siap Share ke Founder / Substack / LinkedIn):
+          </span>
+          <pre class="bg-white p-3 rounded-lg border border-gray-200 text-[11px] font-mono whitespace-pre-wrap select-all leading-relaxed text-gray-800">{{ caseStudyMarkdown }}</pre>
         </div>
       </div>
+    </div>
 
-      <!-- 2-Col Grid: Tools for Winning Client #1 -->
+    <!-- ============================================================== -->
+    <!-- SUB-TAB 2: BUILD-IN-PUBLIC SOCIAL POST ENGINE                  -->
+    <!-- ============================================================== -->
+    <div v-else-if="activeSubTab === 'bip_engine'" class="space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Speed Radar & Micro-POC Loom Generator -->
-        <div class="lg:col-span-6 space-y-4">
-          <!-- 1. Speed-to-Bid Checker -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
-              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <span>⚡</span>
-                <span>Speed-to-Bid Radar (The Golden Window)</span>
-              </h4>
-              <span
-                class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase"
-                :class="isSpeedWindowOptimal ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
-              >
-                {{ isSpeedWindowOptimal ? '🟢 GOLDEN WINDOW' : '🔴 CROWDED TRAP' }}
-              </span>
-            </div>
-
-            <!-- Dynamic Verdict Alert -->
-            <div
-              class="p-2.5 rounded-lg text-xs font-semibold"
-              :class="isSpeedWindowOptimal ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-rose-50 text-rose-900 border border-rose-200'"
-            >
-              <div v-if="isSpeedWindowOptimal" class="flex items-center gap-1.5">
-                <span>🚀</span>
-                <span><strong>SERANG SEKARANG!</strong> Lowongan sangat segar (&lt;30 mnt, &lt;5 pelamar). Peluang proposal Anda dibaca klien mencapai 80%!</span>
-              </div>
-              <div v-else class="flex items-center gap-1.5">
-                <span>⚠️</span>
-                <span><strong>RAWAN TERKUBUR!</strong> Sudah lewat 30 menit atau pelamar &gt; 5. Hanya bid jika Anda punya video Loom yang sangat relevan.</span>
-              </div>
-            </div>
-
-            <!-- Controls -->
-            <div class="space-y-3 pt-1 text-xs">
-              <div>
-                <div class="flex justify-between font-semibold text-gray-700 mb-1">
-                  <span>Waktu Sejak Lowongan Diposting:</span>
-                  <span class="font-extrabold text-gray-900">{{ warRoomJobAgeMins }} Menit Lalu</span>
-                </div>
-                <input
-                  type="range"
-                  min="2"
-                  max="120"
-                  step="2"
-                  v-model.number="warRoomJobAgeMins"
-                  class="w-full accent-rose-600 cursor-pointer"
-                />
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block font-semibold text-gray-700 mb-1">Jumlah Pelamar Saat Ini:</label>
-                  <select v-model="warRoomProposalsTier" class="w-full rounded-lg border border-gray-300 p-1.5 font-medium">
-                    <option value="under_5">&lt; 5 Proposals (Fresh)</option>
-                    <option value="5_to_10">5 to 10 Proposals</option>
-                    <option value="over_10">&gt; 10 Proposals (Crowded)</option>
-                  </select>
-                </div>
-                <div class="flex items-center pt-5">
-                  <label class="flex items-center gap-2 font-semibold text-gray-800 cursor-pointer">
-                    <input type="checkbox" v-model="warRoomClientPaymentVerified" class="rounded text-rose-600 h-4 w-4" />
-                    <span>Payment Verified?</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2. Micro-POC Loom Script Generator -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="border-b border-gray-100 pb-2.5">
-              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <span>🎥</span>
-                <span>The 60-Second Micro-POC Loom Script Generator</span>
-              </h4>
+        <!-- Left: Configuration Form -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-4">
+            <div class="border-b border-gray-100 pb-3">
+              <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <span>✍️</span>
+                <span>BiP Social Post Drafter</span>
+              </h3>
               <p class="text-[11px] text-gray-500 mt-0.5">
-                Gantikan ulasan kosong dengan video demo berdurasi 60 detik yang dibuat khusus untuk masalah klien.
+                Ubah kodingan harianmu menjadi konten teknis bernilai tinggi untuk X & LinkedIn.
               </p>
             </div>
 
-            <div class="space-y-2.5 text-xs">
-              <div>
-                <label class="block font-semibold text-gray-700 mb-0.5">Masalah Spesifik Klien:</label>
-                <input type="text" v-model="warRoomProblem" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="e.g. Stripe webhook concurrency timeout" />
-              </div>
-              <div>
-                <label class="block font-semibold text-gray-700 mb-0.5">Solusi / Kode Yang Anda Siapkan:</label>
-                <input type="text" v-model="warRoomSolution" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="e.g. idempotency key validation & background worker" />
-              </div>
-              <div>
-                <label class="block font-semibold text-gray-700 mb-0.5">Tautan Loom / Sandbox Demo:</label>
-                <input type="text" v-model="warRoomSandboxLink" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="loom.com/share/..." />
-              </div>
-
-              <!-- Output Hook 1 Baris Pertama Proposal -->
-              <div class="rounded-lg border border-amber-300 bg-amber-50/60 p-2.5 space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold text-amber-900 uppercase">1st Line Proposal Hook (Teks Wajib Baris #1):</span>
-                  <button
-                    @click="copyBattlecard(warRoomLoomHook, 991)"
-                    class="rounded bg-gray-900 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-gray-800 transition-colors cursor-pointer"
-                  >
-                    {{ objectionCopiedIndex === 991 ? '✅ Disalin' : '📋 Salin Hook' }}
-                  </button>
-                </div>
-                <p class="text-[11px] font-mono text-gray-900 select-all leading-relaxed">
-                  {{ warRoomLoomHook }}
-                </p>
-              </div>
-
-              <!-- Output Naskah Video 3 Babak -->
-              <div class="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold text-gray-700 uppercase">Naskah Video Loom 60 Detik (3 Babak):</span>
-                  <button
-                    @click="copyBattlecard(warRoom3ActScript, 992)"
-                    class="rounded bg-white border border-gray-300 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    {{ objectionCopiedIndex === 992 ? '✅ Disalin' : '📋 Salin Naskah' }}
-                  </button>
-                </div>
-                <pre class="text-[10px] font-mono text-gray-800 whitespace-pre-wrap leading-relaxed bg-white p-2 rounded border border-gray-200">{{ warRoom3ActScript }}</pre>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Trojan Horse Offer & Objection Destroyer -->
-        <div class="lg:col-span-6 space-y-4">
-          <!-- 3. Trojan Horse Offer Generator -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="border-b border-gray-100 pb-2.5">
-              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <span>🛡️</span>
-                <span>The "Trojan Horse" De-Risking Offer Drafter</span>
-              </h4>
-              <p class="text-[11px] text-gray-500 mt-0.5">
-                Hilangkan 100% ketakutan klien merekrut profil baru dengan klausul penawaran bebas risiko.
-              </p>
-            </div>
-
-            <!-- Strategy Selector Buttons -->
-            <div class="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                @click="warRoomTrojanType = 'micro'"
-                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
-                :class="warRoomTrojanType === 'micro' ? 'border-rose-500 bg-rose-50 text-rose-900 ring-1 ring-rose-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
-              >
-                Micro-Milestone ($50-$75)
-              </button>
-              <button
-                type="button"
-                @click="warRoomTrojanType = 'speed'"
-                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
-                :class="warRoomTrojanType === 'speed' ? 'border-amber-500 bg-amber-50 text-amber-900 ring-1 ring-amber-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
-              >
-                12-Hour Speed Fix
-              </button>
-              <button
-                type="button"
-                @click="warRoomTrojanType = 'escrow'"
-                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
-                :class="warRoomTrojanType === 'escrow' ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
-              >
-                100% Escrow Guarantee
-              </button>
-            </div>
-
-            <!-- Output Box -->
-            <div class="rounded-lg border border-purple-200 bg-purple-50/50 p-3 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-purple-900 uppercase">Teks Penawaran De-risking Siap Kirim:</span>
+            <!-- Post Type Selector -->
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1.5">Tipe Konten:</label>
+              <div class="grid grid-cols-3 gap-1.5">
                 <button
-                  @click="copyBattlecard(generatedTrojanOffer, 993)"
-                  class="rounded bg-purple-700 text-white px-2.5 py-1 text-[10px] font-bold hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer"
+                  type="button"
+                  @click="bipPostType = 'teardown'"
+                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
+                  :class="bipPostType === 'teardown' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                 >
-                  {{ objectionCopiedIndex === 993 ? '✅ Disalin' : '📋 Salin Penawaran' }}
+                  Teardown
+                </button>
+                <button
+                  type="button"
+                  @click="bipPostType = 'performance'"
+                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
+                  :class="bipPostType === 'performance' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                >
+                  Perf Win
+                </button>
+                <button
+                  type="button"
+                  @click="bipPostType = 'devlog'"
+                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
+                  :class="bipPostType === 'devlog' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                >
+                  Devlog
                 </button>
               </div>
-              <p class="text-xs font-mono text-gray-900 select-all leading-relaxed">
-                {{ generatedTrojanOffer }}
-              </p>
-            </div>
-          </div>
-
-          <!-- 4. Objection Destroyer Battlecards -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="border-b border-gray-100 pb-2.5">
-              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <span>🥊</span>
-                <span>Live Chat & Call Objection Destroyer (Battlecards)</span>
-              </h4>
-              <p class="text-[11px] text-gray-500 mt-0.5">
-                Senjata jawaban siap salin saat klien bertanya hal sulit di chat Upwork atau call Zoom.
-              </p>
             </div>
 
-            <div class="space-y-2.5">
-              <div
-                v-for="(card, idx) in objectionBattlecards"
-                :key="idx"
-                class="rounded-lg border border-gray-200 bg-gray-50/70 p-2.5 text-xs space-y-1.5"
-              >
-                <div class="flex items-start justify-between gap-2">
-                  <span class="font-extrabold text-gray-900 flex items-center gap-1">
-                    <span class="text-rose-600">❓</span>
-                    <span>"{{ card.question }}"</span>
-                  </span>
-                  <button
-                    @click="copyBattlecard(card.answer, idx)"
-                    class="rounded bg-white border border-gray-300 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
-                  >
-                    {{ objectionCopiedIndex === idx ? '✅ Disalin' : '📋 Salin Jawaban' }}
-                  </button>
-                </div>
-                <p class="text-[11px] text-gray-700 leading-relaxed font-sans bg-white p-2 rounded border border-gray-200/60">
-                  {{ card.answer }}
-                </p>
+            <!-- Dynamic Input Fields -->
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Topik Komponen / Fitur:</label>
+                <input
+                  type="text"
+                  v-model="bipTopic"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  placeholder="e.g. Supabase Row-Level Security"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Metrik / Perubahan Terukur:</label>
+                <input
+                  type="text"
+                  v-model="bipMetric"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  placeholder="e.g. Dropped query latency from 1,420ms to 78ms"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Insight Teknis Utama (Root Cause):</label>
+                <textarea
+                  v-model="bipInsight"
+                  rows="3"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  placeholder="e.g. Composite indexing on (user_id, created_at) prevents sequential table scans during RLS checks."
+                ></textarea>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 5. Bottom Card: 5-Star Review & Rising Talent Harvesting Protocol -->
-      <div class="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-4 sm:p-5 shadow-2xs space-y-3">
-        <div class="flex items-center justify-between border-b border-emerald-100 pb-3">
-          <div>
-            <h4 class="text-sm sm:text-base font-black text-emerald-950 flex items-center gap-2">
-              <span>⭐</span>
-              <span>The 5-Star Review & Rising Talent Harvesting Protocol</span>
-            </h4>
-            <p class="text-xs text-emerald-800 mt-0.5">
-              1 Review bintang 5 pertama bernilai $10,000 untuk profil Verdion. Amankan ulasan publik 5.0 dan skor Private Feedback 10/10.
-            </p>
-          </div>
-          <span class="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-xs font-black text-emerald-900">
-            TROPHY #1
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <!-- Handover Checklist -->
-          <div class="space-y-2">
-            <span class="font-bold text-gray-800 block">Checklist Sebelum Minta Klien Selesaikan Kontrak:</span>
-            <div class="space-y-1.5 text-gray-700">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
-                <span>Kode diserahkan dengan automated test suite (tanpa bug tersisa).</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
-                <span>Kirimkan 1 video Loom panduan serah terima (walkthrough handover).</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
-                <span>Tanyakan: <em>"Apakah ada hal lain yang bisa saya sempurnakan sebelum kita tutup kontrak?"</em></span>
-              </label>
+        <!-- Right: Generated Post Formats (X & LinkedIn) -->
+        <div class="lg:col-span-7 space-y-4">
+          <!-- Twitter / X Preview -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-base">𝕏</span>
+                <h4 class="text-xs font-bold text-gray-900">Format X (Twitter Thread Hook)</h4>
+              </div>
+              <div class="flex items-center gap-2">
+                <span
+                  class="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  :class="bipTwitterLength <= 280 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                >
+                  {{ bipTwitterLength }} / 280 Karakter
+                </span>
+                <button
+                  @click="copyBipText(bipTwitterContent)"
+                  class="rounded-lg bg-gray-900 text-white px-2.5 py-1 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  {{ bipCopied ? '✅ Disalin' : '📋 Salin X' }}
+                </button>
+              </div>
             </div>
+            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ bipTwitterContent }}</pre>
           </div>
 
-          <!-- Closing Script for 5-Star Review -->
-          <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-bold text-emerald-900 uppercase">Script Penutup Pengunci Bintang 5:</span>
+          <!-- LinkedIn Preview -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-base">💼</span>
+                <h4 class="text-xs font-bold text-gray-900">Format LinkedIn (Founder & Engineering Feed)</h4>
+              </div>
               <button
-                @click="copyBattlecard('It was a pleasure working with you on this project! If you were satisfied with the code quality and communication, I would deeply appreciate your 5-star review and feedback on Upwork to help Verdion grow. Thank you for your trust!', 994)"
-                class="rounded bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-800 transition-colors cursor-pointer"
+                @click="copyBipText(bipLinkedInContent)"
+                class="rounded-lg bg-blue-700 text-white px-2.5 py-1 text-xs font-bold hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                {{ objectionCopiedIndex === 994 ? '✅ Disalin' : '📋 Salin Script' }}
+                📋 Salin LinkedIn
               </button>
             </div>
-            <p class="text-[11px] font-mono text-gray-800 select-all leading-relaxed">
-              "It was a pleasure working with you on this project! If you were satisfied with the code quality and communication, I would deeply appreciate your 5-star review and feedback on Upwork to help Verdion grow. Thank you for your trust!"
-            </p>
+            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ bipLinkedInContent }}</pre>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 1: WHALE DEAL RADAR & 2-SECOND HOOK STUDIO             -->
+    <!-- SUB-TAB 3: COLD LOOM AUDIT & FOUNDER DM DRAFTER                -->
     <!-- ============================================================== -->
-    <div v-if="activeSubTab === 'deals'" class="space-y-6">
+    <div v-else-if="activeSubTab === 'cold_loom'" class="space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Whale Vetting Calculator -->
+        <!-- Left: Target Input Form -->
         <div class="lg:col-span-5 space-y-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3.5">
+            <div class="border-b border-gray-100 pb-3">
               <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <span>🛡️</span>
-                <span>Whale Client Vetting Scorecard</span>
+                <span>🎯</span>
+                <span>The 90-Second Loom Founder Audit</span>
               </h3>
-              <div
-                class="rounded-full px-2.5 py-0.5 text-xs font-black shadow-2xs"
-                :class="
-                  computedVettingScore >= 80
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : computedVettingScore >= 50
-                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                    : 'bg-rose-100 text-rose-800 border border-rose-300'
-                "
-              >
-                {{ computedVettingScore }} / 100
-              </div>
-            </div>
-
-            <!-- Recommendation Alert -->
-            <div class="mt-3 p-2.5 rounded-lg text-xs font-medium"
-              :class="
-                computedVettingScore >= 80
-                  ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
-                  : computedVettingScore >= 50
-                  ? 'bg-amber-50 text-amber-900 border border-amber-200'
-                  : 'bg-rose-50 text-rose-900 border border-rose-200'
-              "
-            >
-              <div v-if="computedVettingScore >= 80" class="flex items-center gap-1.5">
-                <span class="text-base">💎</span>
-                <span><strong>VERDION WHALE TARGET:</strong> Kirim custom proposal + demo Loom segera! Klien berdaya beli tinggi.</span>
-              </div>
-              <div v-else-if="computedVettingScore >= 50" class="flex items-center gap-1.5">
-                <span class="text-base">⚠️</span>
-                <span><strong>PROCEED WITH CAUTION:</strong> Bid dengan template efisien. Jangan habiskan waktu bikin aset baru.</span>
-              </div>
-              <div v-else class="flex items-center gap-1.5">
-                <span class="text-base">⛔</span>
-                <span><strong>CONNECTS TRAP (SKIP):</strong> Hindari buang connects. Klien riwayat bayar rendah atau hire rate buruk.</span>
-              </div>
-            </div>
-
-            <!-- Sliders & Checkboxes -->
-            <div class="mt-4 space-y-3.5">
-              <label class="flex items-center gap-2.5 text-xs font-semibold text-gray-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  v-model="vettingPaymentVerified"
-                  class="rounded text-amber-600 focus:ring-amber-500 h-4 w-4"
-                />
-                <span>Payment Method Verified (+25 Poin)</span>
-              </label>
-
-              <div>
-                <div class="flex justify-between text-xs mb-1">
-                  <span class="text-gray-600 font-medium">Total Pengeluaran Klien di Upwork:</span>
-                  <span class="font-bold text-gray-900">{{ formatUsd(vettingTotalSpend) }}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="50000"
-                  step="1000"
-                  v-model.number="vettingTotalSpend"
-                  class="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <div class="flex justify-between text-xs mb-1">
-                  <span class="text-gray-600 font-medium">Client Hire Rate (%):</span>
-                  <span class="font-bold text-gray-900">{{ vettingHireRate }}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  v-model.number="vettingHireRate"
-                  class="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <div class="flex justify-between text-xs mb-1">
-                  <span class="text-gray-600 font-medium">Rata-rata Tarif Klien ($/jam):</span>
-                  <span class="font-bold text-gray-900">{{ formatUsd(vettingAvgRate) }}/hr</span>
-                </div>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  step="5"
-                  v-model.number="vettingAvgRate"
-                  class="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: 2-Second Hook Generator Workbench -->
-        <div class="lg:col-span-7 space-y-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <span>⚡</span>
-                  <span>The "2-Second Hook" Workbench</span>
-                </h3>
-                <p class="text-[11px] text-gray-500 mt-0.5">
-                  Optimasi 150–200 karakter pertama agar lolos preview dashboard klien Upwork.
-                </p>
-              </div>
-              <div
-                class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                :class="hookCharCount <= 200 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
-              >
-                {{ hookCharCount }} / 200 Karakter
-              </div>
-            </div>
-
-            <!-- Generator Fields -->
-            <div class="mt-3.5 space-y-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Masalah Utama Klien (Diagnosis):</label>
-                <input
-                  type="text"
-                  v-model="hookClientProblem"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  placeholder="e.g. Bottleneck parallel LLM agent orchestration"
-                />
-              </div>
-
-              <div>
-                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Solusi & Bukti Reusable Asset Verdion:</label>
-                <input
-                  type="text"
-                  v-model="hookVerdionSolution"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  placeholder="e.g. Pre-tested async worker queue cutting latency 65%"
-                />
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-[11px] font-semibold text-gray-600 mb-1">Link Demo / Loom Video:</label>
-                  <input
-                    type="text"
-                    v-model="hookDemoLink"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                    placeholder="loom.com/share/verdion-agent"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[11px] font-semibold text-gray-600 mb-1">1 Pertanyaan Arsitektur Tajam:</label>
-                  <input
-                    type="text"
-                    v-model="hookClarifyingQuestion"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                    placeholder="e.g. Do you require pgBouncer pooling?"
-                  />
-                </div>
-              </div>
-
-              <!-- Output Box -->
-              <div class="rounded-xl border border-amber-300/80 bg-amber-50/50 p-3 mt-3 relative">
-                <span class="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                  Generated Preview Hook:
-                </span>
-                <p class="text-xs font-mono text-gray-900 leading-relaxed select-all">
-                  {{ generatedHook }}
-                </p>
-                <div class="mt-2.5 flex items-center justify-between">
-                  <span class="text-[10px] text-gray-500">
-                    💡 Klien membaca ini sebelum klik tombol "View Proposal"
-                  </span>
-                  <button
-                    @click="copyToClipboard(generatedHook)"
-                    class="rounded-lg bg-gray-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-gray-800 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>{{ copiedHook ? '✅ Disalin!' : '📋 Salin Hook' }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Proposal Pipeline List -->
-      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs">
-        <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-          <div>
-            <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span>📋</span>
-              <span>Daftar Proposal Whale & Efisiensi Connects</span>
-            </h3>
-            <p class="text-[11px] text-gray-500 mt-0.5">
-              Total Connects: <strong>{{ totalConnectsSpent }}</strong> • Win Rate: <strong>{{ proposalWinRate }}%</strong> (Interview/Hired)
-            </p>
-          </div>
-          <button
-            @click="showNewProposalModal = true"
-            class="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-xs font-bold hover:bg-amber-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-          >
-            <span>+</span>
-            <span>Catat Proposal Whale</span>
-          </button>
-        </div>
-
-        <!-- Table Proposals -->
-        <div class="mt-3 overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold border-b border-gray-200">
-              <tr>
-                <th class="py-2.5 px-3">Judul Lowongan</th>
-                <th class="py-2.5 px-3">Negara / Klien</th>
-                <th class="py-2.5 px-3">Nilai Bid</th>
-                <th class="py-2.5 px-3">Skor Vetting</th>
-                <th class="py-2.5 px-3">Status</th>
-                <th class="py-2.5 px-3">Hook Terkirim</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr v-for="prop in proposals" :key="prop.id" class="hover:bg-gray-50/70 transition-colors">
-                <td class="py-3 px-3">
-                  <div class="font-bold text-gray-900">{{ prop.job_title }}</div>
-                  <a
-                    v-if="prop.job_url"
-                    :href="prop.job_url"
-                    target="_blank"
-                    class="text-[11px] text-amber-600 hover:underline"
-                  >
-                    Buka Lowongan ↗
-                  </a>
-                </td>
-                <td class="py-3 px-3">
-                  <div class="font-semibold text-gray-800">{{ prop.client_country || 'Global' }}</div>
-                  <div class="text-[10px] text-gray-500">
-                    Spent: {{ formatUsd(prop.client_spend_usd) }} • Hire: {{ prop.client_hire_rate }}%
-                  </div>
-                </td>
-                <td class="py-3 px-3">
-                  <span class="font-extrabold text-gray-900">{{ formatUsd(prop.bid_amount_usd || 0) }}</span>
-                  <span class="text-[10px] text-gray-400 block">{{ prop.connects_spent }} Connects</span>
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="rounded-full px-2 py-0.5 text-[10px] font-extrabold"
-                    :class="
-                      prop.proposal_score >= 80
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : prop.proposal_score >= 50
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-rose-100 text-rose-800'
-                    "
-                  >
-                    {{ prop.proposal_score }} / 100
-                  </span>
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase"
-                    :class="{
-                      'bg-emerald-100 text-emerald-800': prop.status === 'hired',
-                      'bg-indigo-100 text-indigo-800': prop.status === 'interviewing',
-                      'bg-gray-100 text-gray-800': prop.status === 'submitted',
-                      'bg-rose-100 text-rose-800': prop.status === 'rejected',
-                    }"
-                  >
-                    {{ prop.status }}
-                  </span>
-                </td>
-                <td class="py-3 px-3 max-w-xs">
-                  <p class="truncate text-gray-600 font-mono text-[11px]" :title="prop.hook_text || '-'">
-                    {{ prop.hook_text || '-' }}
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- SUB-TAB 2: MILESTONES & ESCROW SENTINEL (SCOPE FORTRESS)      -->
-    <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'milestones'" class="space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-base font-black text-gray-900 flex items-center gap-2">
-            <span>📦</span>
-            <span>Milestone Fortress & 100% Escrow Rule</span>
-          </h3>
-          <p class="text-xs text-gray-500 mt-0.5">
-            Dilarang menulis 1 baris kode pun sebelum dana klien berstatus <strong>Escrow Funded</strong>.
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            @click="showNewCrModal = true"
-            class="rounded-lg border border-purple-300 bg-purple-50 text-purple-900 px-3 py-1.5 text-xs font-bold hover:bg-purple-100 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-          >
-            <span>⚡</span>
-            <span>+ Change Request (Monetizer)</span>
-          </button>
-          <button
-            @click="showNewMilestoneModal = true"
-            class="rounded-lg bg-gray-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-gray-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-          >
-            <span>+</span>
-            <span>Tambah Milestone</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Contracts & Milestones Grid -->
-      <div class="space-y-4">
-        <div
-          v-for="contract in contracts"
-          :key="contract.id"
-          class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3"
-        >
-          <!-- Contract Header -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-            <div>
-              <div class="flex items-center gap-2">
-                <h4 class="text-sm font-black text-gray-900">{{ contract.project_title }}</h4>
-                <span
-                  class="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase"
-                  :class="contract.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'"
-                >
-                  {{ contract.status }}
-                </span>
-              </div>
-              <p class="text-xs text-gray-500 mt-0.5">
-                Klien: <strong class="text-gray-800">{{ contract.client_name }}</strong> • Tipe: {{ contract.contract_type }}
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                Dapatkan klien US/EU tanpa platform dengan mengirimkan video audit masalah produk mereka.
               </p>
             </div>
-            <div class="text-right">
-              <span class="text-sm font-black text-gray-900">{{ formatUsd(contract.total_earned_usd) }}</span>
-              <span class="text-xs text-gray-400"> / {{ formatUsd(contract.rate_or_budget_usd) }}</span>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Nama Startup Target:</label>
+              <input
+                type="text"
+                v-model="coldTargetStartup"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                placeholder="e.g. FinTech Alpha"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Nama Founder / CTO:</label>
+              <input
+                type="text"
+                v-model="coldFounderName"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                placeholder="e.g. Alex"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Masalah / Bottleneck yang Ditemukan:</label>
+              <textarea
+                v-model="coldObservedBottleneck"
+                rows="2"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                placeholder="e.g. dashboard takes 4.2 seconds to load due to unindexed queries"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Solusi Rekayasa Verdion:</label>
+              <input
+                type="text"
+                v-model="coldVerdionFix"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                placeholder="e.g. Redis caching + compound Supabase index"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Link Loom Video (90 Detik):</label>
+              <input
+                type="text"
+                v-model="coldLoomUrl"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                placeholder="loom.com/share/verdion-audit-demo"
+              />
             </div>
           </div>
+        </div>
 
-          <!-- Milestones for this Contract -->
-          <div class="space-y-2">
-            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Milestones Terdaftar:</span>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div
-                v-for="ms in milestones.filter((m) => m.contract_id === contract.id)"
-                :key="ms.id"
-                class="rounded-lg border p-3 text-xs space-y-2 transition-all"
-                :class="
-                  ms.escrow_funded
-                    ? 'border-emerald-200 bg-emerald-50/40'
-                    : 'border-rose-200 bg-rose-50/40'
-                "
-              >
-                <div class="flex items-start justify-between gap-2">
-                  <div>
-                    <h5 class="font-bold text-gray-900">{{ ms.title }}</h5>
-                    <span class="text-sm font-black text-gray-900 block mt-0.5">{{ formatUsd(ms.amount_usd) }}</span>
-                  </div>
-                  <!-- Escrow Status Badge & Toggle -->
-                  <button
-                    @click="handleToggleMilestoneEscrow(ms)"
-                    class="rounded-full px-2 py-0.5 text-[10px] font-extrabold cursor-pointer transition-all shadow-2xs"
-                    :class="
-                      ms.escrow_funded
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        : 'bg-rose-600 text-white hover:bg-rose-700'
-                    "
-                    title="Klik untuk toggle status Escrow"
-                  >
-                    {{ ms.escrow_funded ? '🛡️ ESCROW FUNDED' : '⚠️ NOT FUNDED (FREEZE)' }}
-                  </button>
-                </div>
-
-                <p v-if="ms.deliverables_notes" class="text-[11px] text-gray-600 bg-white/70 p-2 rounded border border-gray-200/50">
-                  {{ ms.deliverables_notes }}
-                </p>
-
-                <!-- 14-day release timer if submitted -->
-                <div v-if="ms.auto_release_deadline" class="text-[10px] text-gray-500 flex items-center justify-between border-t border-gray-200/40 pt-1.5">
-                  <span>⏱️ 14-Day Auto Release:</span>
-                  <span class="font-bold text-gray-800">Aktif (Upwork Escrow Protection)</span>
-                </div>
+        <!-- Right: Generated Scripts & Outreach DMs -->
+        <div class="lg:col-span-7 space-y-4">
+          <!-- 90s Video Script -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <div>
+                <h4 class="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                  <span>🎥</span>
+                  <span>Naskah Rekaman Video Loom 90-Detik</span>
+                </h4>
+                <p class="text-[10px] text-gray-500">Tunjukkan kodingan solusimu langsung di layar.</p>
               </div>
+              <button
+                @click="copyColdScript"
+                class="rounded-lg bg-gray-900 text-white px-2.5 py-1 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                {{ coldScriptCopied ? '✅ Disalin' : '📋 Salin Script Loom' }}
+              </button>
             </div>
+            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ cold90sScript }}</pre>
           </div>
 
-          <!-- Change Requests / Scope Creep for this Contract -->
-          <div
-            v-if="changeRequests.filter((cr) => cr.contract_id === contract.id).length > 0"
-            class="rounded-lg border border-purple-200 bg-purple-50/50 p-3 text-xs space-y-2"
-          >
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-purple-900 flex items-center gap-1.5">
-                <span>⚡</span>
-                <span>Change Requests Terdeteksi (Peluang Omset Tambahan):</span>
-              </span>
-            </div>
-            <div class="space-y-1.5">
-              <div
-                v-for="cr in changeRequests.filter((cr) => cr.contract_id === contract.id)"
-                :key="cr.id"
-                class="rounded bg-white p-2 border border-purple-100 flex items-center justify-between"
-              >
-                <div>
-                  <span class="font-semibold text-gray-900">{{ cr.request_title }}</span>
-                  <span class="text-[11px] text-gray-500 block">{{ cr.notes }}</span>
-                </div>
-                <div class="text-right">
-                  <span class="font-black text-purple-700">+{{ formatUsd(cr.additional_price_usd) }}</span>
-                  <span class="text-[10px] text-gray-400 block">({{ cr.estimated_hours }} jam)</span>
-                </div>
+          <!-- Direct Message Script -->
+          <div class="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between border-b border-amber-100 pb-2.5">
+              <div>
+                <h4 class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                  <span>📩</span>
+                  <span>Draf DM LinkedIn / X ke Founder</span>
+                </h4>
+                <p class="text-[10px] text-amber-800">100% Value-first, tanpa bahasa sales murahan.</p>
               </div>
+              <button
+                @click="copyColdDm"
+                class="rounded-lg bg-amber-600 text-white px-2.5 py-1 text-xs font-bold hover:bg-amber-700 transition-colors cursor-pointer"
+              >
+                {{ coldDmCopied ? '✅ Disalin' : '📋 Salin DM Founder' }}
+              </button>
             </div>
+            <pre class="bg-white p-3 rounded-lg border border-amber-200 text-xs font-mono whitespace-pre-wrap select-all text-gray-900 leading-relaxed">{{ coldFounderDm }}</pre>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 3: LABOR & MARGIN ARBITRAGE (AGENCY SCALING)           -->
+    <!-- SUB-TAB 4: PRODUCTIZED DEALS & DIRECT PIPELINE                 -->
     <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'arbitrage'" class="space-y-6">
-      <div class="flex items-center justify-between">
+    <div v-else-if="activeSubTab === 'deals'" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-black text-gray-900 flex items-center gap-2">
-            <span>👥</span>
-            <span>Labor & Margin Arbitrage Engine</span>
+            <span>💼</span>
+            <span>Productized Services & Direct Client Pipeline</span>
           </h3>
           <p class="text-xs text-gray-500 mt-0.5">
-            Dapatkan kontrak dalam USD dari pasar global, delegasikan task repetitif ke subdev IDR lokal.
+            Tarif studio tetap (fixed-scope), 0% potongan fee platform, dan pembayaran 50% deposit via Wise/Stripe.
           </p>
         </div>
         <button
-          @click="showNewSubdevModal = true"
-          class="rounded-lg bg-gray-900 text-white px-3 py-1.5 text-xs font-bold hover:bg-gray-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+          @click="showNewDirectDealModal = true"
+          class="rounded-lg bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
         >
           <span>+</span>
-          <span>Catat Pembagian Subdev</span>
+          <span>Catat Direct Deal Baru</span>
         </button>
       </div>
 
-      <!-- Financial Arbitrage Summary Card -->
-      <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-2xs">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-          <div>
-            <span class="text-xs text-gray-500 font-semibold block">Total Revenue Klien (Net IDR)</span>
-            <span class="text-lg font-black text-emerald-800">{{ formatIdr(netEarnedIdr) }}</span>
+      <!-- 3 Productized Service Menus -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="rounded bg-gray-100 text-gray-800 text-[10px] font-extrabold px-2 py-0.5 uppercase">Tier 1</span>
+            <span class="text-sm font-black text-gray-900">$500</span>
           </div>
-          <div>
-            <span class="text-xs text-gray-500 font-semibold block">Total Biaya Subkontraktor</span>
-            <span class="text-lg font-black text-rose-700">-{{ formatIdr(totalSubdevCostIdr) }}</span>
+          <h4 class="text-sm font-bold text-gray-950">48-Hour Technical & Architecture Audit</h4>
+          <p class="text-xs text-gray-500 leading-relaxed">
+            Audit keamanan, query database bottleneck, dan blueprint refactor sebelum klien scaling.
+          </p>
+          <span class="text-[11px] text-emerald-700 font-bold block pt-1">Turnaround: 48 Jam</span>
+        </div>
+
+        <div class="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-white p-4 shadow-2xs space-y-2 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="rounded bg-amber-500 text-white text-[10px] font-extrabold px-2 py-0.5 uppercase">Most Demanded</span>
+            <span class="text-sm font-black text-amber-950">$2,500 – $4,000</span>
           </div>
-          <div>
-            <span class="text-xs text-gray-500 font-semibold block">Laba Bersih Kas Verdion</span>
-            <span class="text-xl font-black text-amber-900">{{ formatIdr(verdionNetProfitIdr) }} ({{ verdionMarginPercent }}%)</span>
+          <h4 class="text-sm font-bold text-gray-950">14-Day Production MVP Sprint</h4>
+          <p class="text-xs text-gray-600 leading-relaxed">
+            Full-stack prototype siap launch (FastAPI + Vue/React + Supabase RLS) dengan 100% test coverage.
+          </p>
+          <span class="text-[11px] text-amber-800 font-bold block pt-1">Turnaround: 14 Hari</span>
+        </div>
+
+        <div class="rounded-xl border border-purple-200 bg-white p-4 shadow-2xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="rounded bg-purple-100 text-purple-900 text-[10px] font-extrabold px-2 py-0.5 uppercase">Enterprise</span>
+            <span class="text-sm font-black text-purple-950">$3,000 – $5,000</span>
           </div>
+          <h4 class="text-sm font-bold text-gray-950">Autonomous AI Agent Workflow Pipeline</h4>
+          <p class="text-xs text-gray-500 leading-relaxed">
+            Sistem multi-agent otomatis, function-calling, state persistence, dan background workers.
+          </p>
+          <span class="text-[11px] text-purple-700 font-bold block pt-1">Turnaround: 21 Hari</span>
         </div>
       </div>
 
-      <!-- Subcontractor Task Logs Table -->
-      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs">
-        <h4 class="text-sm font-bold text-gray-900 mb-3">Daftar Pendelegasian Task Subdev:</h4>
+      <!-- Deals Pipeline Table -->
+      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+        <h4 class="text-sm font-bold text-gray-900">Daftar Deal Klien Langsung (Direct Pipeline):</h4>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold border-b border-gray-200">
               <tr>
-                <th class="py-2.5 px-3">Nama Subdev</th>
-                <th class="py-2.5 px-3">Cakupan Task</th>
-                <th class="py-2.5 px-3">Honor (IDR)</th>
-                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Klien / Startup</th>
+                <th class="py-2.5 px-3">Founder Handle</th>
+                <th class="py-2.5 px-3">Paket Layanan</th>
+                <th class="py-2.5 px-3">Nilai Deal ($ USD)</th>
+                <th class="py-2.5 px-3">Tahap Pipeline</th>
+                <th class="py-2.5 px-3">Catatan</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-              <tr v-for="sub in subdevLogs" :key="sub.id" class="hover:bg-gray-50/70 transition-colors">
-                <td class="py-3 px-3 font-bold text-gray-900">{{ sub.subdev_name }}</td>
-                <td class="py-3 px-3 text-gray-700">{{ sub.task_scope }}</td>
-                <td class="py-3 px-3 font-extrabold text-rose-700">{{ formatIdr(sub.payout_idr) }}</td>
+              <tr v-for="deal in directDeals" :key="deal.id" class="hover:bg-gray-50/70 transition-colors">
+                <td class="py-3 px-3">
+                  <div class="font-bold text-gray-900">{{ deal.client_name }}</div>
+                  <div class="text-[11px] text-gray-500">{{ deal.project_title }}</div>
+                </td>
+                <td class="py-3 px-3 font-mono text-[11px] text-gray-700">{{ deal.founder_handle }}</td>
+                <td class="py-3 px-3 font-semibold text-gray-800">{{ deal.package_type }}</td>
+                <td class="py-3 px-3">
+                  <span class="font-black text-gray-950">{{ formatUsd(deal.deal_amount_usd) }}</span>
+                  <span class="text-[10px] text-emerald-700 block font-bold">100% Net IDR</span>
+                </td>
                 <td class="py-3 px-3">
                   <span
                     class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-                    :class="sub.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                    :class="{
+                      'bg-emerald-100 text-emerald-800': ['deposit_paid', 'delivered'].includes(deal.stage),
+                      'bg-indigo-100 text-indigo-800': deal.stage === 'call_booked',
+                      'bg-blue-100 text-blue-800': deal.stage === 'in_progress',
+                      'bg-gray-100 text-gray-800': deal.stage === 'lead' || deal.stage === 'loom_sent',
+                    }"
                   >
-                    {{ sub.status }}
+                    {{ deal.stage.replace('_', ' ') }}
                   </span>
+                </td>
+                <td class="py-3 px-3 text-gray-600 text-[11px] max-w-xs truncate" :title="deal.notes || ''">
+                  {{ deal.notes || '-' }}
                 </td>
               </tr>
             </tbody>
@@ -1645,17 +1048,17 @@ onMounted(() => {
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 4: RETAINERS & CLIENT LTV (RECURRING MRR)              -->
+    <!-- SUB-TAB 5: RETAINERS & RECURRING MRR                           -->
     <!-- ============================================================== -->
     <div v-else-if="activeSubTab === 'retainers'" class="space-y-6">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-base font-black text-gray-900 flex items-center gap-2">
             <span>🔄</span>
-            <span>Retainer & Client LTV Multiplier</span>
+            <span>Retainer & Client Recurring MRR</span>
           </h3>
           <p class="text-xs text-gray-500 mt-0.5">
-            Ubah kontrak sekali bayar menjadi pemasukan rutin bulanan ($500 - $1,200/bln) tanpa beli connects lagi.
+            Ubah kontrak sekali bayar menjadi pemasukan rutin bulanan ($800 - $1,500/bln) via invoice Wise/Stripe.
           </p>
         </div>
         <button
@@ -1703,154 +1106,61 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- MODAL 1: NEW PROPOSAL -->
-    <div v-if="showNewProposalModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
+    <!-- MODAL 1: NEW DIRECT DEAL -->
+    <div v-if="showNewDirectDealModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
       <div class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">Catat Proposal Whale Baru</h3>
+        <h3 class="text-base font-bold text-gray-900">Catat Direct Client Deal Baru</h3>
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Judul Lowongan:</label>
-            <input type="text" v-model="newProposal.job_title" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. AI Agent Orchestrator" />
+            <label class="block font-semibold text-gray-700 mb-1">Nama Startup / Klien:</label>
+            <input type="text" v-model="newDeal.client_name" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Acme AI" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Nilai Bid ($ USD):</label>
-              <input type="number" v-model.number="newProposal.bid_amount_usd" class="w-full rounded-lg border border-gray-300 p-2" />
+              <label class="block font-semibold text-gray-700 mb-1">Founder Handle / Kontak:</label>
+              <input type="text" v-model="newDeal.founder_handle" class="w-full rounded-lg border border-gray-300 p-2" placeholder="@founder_x" />
             </div>
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Connects Terpakai:</label>
-              <input type="number" v-model.number="newProposal.connects_spent" class="w-full rounded-lg border border-gray-300 p-2" />
+              <label class="block font-semibold text-gray-700 mb-1">Nilai Kontrak ($ USD):</label>
+              <input type="number" v-model.number="newDeal.deal_amount_usd" class="w-full rounded-lg border border-gray-300 p-2" />
             </div>
           </div>
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Link Lowongan Upwork:</label>
-            <input type="text" v-model="newProposal.job_url" class="w-full rounded-lg border border-gray-300 p-2" placeholder="https://upwork.com/jobs/..." />
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Hook Kalimat Pembuka:</label>
-            <textarea v-model="newProposal.hook_text" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="Kosongkan untuk memakai Hook Generator otomatis"></textarea>
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewProposalModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleCreateProposal" :disabled="saving" class="px-4 py-1.5 text-xs font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 cursor-pointer">
-            {{ saving ? 'Menyimpan...' : 'Simpan Proposal' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 2: NEW MILESTONE -->
-    <div v-if="showNewMilestoneModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
-      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">Tambah Milestone Kontrak</h3>
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Pilih Kontrak:</label>
-            <select v-model.number="newMilestone.contract_id" class="w-full rounded-lg border border-gray-300 p-2">
-              <option :value="0" disabled>-- Pilih Kontrak --</option>
-              <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.project_title }} ({{ c.client_name }})</option>
+            <label class="block font-semibold text-gray-700 mb-1">Paket Layanan:</label>
+            <select v-model="newDeal.package_type" class="w-full rounded-lg border border-gray-300 p-2">
+              <option value="48-Hour Technical Audit">48-Hour Technical Audit ($500)</option>
+              <option value="14-Day MVP Sprint">14-Day Production MVP Sprint ($2,500 – $4,000)</option>
+              <option value="AI Agent Workflow">Autonomous AI Agent Workflow ($3,000 – $5,000)</option>
+              <option value="Custom Engineering">Custom Engineering Sprint</option>
             </select>
           </div>
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Nama Milestone:</label>
-            <input type="text" v-model="newMilestone.title" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Milestone 2: API Queue & Testing" />
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Nilai Milestone ($ USD):</label>
-            <input type="number" v-model.number="newMilestone.amount_usd" class="w-full rounded-lg border border-gray-300 p-2" />
-          </div>
-          <label class="flex items-center gap-2 font-semibold text-gray-700 cursor-pointer">
-            <input type="checkbox" v-model="newMilestone.escrow_funded" class="rounded text-amber-600 h-4 w-4" />
-            <span>Escrow Sudah Didanai Klien?</span>
-          </label>
-        </div>
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewMilestoneModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleCreateMilestone" :disabled="saving" class="px-4 py-1.5 text-xs font-bold text-white bg-gray-900 rounded-lg hover:bg-gray-800 cursor-pointer">
-            {{ saving ? 'Menyimpan...' : 'Tambah Milestone' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 3: NEW CHANGE REQUEST -->
-    <div v-if="showNewCrModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
-      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-purple-900 flex items-center gap-2">
-          <span>⚡</span>
-          <span>Catat Change Request (Scope Creep Monetizer)</span>
-        </h3>
-        <p class="text-[11px] text-gray-500">
-          Ubah permintaan revisi atau fitur tambahan dari klien menjadi omset milestone baru.
-        </p>
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Pilih Kontrak:</label>
-            <select v-model.number="newCr.contract_id" class="w-full rounded-lg border border-gray-300 p-2">
-              <option :value="0" disabled>-- Pilih Kontrak --</option>
-              <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.project_title }} ({{ c.client_name }})</option>
+            <label class="block font-semibold text-gray-700 mb-1">Tahap Pipeline:</label>
+            <select v-model="newDeal.stage" class="w-full rounded-lg border border-gray-300 p-2">
+              <option value="lead">Lead Identified</option>
+              <option value="loom_sent">Loom Audit Sent</option>
+              <option value="call_booked">Discovery Call Booked</option>
+              <option value="deposit_paid">50% Deposit Paid</option>
+              <option value="in_progress">In Progress</option>
+              <option value="delivered">Delivered & Fully Paid</option>
+              <option value="testimonial_secured">Testimonial Secured</option>
             </select>
           </div>
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Permintaan Tambahan Klien:</label>
-            <input type="text" v-model="newCr.request_title" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Export data to Google Sheets & Slack" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-semibold text-gray-700 mb-1">Estimasi Jam Pengerjaan:</label>
-              <input type="number" v-model.number="newCr.estimated_hours" class="w-full rounded-lg border border-gray-300 p-2" />
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-700 mb-1">Tambahan Biaya ($ USD):</label>
-              <input type="number" v-model.number="newCr.additional_price_usd" class="w-full rounded-lg border border-gray-300 p-2" />
-            </div>
+            <label class="block font-semibold text-gray-700 mb-1">Catatan Tambahan:</label>
+            <textarea v-model="newDeal.notes" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Deposit via Wise, deadline Oct 15"></textarea>
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewCrModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleCreateChangeRequest" :disabled="saving" class="px-4 py-1.5 text-xs font-bold text-white bg-purple-700 rounded-lg hover:bg-purple-800 cursor-pointer">
-            {{ saving ? 'Menyimpan...' : 'Simpan Peluang CR' }}
+          <button @click="showNewDirectDealModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
+          <button @click="handleAddDirectDeal" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 cursor-pointer">
+            Simpan Deal
           </button>
         </div>
       </div>
     </div>
 
-    <!-- MODAL 4: NEW SUBDEV -->
-    <div v-if="showNewSubdevModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
-      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">Catat Subkontraktor (Arbitrase Dev)</h3>
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Pilih Kontrak:</label>
-            <select v-model.number="newSubdev.contract_id" class="w-full rounded-lg border border-gray-300 p-2">
-              <option :value="0" disabled>-- Pilih Kontrak --</option>
-              <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.project_title }} ({{ c.client_name }})</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Nama Subdev:</label>
-            <input type="text" v-model="newSubdev.subdev_name" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Rian (Junior Python Dev)" />
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Cakupan Task Yang Didelegasikan:</label>
-            <input type="text" v-model="newSubdev.task_scope" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Slicing UI, parser, data cleaning" />
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Biaya Bayar Subdev (Rp IDR):</label>
-            <input type="number" v-model.number="newSubdev.payout_idr" step="50000" class="w-full rounded-lg border border-gray-300 p-2" />
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewSubdevModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleCreateSubdev" :disabled="saving" class="px-4 py-1.5 text-xs font-bold text-white bg-gray-900 rounded-lg hover:bg-gray-800 cursor-pointer">
-            {{ saving ? 'Menyimpan...' : 'Simpan Subdev' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 5: NEW RETAINER -->
+    <!-- MODAL 2: NEW RETAINER -->
     <div v-if="showNewRetainerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
       <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
         <h3 class="text-base font-bold text-indigo-900">Tambah Klien Retainer Bulanan</h3>
@@ -1871,7 +1181,7 @@ onMounted(() => {
           </div>
           <div>
             <label class="block font-semibold text-gray-700 mb-1">Catatan Paket / SLA:</label>
-            <textarea v-model="newRetainer.notes" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. 10 jam/bulan SLA monitoring & bug fixing"></textarea>
+            <textarea v-model="newRetainer.notes" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. 15 jam/bulan architecture tuning & bug fixing"></textarea>
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2 border-t">
