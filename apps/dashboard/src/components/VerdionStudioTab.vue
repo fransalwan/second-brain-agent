@@ -1,302 +1,132 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { supabase } from '../lib/supabase'
 
 const props = defineProps<{
   userId: string
 }>()
 
-interface CareerGoal {
-  id?: number
-  user_id: string
-  month: string
-  target_revenue_usd: number
-  target_proposals_count: number
-  current_badge: string
-  usd_to_idr_rate: number
-  company_name: string
-  min_project_budget_usd: number
-  monthly_profit_target_idr: number
-}
-
-interface DirectDeal {
+interface LocalLead {
   id: number
-  client_name: string
-  founder_handle: string
-  project_title: string
-  package_type: string
-  deal_amount_usd: number
-  stage: 'lead' | 'loom_sent' | 'call_booked' | 'deposit_paid' | 'in_progress' | 'delivered' | 'testimonial_secured'
+  business_name: string
+  category: 'restaurant_cafe' | 'villa_hospitality' | 'rental_tour' | 'spa_salon' | 'other'
+  maps_url: string
+  rating: number
+  review_count: number
+  location_area: string
+  contact_wa: string
+  pain_point: string
+  deal_value_idr: number
+  status: 'lead' | 'wa_sent' | 'replied' | 'meeting_demo' | 'dp_paid' | 'completed' | 'retainer_active'
   notes: string | null
   created_at: string
 }
 
-interface VerdionRetainer {
+interface LocalRetainer {
   id: number
   client_name: string
-  monthly_rate_usd: number
-  start_date: string
+  monthly_rate_idr: number
   billing_day: number
-  status: string
+  status: 'active' | 'paused'
   notes: string | null
-  created_at: string
 }
 
-const activeSubTab = ref<'case_study' | 'bip_engine' | 'cold_loom' | 'deals' | 'retainers'>('case_study')
+const activeSubTab = ref<'pipeline' | 'sandbox' | 'outreach' | 'pricing'>('pipeline')
 const loading = ref(true)
-const saving = ref(false)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 
-// Data state
-const careerGoal = ref<CareerGoal | null>(null)
-const directDeals = ref<DirectDeal[]>([
+// -------------------------------------------------------------
+// LOCAL LEADS & PIPELINE DATA
+// -------------------------------------------------------------
+const leads = ref<LocalLead[]>([
   {
     id: 1,
-    client_name: 'HyperScale AI',
-    founder_handle: '@alex_founder (X)',
-    project_title: 'Multi-Agent RAG Orchestration Engine',
-    package_type: 'AI Agent Workflow',
-    deal_amount_usd: 3500,
-    stage: 'deposit_paid',
-    notes: '50% deposit received via Wise ($1,750). Delivering in 10 days.',
+    business_name: 'Canggu Breeze Cafe & Bakery',
+    category: 'restaurant_cafe',
+    maps_url: 'https://maps.google.com/?q=Canggu+Breeze+Cafe',
+    rating: 4.8,
+    review_count: 245,
+    location_area: 'Jl. Pantai Batu Bolong, Canggu',
+    contact_wa: '081234567890',
+    pain_point: 'Invoice manual kertas sering hilang saat pesanan ramai, owner tidak bisa pantau omset harian dari jauh.',
+    deal_value_idr: 15000000,
+    status: 'dp_paid',
+    notes: 'DP 50% (Rp 7.500.000) sudah masuk BCA. Target deployment kasir web dalam 5 hari.',
     created_at: new Date().toISOString(),
   },
   {
     id: 2,
-    client_name: 'Nexus Billing SaaS',
-    founder_handle: 'linkedin.com/in/sarah-cto',
-    project_title: 'FastAPI Stripe Webhook & Sub-100ms API Refactor',
-    package_type: '14-Day MVP Sprint',
-    deal_amount_usd: 2800,
-    stage: 'call_booked',
-    notes: 'Sent 90s Loom audit showing 3s webhook latency drop to 80ms.',
+    business_name: 'Uluwatu Sunset Villa Sanctuary',
+    category: 'villa_hospitality',
+    maps_url: 'https://maps.google.com/?q=Uluwatu+Sunset+Villa',
+    rating: 4.9,
+    review_count: 180,
+    location_area: 'Pecatu, Uluwatu',
+    contact_wa: '081987654321',
+    pain_point: 'Booking dan invoice tamu masih manual via WhatsApp, rekap pengeluaran staf villa berantakan di Excel.',
+    deal_value_idr: 22000000,
+    status: 'meeting_demo',
+    notes: 'Jadwal demo Zoom/temu offline besok jam 14:00 WITA dengan Owner (Bule expat).',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    business_name: 'Seminyak MotoRent & Surf Camp',
+    category: 'rental_tour',
+    maps_url: 'https://maps.google.com/?q=Seminyak+MotoRent',
+    rating: 4.6,
+    review_count: 310,
+    location_area: 'Jl. Kayu Aya, Seminyak',
+    contact_wa: '082111223344',
+    pain_point: 'Tidak ada tracking ketersediaan unit motor dan deposit paspor tamu sering tidak tercatat rapi.',
+    deal_value_idr: 18000000,
+    status: 'wa_sent',
+    notes: 'Sudah dikirimkan video demo Loom 45 detik via WhatsApp manajer operasional.',
     created_at: new Date().toISOString(),
   },
 ])
 
-const retainers = ref<VerdionRetainer[]>([])
-
-// Currency exchange rate default
-const usdRate = computed(() => careerGoal.value?.usd_to_idr_rate || 16200)
-
-// -------------------------------------------------------------
-// 1. FLAGSHIP CASE STUDY SHOWCASE STATE
-// -------------------------------------------------------------
-const caseStudyCopied = ref(false)
-
-const caseStudyMarkdown = computed(() => {
-  return `# Case Study #01: Second Brain — Enterprise-Grade Autonomous Workspace Architecture
-
-**Studio:** Verdion (Boutique Software Engineering & Autonomous AI Systems)  
-**Lead Engineer:** Frans Alwan (Principal Engineer)  
-**Status:** In Production • 100% Automated Test Suite Passing  
-**Live Application:** https://second-brain-agent.netlify.app  
-
----
-
-### 1. Executive Summary & Problem
-Modern knowledge workers and engineering founders suffer from context fragmentation across note apps, health tracking, and task management. Off-the-shelf tools either hallucinate without verified context or introduce unacceptable UI latency (>1.5s).
-
-Verdion engineered **Second Brain**: a full-stack, type-safe, multi-tenant autonomous workspace that bridges async agent task execution with deterministic database reliability.
-
----
-
-### 2. System Architecture
-\`\`\`
-[ Vue 3 + Tailwind Client ]  <--->  [ Supabase PostgreSQL + Row-Level Security ]
-          |                                            |
-          v                                            v
-[ FastAPI Async Engine ]   <--->  [ Autonomous LLM Agent & Background Workers ]
-\`\`\`
-
-- **Frontend:** Vue 3 Composition API, Vite, TypeScript, zero CSS framework bloat.
-- **API Engine:** Python FastAPI with async non-blocking worker concurrency.
-- **Database & Security:** Supabase PostgreSQL with granular multi-tenant Row-Level Security (RLS) policies.
-- **Agent Intelligence:** Multi-turn tool execution, background task polling, and zero-hallucination context injection.
-
----
-
-### 3. Engineering Benchmarks & Proof of Work
-- **Automated Test Coverage:** 100% passing across frontend unit/integration suite (55 tests) and backend pytest suite (77 tests).
-- **Query Latency:** Sub-100ms API responses through optimized foreign-key indexing and compound RLS filters.
-- **Cost Efficiency:** Engineered to run 100% within serverless free-tier constraints while supporting production concurrency.
-- **Code Standards:** Type-safe, linted, strict CI/CD automated pipeline on git push.
-
----
-*Built with precision by Verdion Studio. Inquiries: fransalwan55@gmail.com*`
-})
-
-function copyCaseStudy() {
-  navigator.clipboard.writeText(caseStudyMarkdown.value)
-  caseStudyCopied.value = true
-  setTimeout(() => {
-    caseStudyCopied.value = false
-  }, 2500)
-}
+const retainers = ref<LocalRetainer[]>([
+  {
+    id: 1,
+    client_name: 'Canggu Breeze Cafe & Bakery',
+    monthly_rate_idr: 750000,
+    billing_day: 1,
+    status: 'active',
+    notes: 'Maintenance cloud hosting Supabase + backup database mingguan.',
+  },
+])
 
 // -------------------------------------------------------------
-// 2. BUILD-IN-PUBLIC (BiP) CONTENT ENGINE STATE
+// FINANCIAL & CASHFLOW METRICS (IDR FOCUS)
 // -------------------------------------------------------------
-const bipPostType = ref<'teardown' | 'performance' | 'devlog'>('teardown')
-const bipTopic = ref('Supabase Row-Level Security (RLS)')
-const bipMetric = ref('Dropped query latency from 1,420ms to 78ms')
-const bipInsight = ref('Composite indexing on (user_id, created_at) prevents sequential table scans during RLS policy checks.')
-const bipCopied = ref(false)
-
-const bipTwitterContent = computed(() => {
-  if (bipPostType.value === 'teardown') {
-    return `Most multi-tenant apps leak data or crash under scale.
-
-How we built enterprise RLS @VerdionStudio:
-• Filtered at DB level, not app
-• ${bipInsight.value}
-• Result: ${bipMetric.value}
-
-Proof of work > talk. 🧵👇`
-  } else if (bipPostType.value === 'performance') {
-    return `⚡ Perf Win @VerdionStudio:
-
-We just ${bipMetric.value} on our core API engine.
-
-Fix: ${bipInsight.value}
-
-Clean code + async wins. 🛠️`
-  } else {
-    return `🚢 Shipped @VerdionStudio:
-Refactored ${bipTopic.value}.
-Result: ${bipMetric.value}.
-${bipInsight.value}`
-  }
+const totalPipelineIdr = computed(() => {
+  return leads.value.reduce((sum, l) => sum + (l.deal_value_idr || 0), 0)
 })
 
-const bipLinkedInContent = computed(() => {
-  return `Why most software rewrites fail (and how we approach performance engineering at Verdion):
-
-When scaling web applications and autonomous AI systems, founders often think they need a massive microservice rewrite. 
-
-In reality, 90% of latency bottlenecks stem from database indexing and synchronous blocking loops.
-
-Here is what we implemented this week:
-• Focus Area: ${bipTopic.value}
-• Measured Impact: ${bipMetric.value}
-• Engineering Insight: ${bipInsight.value}
-
-At Verdion, we believe in radical transparency and high-signal engineering: 100% automated test coverage, sub-100ms response times, and zero bloat.
-
-What is the biggest performance bottleneck in your current stack?
-
-#SoftwareEngineering #BuildInPublic #SystemDesign #FastAPI #VueJS #PostgreSQL`
+const totalCashInIdr = computed(() => {
+  return leads.value.reduce((sum, l) => {
+    if (l.status === 'completed' || l.status === 'retainer_active') {
+      return sum + l.deal_value_idr
+    } else if (l.status === 'dp_paid') {
+      return sum + l.deal_value_idr * 0.5 // 50% DP
+    }
+    return sum
+  }, 0)
 })
 
-const bipTwitterLength = computed(() => bipTwitterContent.value.length)
-
-function copyBipText(text: string) {
-  navigator.clipboard.writeText(text)
-  bipCopied.value = true
-  setTimeout(() => {
-    bipCopied.value = false
-  }, 2000)
-}
-
-// -------------------------------------------------------------
-// 3. COLD LOOM AUDIT & FOUNDER DM DRAFTER STATE
-// -------------------------------------------------------------
-const coldTargetStartup = ref('FinTech Alpha')
-const coldFounderName = ref('Alex')
-const coldObservedBottleneck = ref('dashboard metrics take 4.2 seconds to load due to unindexed relation queries')
-const coldVerdionFix = ref('Redis async caching layer + compound Supabase index')
-const coldLoomUrl = ref('loom.com/share/verdion-audit-demo')
-const coldDmCopied = ref(false)
-const coldScriptCopied = ref(false)
-
-const coldFounderDm = computed(() => {
-  return `Hi ${coldFounderName.value}, saw your recent launch for ${coldTargetStartup.value}—really slick product concept!
-
-I was testing the platform and noticed that ${coldObservedBottleneck.value}.
-
-To save your team debugging time, I spun up a 90-second video demo showing how to resolve this with ${coldVerdionFix.value} (drops latency under 150ms):
-${coldLoomUrl.value}
-
-No sales pitch attached—just thought it might be useful as you scale. If you'd like me to deploy and test this into your repo this week, happy to hop on a quick 10-min chat.
-
-Best,
-Frans Alwan
-Lead Engineer @ Verdion Studio`
-})
-
-const cold90sScript = computed(() => {
-  return `[00:00 - 00:20 | Hook & Diagnosis]
-"Hi ${coldFounderName.value}! Congratulations on ${coldTargetStartup.value}. I was checking out your product and noticed a critical bottleneck: ${coldObservedBottleneck.value}."
-
-[00:20 - 00:55 | The Working Sandbox Proof]
-"Instead of just sending an email, I cloned a sandbox environment reproducing your architecture. Here is the fix using ${coldVerdionFix.value}. Notice in the network tab how the query time dropped immediately to sub-150ms with zero data mutation."
-
-[00:55 - 01:30 | Call to Action]
-"At Verdion Studio, we specialize in high-performance backends and AI workflows. If your engineering team is swamped and you want this merged and tested today, reply to my message and we can roll this out. Cheers!"`
-})
-
-function copyColdDm() {
-  navigator.clipboard.writeText(coldFounderDm.value)
-  coldDmCopied.value = true
-  setTimeout(() => (coldDmCopied.value = false), 2000)
-}
-
-function copyColdScript() {
-  navigator.clipboard.writeText(cold90sScript.value)
-  coldScriptCopied.value = true
-  setTimeout(() => (coldScriptCopied.value = false), 2000)
-}
-
-// -------------------------------------------------------------
-// 4. DIRECT DEALS PIPELINE & FINANCIAL COMPUTATIONS
-// -------------------------------------------------------------
-const showNewDirectDealModal = ref(false)
-const newDeal = ref({
-  client_name: '',
-  founder_handle: '',
-  project_title: '',
-  package_type: '14-Day MVP Sprint',
-  deal_amount_usd: 2500,
-  stage: 'lead' as DirectDeal['stage'],
-  notes: '',
-})
-
-const showNewRetainerModal = ref(false)
-const newRetainer = ref({
-  client_name: '',
-  monthly_rate_usd: 800,
-  billing_day: 1,
-  notes: '',
-})
-
-// Metrics
-const totalDirectPipelineUsd = computed(() => {
-  return directDeals.value.reduce((acc, d) => acc + (d.deal_amount_usd || 0), 0)
-})
-
-const closedRevenueUsd = computed(() => {
-  return directDeals.value
-    .filter((d) => ['deposit_paid', 'in_progress', 'delivered', 'testimonial_secured'].includes(d.stage))
-    .reduce((acc, d) => acc + (d.deal_amount_usd || 0), 0)
-})
-
-const closedRevenueIdr = computed(() => {
-  // 100% Retained (0% platform cut!)
-  return closedRevenueUsd.value * usdRate.value
-})
-
-const totalRetainerMrrUsd = computed(() => {
+const activeRetainerMrrIdr = computed(() => {
   return retainers.value
     .filter((r) => r.status === 'active')
-    .reduce((acc, r) => acc + (r.monthly_rate_usd || 0), 0)
+    .reduce((sum, r) => sum + (r.monthly_rate_idr || 0), 0)
 })
 
-const totalRetainerMrrIdr = computed(() => {
-  return totalRetainerMrrUsd.value * usdRate.value
+const averageDealSizeIdr = computed(() => {
+  if (leads.value.length === 0) return 0
+  return Math.round(totalPipelineIdr.value / leads.value.length)
 })
 
-function formatIdr(amount: number): string {
+function formatRupiah(amount: number): string {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -304,230 +134,287 @@ function formatIdr(amount: number): string {
   }).format(amount)
 }
 
-function formatUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
+// -------------------------------------------------------------
+// MODUL 1: ADD NEW GOOGLE MAPS LEAD STATE
+// -------------------------------------------------------------
+const showNewLeadModal = ref(false)
+const newLead = ref({
+  business_name: '',
+  category: 'restaurant_cafe' as LocalLead['category'],
+  maps_url: '',
+  rating: 4.8,
+  review_count: 150,
+  location_area: 'Canggu, Bali',
+  contact_wa: '',
+  pain_point: '',
+  deal_value_idr: 15000000,
+  status: 'lead' as LocalLead['status'],
+  notes: '',
+})
 
-// Data Fetching
-async function fetchVerdionData() {
-  loading.value = true
-  errorMsg.value = null
-
-  try {
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const { data: goalData } = await supabase
-      .from('career_goals')
-      .select('*')
-      .eq('user_id', props.userId)
-      .eq('month', currentMonth)
-      .maybeSingle()
-
-    if (goalData) {
-      careerGoal.value = goalData
-    } else {
-      careerGoal.value = {
-        user_id: props.userId,
-        month: currentMonth,
-        target_revenue_usd: 5000,
-        target_proposals_count: 15,
-        current_badge: 'Boutique Founder',
-        usd_to_idr_rate: 16200,
-        company_name: 'Verdion Studio',
-        min_project_budget_usd: 1500,
-        monthly_profit_target_idr: 75000000,
-      }
-    }
-
-    const { data: retData } = await supabase
-      .from('verdion_retainers')
-      .select('*')
-      .eq('user_id', props.userId)
-      .order('created_at', { ascending: false })
-
-    if (retData && retData.length > 0) {
-      retainers.value = retData
-    } else {
-      retainers.value = [
-        {
-          id: 101,
-          client_name: 'HyperScale AI (Ongoing Architecture SLA)',
-          monthly_rate_usd: 1200,
-          start_date: '2026-10-01',
-          billing_day: 1,
-          status: 'active',
-          notes: '15 hrs/month retainer for agent monitoring & database tuning',
-          created_at: new Date().toISOString(),
-        },
-      ]
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal memuat data Verdion Studio.'
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleAddDirectDeal() {
-  if (!newDeal.value.client_name) return
-  const created: DirectDeal = {
+function handleAddLead() {
+  if (!newLead.value.business_name) return
+  const created: LocalLead = {
     id: Date.now(),
-    client_name: newDeal.value.client_name,
-    founder_handle: newDeal.value.founder_handle || '@founder',
-    project_title: newDeal.value.project_title || 'Custom Engineering Sprint',
-    package_type: newDeal.value.package_type,
-    deal_amount_usd: Number(newDeal.value.deal_amount_usd) || 2500,
-    stage: newDeal.value.stage,
-    notes: newDeal.value.notes,
+    business_name: newLead.value.business_name,
+    category: newLead.value.category,
+    maps_url: newLead.value.maps_url || 'https://maps.google.com',
+    rating: Number(newLead.value.rating) || 4.5,
+    review_count: Number(newLead.value.review_count) || 50,
+    location_area: newLead.value.location_area || 'Bali',
+    contact_wa: newLead.value.contact_wa,
+    pain_point: newLead.value.pain_point || 'Pencatatan nota dan laporan kasir masih manual.',
+    deal_value_idr: Number(newLead.value.deal_value_idr) || 15000000,
+    status: newLead.value.status,
+    notes: newLead.value.notes,
     created_at: new Date().toISOString(),
   }
-  directDeals.value.unshift(created)
-  showNewDirectDealModal.value = false
-  successMsg.value = 'Direct Client Deal berhasil dicatat!'
-  setTimeout(() => (successMsg.value = null), 3000)
+  leads.value.unshift(created)
+  showNewLeadModal.value = false
+  successMsg.value = `Prospek "${created.business_name}" berhasil ditambahkan ke Radar Verdion!`
+  setTimeout(() => (successMsg.value = null), 3500)
 }
 
-async function handleCreateRetainer() {
-  if (!newRetainer.value.client_name) return
-  saving.value = true
-  try {
-    const payload = {
-      user_id: props.userId,
-      client_name: newRetainer.value.client_name,
-      monthly_rate_usd: newRetainer.value.monthly_rate_usd,
-      billing_day: newRetainer.value.billing_day,
-      status: 'active',
-      notes: newRetainer.value.notes,
-    }
-    const { data, error } = await supabase.from('verdion_retainers').insert([payload]).select().single()
-    if (error) throw error
-    if (data) {
-      retainers.value.unshift(data)
-    } else {
-      retainers.value.unshift({ ...payload, id: Date.now(), start_date: '2026-10-01', created_at: new Date().toISOString() })
-    }
-    showNewRetainerModal.value = false
-    successMsg.value = 'Klien Retainer Recurring berhasil ditambahkan!'
-    setTimeout(() => (successMsg.value = null), 3000)
-  } catch (err: any) {
-    errorMsg.value = err.message || 'Gagal menyimpan retainer.'
-  } finally {
-    saving.value = false
+function calculateLeadScore(lead: LocalLead): number {
+  let score = 30
+  if (lead.review_count >= 200) score += 30
+  else if (lead.review_count >= 100) score += 20
+  else if (lead.review_count >= 30) score += 10
+
+  if (lead.rating >= 4.5) score += 20
+  if (lead.contact_wa && lead.contact_wa.length >= 10) score += 20
+  return Math.min(100, score)
+}
+
+// -------------------------------------------------------------
+// MODUL 2: INSTANT MOCKUP SANDBOX (SENJATA DEMO KILAT 45 DETIK)
+// -------------------------------------------------------------
+const mockBusinessName = ref('Sunset Haven Resto & Bar')
+const mockBusinessType = ref<'resto' | 'villa' | 'rental'>('resto')
+const mockItems = ref([
+  { id: 1, name: 'Truffle Fries Bowl', price: 55000, qty: 1 },
+  { id: 2, name: 'Crispy Pork Belly / Ayam Bakar', price: 95000, qty: 2 },
+  { id: 3, name: 'Dragonfruit Coconut Smoothie', price: 45000, qty: 1 },
+])
+
+const sandboxCart = ref<Array<{ name: string; price: number; qty: number }>>([
+  { name: 'Crispy Pork Belly / Ayam Bakar', price: 95000, qty: 2 },
+  { name: 'Dragonfruit Coconut Smoothie', price: 45000, qty: 1 },
+])
+
+const sandboxSubtotal = computed(() => {
+  return sandboxCart.value.reduce((sum, item) => sum + item.price * item.qty, 0)
+})
+const sandboxTax = computed(() => Math.round(sandboxSubtotal.value * 0.10)) // 10% PB1
+const sandboxTotal = computed(() => sandboxSubtotal.value + sandboxTax.value)
+
+function addItemToSandbox(item: { name: string; price: number }) {
+  const existing = sandboxCart.value.find((c) => c.name === item.name)
+  if (existing) {
+    existing.qty++
+  } else {
+    sandboxCart.value.push({ name: item.name, price: item.price, qty: 1 })
   }
+}
+
+function removeSandboxItem(index: number) {
+  sandboxCart.value.splice(index, 1)
+}
+
+const loomScriptText = computed(() => {
+  return `[Detik 00 - 15 | Sapaan Ramah & Masalah]
+"Halo Bli/Kak [Nama Owner] & tim ${mockBusinessName.value}! Salam kenal, saya Frans dari Verdion Studio. Saya perhatikan ulasan di Google Maps kalian ramai sekali, tapi biasanya resto/bisnis yang ramai sering kewalahan rekap nota bon manual tiap malam..."
+
+[Detik 15 - 35 | Tunjukkan Demo Nyata Berlogo Bisnis Mereka]
+"Supaya staf gak pusing dan owner bisa pantau omset real-time, saya iseng buatkan prototype mini-sistem kasir & invoice khusus untuk ${mockBusinessName.value}. Lihat di layar ini: staf tinggal klik menu seperti ${mockItems.value[0]?.name || 'menu'}, klik terbitkan, invoice QRIS otomatis terbuat dalam 2 detik dan bisa langsung dikirim ke WhatsApp tamu..."
+
+[Detik 35 - 45 | Ajakan Santai Tanpa Paksaan]
+"Kalau kalian ingin sistem sederhana seperti ini dipasang langsung untuk kasir kalian minggu ini, kabari saya ya. Free uji coba dan tanpa komitmen apa pun. Sukses terus untuk ${mockBusinessName.value}!"`
+})
+
+const copiedScript = ref(false)
+function copyLoomScript() {
+  navigator.clipboard.writeText(loomScriptText.value)
+  copiedScript.value = true
+  setTimeout(() => (copiedScript.value = false), 2000)
+}
+
+// -------------------------------------------------------------
+// MODUL 3: WHATSAPP OUTREACH & OBJECTION DESTROYER
+// -------------------------------------------------------------
+const selectedLeadForWa = ref<LocalLead>(leads.value[0])
+const waVideoLink = ref('loom.com/share/verdion-canggu-demo')
+
+const generatedWaPitch = computed(() => {
+  const lead = selectedLeadForWa.value
+  const cleanPhone = (lead.contact_wa || '').replace(/[^0-9]/g, '')
+  const normalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone
+
+  const message = `Halo Bli/Kak dan tim ${lead.business_name}! 👋
+
+Salam kenal, saya Frans dari Verdion Studio. 
+
+Saya perhatikan ulasan ${lead.business_name} di Google Maps ramai sekali (rating ${lead.rating} ⭐ dari ${lead.review_count}+ ulasan, mantap banget!).
+
+Biasanya tempat yang ramai seperti ini mulai mengalami kendala di ${lead.pain_point.toLowerCase()}.
+
+Untuk membantu operasional staf dan memudahkan owner memantau omset dari HP, saya sempat membuatkan video demo singkat (45 detik) bagaimana sistem invoice & kasir digital otomatis khusus untuk ${lead.business_name}:
+${waVideoLink.value}
+
+Sistem ini bisa langsung dipakai staf via tablet/HP tanpa perlu ganti perangkat. Kalau berkenan dicoba atau mau tanya-tanya santai, silakan balas chat ini ya Kak. (Free, tanpa komitmen).
+
+Terima kasih dan sukses terus untuk ${lead.business_name}! 🙏`
+
+  return { message, normalPhone }
+})
+
+const copiedWa = ref(false)
+function copyWaPitch() {
+  navigator.clipboard.writeText(generatedWaPitch.value.message)
+  copiedWa.value = true
+  setTimeout(() => (copiedWa.value = false), 2000)
+}
+
+function openDirectWhatsApp() {
+  const { normalPhone, message } = generatedWaPitch.value
+  const url = `https://wa.me/${normalPhone}?text=${encodeURIComponent(message)}`
+  window.open(url, '_blank')
+}
+
+// Local Objections Data
+const objectionList = ref([
+  {
+    objection: 'Kami sudah pakai nota kertas / Excel bertahun-tahun dan masih jalan.',
+    answer: 'Nota kertas sering tercecer, rawan basah/hilang, dan owner harus menunggu staf rekap berjam-jam tiap malam. Dengan sistem Verdion, omset terhitung otomatis per detik, struk langsung masuk ke WhatsApp pelanggan, dan owner bisa cek laporan laba bersih kapan pun dari pantai atau rumah.',
+  },
+  {
+    objection: 'Kenapa gak langganan aplikasi POS kasir umum saja kayak Moka atau Pawoon?',
+    answer: 'Aplikasi umum sifatnya kaku dan mewajibkan langganan bulanan mahal terus-menerus. Mereka tidak punya fitur kustom seperti invoice khusus villa, sistem deposit rental, atau format menu spesifik Anda. Di Verdion, sistem dibuat kustom 100% mengikuti SOP Anda, sekali bayar menjadi aset milik Anda selamanya tanpa biaya sewa software mahal.',
+  },
+  {
+    objection: 'Staf kami gaptek, takut malah bikin antrean makin lambat.',
+    answer: 'Sistem Verdion kami rancang seringkas chat WhatsApp. Tombol menu besar, jelas, dan hanya butuh 2 sentuhan untuk cetak nota. Kami berikan garansi pelatihan staf 15 menit langsung mahir, lengkap dengan nomor CS WhatsApp jika staf butuh bantuan.',
+  },
+  {
+    objection: 'Berapa biayanya? Takut kemahalan buat tempat kami.',
+    answer: 'Paket starter kami mulai dari Rp 8jt – Rp 15jt (bisa dicicil 2x: DP 50% dan pelunasan setelah sistem live dan staf lancar memakai). Investasi ini tertutup dalam 1–2 bulan hanya dari penghematan jam kerja staf dan pencegahan kebocoran kasir.',
+  },
+])
+
+const copiedObjectionIdx = ref<number | null>(null)
+function copyObjectionAnswer(text: string, idx: number) {
+  navigator.clipboard.writeText(text)
+  copiedObjectionIdx.value = idx
+  setTimeout(() => (copiedObjectionIdx.value = null), 2000)
 }
 
 onMounted(() => {
-  fetchVerdionData()
+  loading.value = false
 })
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Top Executive Revenue Bar -->
-    <div class="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white p-5 shadow-xs">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-100 pb-4">
+    <!-- Top Executive Revenue Bar (Rupiah Focus) -->
+    <div class="rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white p-5 shadow-xs">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-emerald-100 pb-4">
         <div class="flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-white font-black text-xl shadow-xs">
-            ⚡
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-xl shadow-xs">
+            🗺️
           </div>
           <div>
             <div class="flex items-center gap-2">
               <h2 class="text-lg font-black tracking-tight text-gray-950 uppercase">VERDION STUDIO</h2>
-              <span class="rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-900 border border-amber-400/30">
-                BUILD-IN-PUBLIC & PUBLIC CREDIBILITY ENGINE
+              <span class="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-950 border border-emerald-400/30">
+                LOCAL B2B DIGITIZATION ENGINE
               </span>
             </div>
             <p class="text-xs text-gray-600 mt-0.5 font-medium">
-              Boutique Software Engineering • Flagship Proof of Work • 0% Platform Fee • Global Direct Inbound
+              Google Maps Prospecting • Resto/Villa/Rental Mini-ERP & Invoicing • Cash DP 50% • Monthly Cloud Retainers
             </p>
           </div>
         </div>
 
-        <!-- Exchange Rate & Controls -->
-        <div class="flex items-center gap-3 self-end md:self-auto">
-          <div class="flex items-center gap-2 rounded-lg bg-white/80 border border-amber-200 px-3 py-1.5 text-xs shadow-2xs">
-            <span class="text-gray-500 font-medium">Kurs Valuta:</span>
-            <span class="font-bold text-gray-900">1 USD = Rp {{ usdRate.toLocaleString('id-ID') }}</span>
-          </div>
+        <div class="flex items-center gap-2">
           <button
-            @click="fetchVerdionData"
-            class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
-            title="Refresh Data"
+            @click="showNewLeadModal = true"
+            class="rounded-lg bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
           >
-            🔄 Sync
+            <span>+</span>
+            <span>Tambah Target Maps</span>
           </button>
         </div>
       </div>
 
-      <!-- Key Financial Metrics 4-Col Grid -->
+      <!-- Key Financial Metrics 4-Col Grid in IDR -->
       <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <!-- Metric 1: Closed Revenue USD -->
-        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
+        <!-- Metric 1: Cash In Diterima -->
+        <div class="rounded-xl border border-emerald-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Revenue Closing (Direct)</span>
+            <span class="text-xs font-semibold text-gray-500">Uang Masuk Tunai (Cash In)</span>
             <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
-              0% Fee
+              DP & Lunas
             </span>
           </div>
           <div class="mt-2">
-            <span class="text-lg sm:text-xl font-extrabold text-gray-900">{{ formatUsd(closedRevenueUsd) }}</span>
-            <span class="text-xs text-gray-400 font-medium"> USD</span>
-            <p class="text-[11px] text-emerald-700 font-bold mt-0.5">
-              {{ formatIdr(closedRevenueIdr) }}
-            </p>
+            <span class="text-lg sm:text-xl font-black text-emerald-800">{{ formatRupiah(totalCashInIdr) }}</span>
+            <p class="text-[11px] text-gray-500 mt-0.5">Uang kas bersih masuk rekening</p>
           </div>
         </div>
 
-        <!-- Metric 2: Direct Deal Pipeline -->
-        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
+        <!-- Metric 2: Total Pipeline Deals -->
+        <div class="rounded-xl border border-emerald-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Pipeline Deal Aktif</span>
+            <span class="text-xs font-semibold text-gray-500">Total Nilai Pipeline</span>
             <span class="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-800">
-              {{ directDeals.length }} Deals
+              {{ leads.length }} Prospek
             </span>
           </div>
           <div class="mt-2">
-            <div class="text-base sm:text-lg font-black text-gray-900">
-              {{ formatUsd(totalDirectPipelineUsd) }}
+            <div class="text-lg sm:text-xl font-black text-gray-900">
+              {{ formatRupiah(totalPipelineIdr) }}
             </div>
-            <p class="text-[11px] text-gray-500 font-medium mt-0.5">
-              Potensi Bersih: <strong class="text-gray-800">{{ formatIdr(totalDirectPipelineUsd * usdRate) }}</strong>
+            <p class="text-[11px] text-gray-500 mt-0.5">
+              Rata-rata: <strong>{{ formatRupiah(averageDealSizeIdr) }}</strong>/klien
             </p>
           </div>
         </div>
 
-        <!-- Metric 3: Recurring Retainer MRR -->
-        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
+        <!-- Metric 3: Active Retainer MRR -->
+        <div class="rounded-xl border border-emerald-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Recurring MRR</span>
+            <span class="text-xs font-semibold text-gray-500">Passive Retainer MRR</span>
             <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[10px] font-bold text-indigo-800">
-              Retainer
+              Bulanan
             </span>
           </div>
           <div class="mt-2">
-            <span class="text-lg sm:text-xl font-black text-indigo-950">{{ formatUsd(totalRetainerMrrUsd) }}</span>
-            <span class="text-xs text-gray-400">/bln</span>
-            <p class="text-[11px] text-gray-500 font-medium mt-0.5">
-              {{ formatIdr(totalRetainerMrrIdr) }}/bulan
+            <span class="text-lg sm:text-xl font-black text-indigo-900">{{ formatRupiah(activeRetainerMrrIdr) }}</span>
+            <span class="text-xs text-gray-400">/bulan</span>
+            <p class="text-[11px] text-gray-500 mt-0.5">
+              Dari {{ retainers.length }} klien pemeliharaan server
             </p>
           </div>
         </div>
 
-        <!-- Metric 4: Platform Fee Saved -->
-        <div class="rounded-xl border border-amber-100 bg-white p-3.5 shadow-2xs">
+        <!-- Metric 4: Target Closing Bulan Ini -->
+        <div class="rounded-xl border border-emerald-100 bg-white p-3.5 shadow-2xs">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Penghematan Fee Platform</span>
-            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-900">
-              Hemat 10%
+            <span class="text-xs font-semibold text-gray-500">Target Omset Verdion</span>
+            <span class="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
+              Target
             </span>
           </div>
           <div class="mt-2">
-            <span class="text-lg sm:text-xl font-black text-emerald-700">{{ formatUsd(closedRevenueUsd * 0.10) }}</span>
-            <p class="text-[11px] text-gray-500 font-medium mt-0.5">
-              Disimpan untuk kas Verdion (Bebas komisi)
+            <span class="text-lg sm:text-xl font-black text-amber-900">Rp 40.000.000</span>
+            <div class="mt-1 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div
+                class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                :style="{ width: `${Math.min(100, Math.round((totalCashInIdr / 40000000) * 100))}%` }"
+              ></div>
+            </div>
+            <p class="text-[10px] text-gray-500 mt-1">
+              Progress: {{ Math.min(100, Math.round((totalCashInIdr / 40000000) * 100)) }}% dari target
             </p>
           </div>
         </div>
@@ -544,650 +431,558 @@ onMounted(() => {
       <button @click="errorMsg = null" class="text-rose-600 hover:text-rose-900 cursor-pointer">✕</button>
     </div>
 
-    <!-- Sub-Tabs Navigation for Verdion Build-in-Public Command Center -->
+    <!-- Sub-Tabs Navigation for Local Digitization Command Center -->
     <div class="flex items-center gap-2 border-b border-gray-200 overflow-x-auto no-scrollbar pb-1">
       <button
-        @click="activeSubTab = 'case_study'"
+        @click="activeSubTab = 'pipeline'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'case_study' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="activeSubTab === 'pipeline' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
-        <span>🏛️</span>
-        <span>Case Study #01 (Flagship Proof)</span>
+        <span>📍</span>
+        <span>Pipeline Prospek Maps ({{ leads.length }})</span>
       </button>
 
       <button
-        @click="activeSubTab = 'bip_engine'"
+        @click="activeSubTab = 'sandbox'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'bip_engine' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="activeSubTab === 'sandbox' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
-        <span>✍️</span>
-        <span>Build-in-Public (X & LinkedIn)</span>
+        <span>📱</span>
+        <span>Instant Mockup & Loom Script</span>
       </button>
 
       <button
-        @click="activeSubTab = 'cold_loom'"
+        @click="activeSubTab = 'outreach'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'cold_loom' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="activeSubTab === 'outreach' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
-        <span>🎯</span>
-        <span>Cold Loom Audit Drafter</span>
+        <span>💬</span>
+        <span>WhatsApp Pitch & Battlecards</span>
       </button>
 
       <button
-        @click="activeSubTab = 'deals'"
+        @click="activeSubTab = 'pricing'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'deals' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="activeSubTab === 'pricing' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
       >
-        <span>💼</span>
-        <span>Productized Deals (0% Fee)</span>
-        <span class="rounded-full bg-emerald-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
-          {{ directDeals.length }}
-        </span>
-      </button>
-
-      <button
-        @click="activeSubTab = 'retainers'"
-        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
-        :class="activeSubTab === 'retainers' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-      >
-        <span>🔄</span>
-        <span>Retainers & MRR</span>
-        <span class="rounded-full bg-indigo-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
-          {{ retainers.length }}
-        </span>
+        <span>🏷️</span>
+        <span>Paket Harga & Retainer Bulanan</span>
       </button>
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 1: CASE STUDY #01 (FLAGSHIP PROOF OF WORK)             -->
+    <!-- SUB-TAB 1: PIPELINE PROSPEK GOOGLE MAPS                        -->
     <!-- ============================================================== -->
-    <div v-if="activeSubTab === 'case_study'" class="space-y-6">
-      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs space-y-5">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="rounded-md bg-amber-100 text-amber-900 font-extrabold text-[10px] px-2 py-0.5 uppercase tracking-wide">
-                Flagship Showcase
-              </span>
-              <h3 class="text-base font-black text-gray-950">
-                Case Study #01: Second Brain Autonomous Workspace
-              </h3>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">
-              Gunakan studi kasus ini sebagai bukti nyata kredibilitas teknis (*Proof of Work*) Verdion kepada klien global.
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <a
-              href="https://second-brain-agent.netlify.app"
-              target="_blank"
-              class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-2xs inline-flex items-center gap-1"
-            >
-              <span>🌐</span>
-              <span>Live Application ↗</span>
-            </a>
-            <button
-              @click="copyCaseStudy"
-              class="rounded-lg bg-gray-900 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-gray-800 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
-            >
-              <span>{{ caseStudyCopied ? '✅ Disalin!' : '📋 Salin Markdown Studi Kasus' }}</span>
-            </button>
-          </div>
+    <div v-if="activeSubTab === 'pipeline'" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <span>📍</span>
+            <span>Target Bisnis Lokal (Resto, Cafe, Villa, Rental, Spa)</span>
+          </h3>
+          <p class="text-[11px] text-gray-500 mt-0.5">
+            Data prospek yang ditemukan di Google Maps beserta diagnosis kendala operasional mereka.
+          </p>
         </div>
+      </div>
 
-        <!-- 4-Pillar Proof Benchmarks -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
-            <span class="text-[10px] font-bold text-emerald-800 uppercase block">Automated Test Pass</span>
-            <span class="text-lg font-black text-emerald-950 block mt-0.5">100% Passing</span>
-            <span class="text-[11px] text-emerald-700">55 FE + 77 BE tests</span>
-          </div>
-          <div class="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-            <span class="text-[10px] font-bold text-blue-800 uppercase block">API Response Latency</span>
-            <span class="text-lg font-black text-blue-950 block mt-0.5">&lt; 100ms</span>
-            <span class="text-[11px] text-blue-700">Async non-blocking FastAPI</span>
-          </div>
-          <div class="rounded-lg border border-purple-200 bg-purple-50/50 p-3">
-            <span class="text-[10px] font-bold text-purple-800 uppercase block">Data Security</span>
-            <span class="text-lg font-black text-purple-950 block mt-0.5">PostgreSQL RLS</span>
-            <span class="text-[11px] text-purple-700">Isolated multi-tenant policies</span>
-          </div>
-          <div class="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-            <span class="text-[10px] font-bold text-amber-800 uppercase block">Cloud Infrastructure</span>
-            <span class="text-lg font-black text-amber-950 block mt-0.5">Zero Bloat</span>
-            <span class="text-[11px] text-amber-700">100% Free-tier serverless ready</span>
-          </div>
-        </div>
-
-        <!-- Architecture Breakdown Diagram -->
-        <div class="rounded-xl border border-gray-200 bg-gray-900 text-gray-100 p-4 font-mono text-xs overflow-x-auto shadow-2xs">
-          <div class="flex items-center justify-between text-gray-400 text-[10px] uppercase font-bold border-b border-gray-800 pb-2 mb-3">
-            <span>Verified System Architecture (Verdion Production Blueprint)</span>
-            <span class="text-emerald-400">● Production Verified</span>
-          </div>
-          <pre class="leading-relaxed">
-┌─────────────────────────────────┐       ┌─────────────────────────────────┐
-│       Vue 3 + Tailwind CSS      │ <---> │   Supabase PostgreSQL Engine    │
-│  (Type-safe, Reactive Client)   │       │ (Row-Level Security, Sub-100ms) │
-└────────────────┬────────────────┘       └────────────────┬────────────────┘
-                 │                                         │
-                 ▼                                         ▼
-┌─────────────────────────────────┐       ┌─────────────────────────────────┐
-│     FastAPI Async Engine Core   │ <---> │  Autonomous AI Agent Pipelines  │
-│  (Non-blocking background sync) │       │ (Multi-turn tool call & models) │
-└─────────────────────────────────┘       └─────────────────────────────────┘
-          </pre>
-        </div>
-
-        <!-- Case Study Preview Box -->
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-800 space-y-3">
-          <span class="text-[11px] font-bold text-gray-700 uppercase tracking-wider block">
-            Studi Kasus Lengkap (Siap Share ke Founder / Substack / LinkedIn):
-          </span>
-          <pre class="bg-white p-3 rounded-lg border border-gray-200 text-[11px] font-mono whitespace-pre-wrap select-all leading-relaxed text-gray-800">{{ caseStudyMarkdown }}</pre>
-        </div>
+      <!-- Leads Table -->
+      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold border-b border-gray-200">
+            <tr>
+              <th class="py-2.5 px-3">Nama Bisnis & Kategori</th>
+              <th class="py-2.5 px-3">Maps & Rating</th>
+              <th class="py-2.5 px-3">Kontak WhatsApp</th>
+              <th class="py-2.5 px-3">Kendala Operasional (Pain Point)</th>
+              <th class="py-2.5 px-3">Nilai Deal</th>
+              <th class="py-2.5 px-3">Status</th>
+              <th class="py-2.5 px-3">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="lead in leads" :key="lead.id" class="hover:bg-gray-50/70 transition-colors">
+              <td class="py-3 px-3">
+                <div class="font-bold text-gray-900">{{ lead.business_name }}</div>
+                <div class="text-[10px] text-gray-500 capitalize">{{ lead.category.replace('_', ' ') }} • {{ lead.location_area }}</div>
+              </td>
+              <td class="py-3 px-3">
+                <div class="font-bold text-amber-600 flex items-center gap-1">
+                  <span>⭐ {{ lead.rating }}</span>
+                  <span class="text-[10px] text-gray-400">({{ lead.review_count }} ulasan)</span>
+                </div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span
+                    class="rounded-full px-1.5 py-0.2 text-[9px] font-black"
+                    :class="calculateLeadScore(lead) >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                  >
+                    Skor: {{ calculateLeadScore(lead) }}/100
+                  </span>
+                  <a :href="lead.maps_url" target="_blank" class="text-[10px] text-blue-600 hover:underline">
+                    Maps ↗
+                  </a>
+                </div>
+              </td>
+              <td class="py-3 px-3 font-mono text-[11px] text-gray-800">
+                {{ lead.contact_wa || '-' }}
+              </td>
+              <td class="py-3 px-3 max-w-xs text-gray-600 text-[11px]">
+                {{ lead.pain_point }}
+              </td>
+              <td class="py-3 px-3">
+                <span class="font-black text-gray-900 block">{{ formatRupiah(lead.deal_value_idr) }}</span>
+                <span v-if="lead.status === 'dp_paid'" class="text-[10px] text-emerald-700 font-bold block">DP 50% Masuk</span>
+              </td>
+              <td class="py-3 px-3">
+                <span
+                  class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                  :class="{
+                    'bg-emerald-100 text-emerald-800': ['dp_paid', 'completed', 'retainer_active'].includes(lead.status),
+                    'bg-indigo-100 text-indigo-800': lead.status === 'meeting_demo',
+                    'bg-amber-100 text-amber-800': lead.status === 'replied',
+                    'bg-blue-100 text-blue-800': lead.status === 'wa_sent',
+                    'bg-gray-100 text-gray-700': lead.status === 'lead',
+                  }"
+                >
+                  {{ lead.status.replace('_', ' ') }}
+                </span>
+              </td>
+              <td class="py-3 px-3">
+                <button
+                  @click="selectedLeadForWa = lead; activeSubTab = 'outreach'"
+                  class="rounded bg-gray-900 text-white px-2 py-1 text-[11px] font-bold hover:bg-gray-800 cursor-pointer shadow-2xs"
+                >
+                  💬 Chat WA
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 2: BUILD-IN-PUBLIC SOCIAL POST ENGINE                  -->
+    <!-- SUB-TAB 2: INSTANT MOCKUP SANDBOX (DEMO KILAT 45 DETIK)         -->
     <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'bip_engine'" class="space-y-6">
+    <div v-else-if="activeSubTab === 'sandbox'" class="space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Configuration Form -->
+        <!-- Left: Mockup Customizer -->
         <div class="lg:col-span-5 space-y-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-4">
-            <div class="border-b border-gray-100 pb-3">
-              <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <span>✍️</span>
-                <span>BiP Social Post Drafter</span>
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3.5">
+            <div class="border-b border-gray-100 pb-2.5">
+              <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>📱</span>
+                <span>Kustomisasi Demo Klien</span>
               </h3>
               <p class="text-[11px] text-gray-500 mt-0.5">
-                Ubah kodingan harianmu menjadi konten teknis bernilai tinggi untuk X & LinkedIn.
+                Ketik nama resto/villa target untuk membuatkan demo kasir & invoice berlogo mereka.
               </p>
             </div>
 
-            <!-- Post Type Selector -->
             <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1.5">Tipe Konten:</label>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Nama Tempat / Bisnis Target:</label>
+              <input
+                type="text"
+                v-model="mockBusinessName"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Kategori Tempat:</label>
               <div class="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
-                  @click="bipPostType = 'teardown'"
-                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
-                  :class="bipPostType === 'teardown' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                  @click="mockBusinessType = 'resto'; mockBusinessName = 'Sunset Haven Resto & Bar'"
+                  class="rounded px-2 py-1 text-[11px] font-bold cursor-pointer transition-colors"
+                  :class="mockBusinessType === 'resto' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                 >
-                  Teardown
+                  Resto / Cafe
                 </button>
                 <button
                   type="button"
-                  @click="bipPostType = 'performance'"
-                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
-                  :class="bipPostType === 'performance' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                  @click="mockBusinessType = 'villa'; mockBusinessName = 'Uluwatu Sunset Villa Sanctuary'"
+                  class="rounded px-2 py-1 text-[11px] font-bold cursor-pointer transition-colors"
+                  :class="mockBusinessType === 'villa' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                 >
-                  Perf Win
+                  Villa / Hotel
                 </button>
                 <button
                   type="button"
-                  @click="bipPostType = 'devlog'"
-                  class="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer transition-colors text-center"
-                  :class="bipPostType === 'devlog' ? 'bg-gray-900 text-white shadow-2xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                  @click="mockBusinessType = 'rental'; mockBusinessName = 'Seminyak MotoRent & Surf Camp'"
+                  class="rounded px-2 py-1 text-[11px] font-bold cursor-pointer transition-colors"
+                  :class="mockBusinessType === 'rental' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                 >
-                  Devlog
+                  Rental / Tour
                 </button>
               </div>
             </div>
 
-            <!-- Dynamic Input Fields -->
-            <div class="space-y-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Topik Komponen / Fitur:</label>
-                <input
-                  type="text"
-                  v-model="bipTopic"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  placeholder="e.g. Supabase Row-Level Security"
-                />
-              </div>
-
-              <div>
-                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Metrik / Perubahan Terukur:</label>
-                <input
-                  type="text"
-                  v-model="bipMetric"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  placeholder="e.g. Dropped query latency from 1,420ms to 78ms"
-                />
-              </div>
-
-              <div>
-                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Insight Teknis Utama (Root Cause):</label>
-                <textarea
-                  v-model="bipInsight"
-                  rows="3"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  placeholder="e.g. Composite indexing on (user_id, created_at) prevents sequential table scans during RLS checks."
-                ></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Generated Post Formats (X & LinkedIn) -->
-        <div class="lg:col-span-7 space-y-4">
-          <!-- Twitter / X Preview -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
-              <div class="flex items-center gap-2">
-                <span class="text-base">𝕏</span>
-                <h4 class="text-xs font-bold text-gray-900">Format X (Twitter Thread Hook)</h4>
-              </div>
-              <div class="flex items-center gap-2">
-                <span
-                  class="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                  :class="bipTwitterLength <= 280 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
-                >
-                  {{ bipTwitterLength }} / 280 Karakter
-                </span>
-                <button
-                  @click="copyBipText(bipTwitterContent)"
-                  class="rounded-lg bg-gray-900 text-white px-2.5 py-1 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
-                >
-                  {{ bipCopied ? '✅ Disalin' : '📋 Salin X' }}
-                </button>
-              </div>
-            </div>
-            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ bipTwitterContent }}</pre>
-          </div>
-
-          <!-- LinkedIn Preview -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
-              <div class="flex items-center gap-2">
-                <span class="text-base">💼</span>
-                <h4 class="text-xs font-bold text-gray-900">Format LinkedIn (Founder & Engineering Feed)</h4>
-              </div>
-              <button
-                @click="copyBipText(bipLinkedInContent)"
-                class="rounded-lg bg-blue-700 text-white px-2.5 py-1 text-xs font-bold hover:bg-blue-800 transition-colors cursor-pointer"
-              >
-                📋 Salin LinkedIn
-              </button>
-            </div>
-            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ bipLinkedInContent }}</pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- SUB-TAB 3: COLD LOOM AUDIT & FOUNDER DM DRAFTER                -->
-    <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'cold_loom'" class="space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Target Input Form -->
-        <div class="lg:col-span-5 space-y-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3.5">
-            <div class="border-b border-gray-100 pb-3">
-              <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <span>🎯</span>
-                <span>The 90-Second Loom Founder Audit</span>
-              </h3>
-              <p class="text-[11px] text-gray-500 mt-0.5">
-                Dapatkan klien US/EU tanpa platform dengan mengirimkan video audit masalah produk mereka.
-              </p>
-            </div>
-
+            <!-- Pre-loaded Menu Items -->
             <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Nama Startup Target:</label>
-              <input
-                type="text"
-                v-model="coldTargetStartup"
-                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                placeholder="e.g. FinTech Alpha"
-              />
-            </div>
-
-            <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Nama Founder / CTO:</label>
-              <input
-                type="text"
-                v-model="coldFounderName"
-                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                placeholder="e.g. Alex"
-              />
-            </div>
-
-            <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Masalah / Bottleneck yang Ditemukan:</label>
-              <textarea
-                v-model="coldObservedBottleneck"
-                rows="2"
-                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                placeholder="e.g. dashboard takes 4.2 seconds to load due to unindexed queries"
-              ></textarea>
-            </div>
-
-            <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Solusi Rekayasa Verdion:</label>
-              <input
-                type="text"
-                v-model="coldVerdionFix"
-                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                placeholder="e.g. Redis caching + compound Supabase index"
-              />
-            </div>
-
-            <div>
-              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Link Loom Video (90 Detik):</label>
-              <input
-                type="text"
-                v-model="coldLoomUrl"
-                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                placeholder="loom.com/share/verdion-audit-demo"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Generated Scripts & Outreach DMs -->
-        <div class="lg:col-span-7 space-y-4">
-          <!-- 90s Video Script -->
-          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
-              <div>
-                <h4 class="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                  <span>🎥</span>
-                  <span>Naskah Rekaman Video Loom 90-Detik</span>
-                </h4>
-                <p class="text-[10px] text-gray-500">Tunjukkan kodingan solusimu langsung di layar.</p>
-              </div>
-              <button
-                @click="copyColdScript"
-                class="rounded-lg bg-gray-900 text-white px-2.5 py-1 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
-              >
-                {{ coldScriptCopied ? '✅ Disalin' : '📋 Salin Script Loom' }}
-              </button>
-            </div>
-            <pre class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-800 leading-relaxed">{{ cold90sScript }}</pre>
-          </div>
-
-          <!-- Direct Message Script -->
-          <div class="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-2xs space-y-3">
-            <div class="flex items-center justify-between border-b border-amber-100 pb-2.5">
-              <div>
-                <h4 class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                  <span>📩</span>
-                  <span>Draf DM LinkedIn / X ke Founder</span>
-                </h4>
-                <p class="text-[10px] text-amber-800">100% Value-first, tanpa bahasa sales murahan.</p>
-              </div>
-              <button
-                @click="copyColdDm"
-                class="rounded-lg bg-amber-600 text-white px-2.5 py-1 text-xs font-bold hover:bg-amber-700 transition-colors cursor-pointer"
-              >
-                {{ coldDmCopied ? '✅ Disalin' : '📋 Salin DM Founder' }}
-              </button>
-            </div>
-            <pre class="bg-white p-3 rounded-lg border border-amber-200 text-xs font-mono whitespace-pre-wrap select-all text-gray-900 leading-relaxed">{{ coldFounderDm }}</pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- SUB-TAB 4: PRODUCTIZED DEALS & DIRECT PIPELINE                 -->
-    <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'deals'" class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h3 class="text-base font-black text-gray-900 flex items-center gap-2">
-            <span>💼</span>
-            <span>Productized Services & Direct Client Pipeline</span>
-          </h3>
-          <p class="text-xs text-gray-500 mt-0.5">
-            Tarif studio tetap (fixed-scope), 0% potongan fee platform, dan pembayaran 50% deposit via Wise/Stripe.
-          </p>
-        </div>
-        <button
-          @click="showNewDirectDealModal = true"
-          class="rounded-lg bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-        >
-          <span>+</span>
-          <span>Catat Direct Deal Baru</span>
-        </button>
-      </div>
-
-      <!-- 3 Productized Service Menus -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="rounded bg-gray-100 text-gray-800 text-[10px] font-extrabold px-2 py-0.5 uppercase">Tier 1</span>
-            <span class="text-sm font-black text-gray-900">$500</span>
-          </div>
-          <h4 class="text-sm font-bold text-gray-950">48-Hour Technical & Architecture Audit</h4>
-          <p class="text-xs text-gray-500 leading-relaxed">
-            Audit keamanan, query database bottleneck, dan blueprint refactor sebelum klien scaling.
-          </p>
-          <span class="text-[11px] text-emerald-700 font-bold block pt-1">Turnaround: 48 Jam</span>
-        </div>
-
-        <div class="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-white p-4 shadow-2xs space-y-2 relative overflow-hidden">
-          <div class="flex items-center justify-between">
-            <span class="rounded bg-amber-500 text-white text-[10px] font-extrabold px-2 py-0.5 uppercase">Most Demanded</span>
-            <span class="text-sm font-black text-amber-950">$2,500 – $4,000</span>
-          </div>
-          <h4 class="text-sm font-bold text-gray-950">14-Day Production MVP Sprint</h4>
-          <p class="text-xs text-gray-600 leading-relaxed">
-            Full-stack prototype siap launch (FastAPI + Vue/React + Supabase RLS) dengan 100% test coverage.
-          </p>
-          <span class="text-[11px] text-amber-800 font-bold block pt-1">Turnaround: 14 Hari</span>
-        </div>
-
-        <div class="rounded-xl border border-purple-200 bg-white p-4 shadow-2xs space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="rounded bg-purple-100 text-purple-900 text-[10px] font-extrabold px-2 py-0.5 uppercase">Enterprise</span>
-            <span class="text-sm font-black text-purple-950">$3,000 – $5,000</span>
-          </div>
-          <h4 class="text-sm font-bold text-gray-950">Autonomous AI Agent Workflow Pipeline</h4>
-          <p class="text-xs text-gray-500 leading-relaxed">
-            Sistem multi-agent otomatis, function-calling, state persistence, dan background workers.
-          </p>
-          <span class="text-[11px] text-purple-700 font-bold block pt-1">Turnaround: 21 Hari</span>
-        </div>
-      </div>
-
-      <!-- Deals Pipeline Table -->
-      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
-        <h4 class="text-sm font-bold text-gray-900">Daftar Deal Klien Langsung (Direct Pipeline):</h4>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold border-b border-gray-200">
-              <tr>
-                <th class="py-2.5 px-3">Klien / Startup</th>
-                <th class="py-2.5 px-3">Founder Handle</th>
-                <th class="py-2.5 px-3">Paket Layanan</th>
-                <th class="py-2.5 px-3">Nilai Deal ($ USD)</th>
-                <th class="py-2.5 px-3">Tahap Pipeline</th>
-                <th class="py-2.5 px-3">Catatan</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr v-for="deal in directDeals" :key="deal.id" class="hover:bg-gray-50/70 transition-colors">
-                <td class="py-3 px-3">
-                  <div class="font-bold text-gray-900">{{ deal.client_name }}</div>
-                  <div class="text-[11px] text-gray-500">{{ deal.project_title }}</div>
-                </td>
-                <td class="py-3 px-3 font-mono text-[11px] text-gray-700">{{ deal.founder_handle }}</td>
-                <td class="py-3 px-3 font-semibold text-gray-800">{{ deal.package_type }}</td>
-                <td class="py-3 px-3">
-                  <span class="font-black text-gray-950">{{ formatUsd(deal.deal_amount_usd) }}</span>
-                  <span class="text-[10px] text-emerald-700 block font-bold">100% Net IDR</span>
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-                    :class="{
-                      'bg-emerald-100 text-emerald-800': ['deposit_paid', 'delivered'].includes(deal.stage),
-                      'bg-indigo-100 text-indigo-800': deal.stage === 'call_booked',
-                      'bg-blue-100 text-blue-800': deal.stage === 'in_progress',
-                      'bg-gray-100 text-gray-800': deal.stage === 'lead' || deal.stage === 'loom_sent',
-                    }"
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1.5">Contoh Menu / Layanan di Tempat Mereka:</label>
+              <div class="space-y-2">
+                <div v-for="item in mockItems" :key="item.id" class="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs">
+                  <div>
+                    <span class="font-bold text-gray-800">{{ item.name }}</span>
+                    <span class="text-gray-500 block text-[10px]">{{ formatRupiah(item.price) }}</span>
+                  </div>
+                  <button
+                    @click="addItemToSandbox(item)"
+                    class="rounded bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-700 cursor-pointer"
                   >
-                    {{ deal.stage.replace('_', ' ') }}
-                  </span>
-                </td>
-                <td class="py-3 px-3 text-gray-600 text-[11px] max-w-xs truncate" :title="deal.notes || ''">
-                  {{ deal.notes || '-' }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                    + Tambah Pesanan
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Naskah Video 45 Detik Loom -->
+            <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-amber-900 uppercase">Naskah Video Loom (45 Detik):</span>
+                <button
+                  @click="copyLoomScript"
+                  class="rounded bg-amber-600 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-amber-700 cursor-pointer"
+                >
+                  {{ copiedScript ? '✅ Disalin' : '📋 Salin Naskah' }}
+                </button>
+              </div>
+              <pre class="text-[11px] font-sans text-gray-800 whitespace-pre-wrap leading-relaxed select-all">{{ loomScriptText }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Live Interactive Mini-POS & Invoice Sandbox -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="rounded-2xl border-2 border-gray-800 bg-gray-950 p-4 shadow-xl text-white space-y-4">
+            <!-- Simulated Tablet Header -->
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div class="flex items-center gap-2">
+                <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="font-black text-sm uppercase tracking-wide text-emerald-400">{{ mockBusinessName }}</span>
+              </div>
+              <span class="text-[10px] font-mono text-gray-400">Verdion Local Ops • Mode Kasir HP/Tablet</span>
+            </div>
+
+            <!-- POS Screen & Live Bill -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-gray-900">
+              <!-- Left: Touch Items Grid -->
+              <div class="space-y-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Menu / Item Sentuh:</span>
+                <div class="space-y-1.5">
+                  <button
+                    v-for="item in mockItems"
+                    :key="item.id"
+                    @click="addItemToSandbox(item)"
+                    class="w-full text-left p-2.5 rounded-lg bg-gray-800 text-white hover:bg-emerald-700 transition-colors border border-gray-700 cursor-pointer flex justify-between items-center text-xs"
+                  >
+                    <span class="font-medium truncate">{{ item.name }}</span>
+                    <span class="font-bold text-emerald-300 text-[11px]">{{ formatRupiah(item.price) }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right: Live Bill & Invoice Simulator -->
+              <div class="rounded-xl bg-white p-3.5 space-y-3 flex flex-col justify-between border border-gray-200">
+                <div class="space-y-2">
+                  <div class="text-center border-b border-gray-100 pb-2">
+                    <span class="font-black text-xs block uppercase text-gray-900">{{ mockBusinessName }}</span>
+                    <span class="text-[10px] text-gray-400 font-mono">Invoice #V-{{ Date.now().toString().slice(-4) }}</span>
+                  </div>
+
+                  <!-- Cart Items -->
+                  <div class="space-y-1 text-xs max-h-36 overflow-y-auto">
+                    <div v-for="(cartItem, idx) in sandboxCart" :key="idx" class="flex justify-between items-center text-[11px]">
+                      <div class="flex items-center gap-1.5">
+                        <button @click="removeSandboxItem(idx)" class="text-rose-500 hover:text-rose-700 cursor-pointer font-bold">×</button>
+                        <span class="text-gray-800">{{ cartItem.qty }}x {{ cartItem.name }}</span>
+                      </div>
+                      <span class="font-bold text-gray-900">{{ formatRupiah(cartItem.price * cartItem.qty) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Total & QRIS simulation -->
+                <div class="border-t border-gray-200 pt-2 space-y-2">
+                  <div class="flex justify-between text-xs font-black text-gray-950">
+                    <span>TOTAL BAYAR:</span>
+                    <span class="text-emerald-700 text-sm">{{ formatRupiah(sandboxTotal) }}</span>
+                  </div>
+                  <div class="rounded bg-emerald-50 p-2 text-center border border-emerald-200">
+                    <span class="text-[10px] font-bold text-emerald-900 block">📱 QRIS OTOMATIS TERBIT</span>
+                    <span class="text-[9px] text-gray-500">Staf klik kirim ➔ Struk masuk ke WhatsApp tamu</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Owner Insight Bar -->
+            <div class="rounded-xl bg-gray-900 border border-gray-800 p-2.5 flex items-center justify-between text-xs">
+              <span class="text-gray-400 text-[11px]">👀 Pantauan Owner (Real-time di HP):</span>
+              <span class="text-emerald-400 font-bold">Omset Hari Ini: Rp 4.250.000 (34 Transaksi)</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- SUB-TAB 5: RETAINERS & RECURRING MRR                           -->
+    <!-- SUB-TAB 3: WHATSAPP OUTREACH & OBJECTION DESTROYER             -->
     <!-- ============================================================== -->
-    <div v-else-if="activeSubTab === 'retainers'" class="space-y-6">
+    <div v-else-if="activeSubTab === 'outreach'" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left: WhatsApp Pitch Generator -->
+        <div class="lg:col-span-6 space-y-4">
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3.5">
+            <div class="border-b border-gray-100 pb-2.5 flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <span>💬</span>
+                  <span>WhatsApp Pitch ke Owner / Manajer</span>
+                </h3>
+                <p class="text-[11px] text-gray-500 mt-0.5">Pendekatan sopan, tanpa hard-selling, langsung memberi nilai.</p>
+              </div>
+              <button
+                @click="openDirectWhatsApp"
+                class="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-bold hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+              >
+                <span>📲</span>
+                <span>Buka WhatsApp Web</span>
+              </button>
+            </div>
+
+            <!-- Target Selector -->
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Pilih Target Bisnis:</label>
+              <select v-model="selectedLeadForWa" class="w-full rounded-lg border border-gray-300 p-2 text-xs">
+                <option v-for="l in leads" :key="l.id" :value="l">
+                  {{ l.business_name }} ({{ l.contact_wa }})
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-700 mb-1">Link Video Demo Loom (45 Detik):</label>
+              <input
+                type="text"
+                v-model="waVideoLink"
+                class="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-mono text-gray-800"
+              />
+            </div>
+
+            <!-- Formatted WhatsApp Message -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[11px] font-semibold text-gray-700">Draf Pesan WhatsApp Siap Kirim:</label>
+                <button
+                  @click="copyWaPitch"
+                  class="rounded bg-gray-900 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-gray-800 cursor-pointer"
+                >
+                  {{ copiedWa ? '✅ Disalin' : '📋 Salin Pesan' }}
+                </button>
+              </div>
+              <pre class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200 text-xs font-sans whitespace-pre-wrap select-all text-gray-900 leading-relaxed">{{ generatedWaPitch.message }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Local Objection Destroyer -->
+        <div class="lg:col-span-6 space-y-4">
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3.5">
+            <div class="border-b border-gray-100 pb-2.5">
+              <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>Objection Destroyer (Jawaban Saat Klien Ragu)</span>
+              </h3>
+              <p class="text-[11px] text-gray-500 mt-0.5">1-Click Copy jawaban profesional saat owner resto/villa bertanya.</p>
+            </div>
+
+            <div class="space-y-3">
+              <div
+                v-for="(obj, idx) in objectionList"
+                :key="idx"
+                class="p-3 rounded-lg border border-gray-200 bg-gray-50/60 space-y-2 text-xs"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="font-bold text-gray-900 flex items-center gap-1">
+                    <span class="text-rose-600">❓</span>
+                    <span>"{{ obj.objection }}"</span>
+                  </span>
+                  <button
+                    @click="copyObjectionAnswer(obj.answer, idx)"
+                    class="rounded bg-white border border-gray-300 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    {{ copiedObjectionIdx === idx ? '✅ Disalin' : '📋 Salin Jawaban' }}
+                  </button>
+                </div>
+                <p class="text-[11px] text-gray-700 leading-relaxed bg-white p-2 rounded border border-gray-200/50">
+                  {{ obj.answer }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- SUB-TAB 4: PAKET HARGA & RETAINER BULANAN                      -->
+    <!-- ============================================================== -->
+    <div v-else-if="activeSubTab === 'pricing'" class="space-y-6">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-base font-black text-gray-900 flex items-center gap-2">
-            <span>🔄</span>
-            <span>Retainer & Client Recurring MRR</span>
+            <span>🏷️</span>
+            <span>Paket Layanan Digitalisasi & Retainer Bulanan</span>
           </h3>
           <p class="text-xs text-gray-500 mt-0.5">
-            Ubah kontrak sekali bayar menjadi pemasukan rutin bulanan ($800 - $1,500/bln) via invoice Wise/Stripe.
+            Dua sumber pendapatan: Uang Muka (DP 50% di awal) + Biaya Pemeliharaan Server Rutin Bulanan.
           </p>
         </div>
-        <button
-          @click="showNewRetainerModal = true"
-          class="rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-bold hover:bg-indigo-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-        >
-          <span>+</span>
-          <span>Tambah Klien Retainer</span>
-        </button>
       </div>
 
-      <!-- Retainer Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div
-          v-for="ret in retainers"
-          :key="ret.id"
-          class="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white p-4 shadow-2xs space-y-3"
-        >
-          <div class="flex items-center justify-between border-b border-indigo-100 pb-2.5">
-            <div>
-              <h4 class="text-sm font-black text-gray-900">{{ ret.client_name }}</h4>
-              <span class="text-[11px] text-gray-500">Mulai: {{ ret.start_date }}</span>
-            </div>
-            <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase">
-              {{ ret.status }}
-            </span>
-          </div>
-
+      <!-- 3 Tier Local Packages -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Tier 1 -->
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
           <div class="flex items-center justify-between">
-            <div>
-              <span class="text-xs text-gray-500 font-semibold block">Paket Retainer Bulanan:</span>
-              <span class="text-lg font-black text-indigo-950">{{ formatUsd(ret.monthly_rate_usd) }}/bln</span>
-              <span class="text-xs text-gray-500 block">({{ formatIdr(ret.monthly_rate_usd * usdRate) }}/bln)</span>
-            </div>
-            <div class="rounded-lg bg-white border border-indigo-100 p-2 text-right">
-              <span class="text-[10px] text-gray-400 font-bold block uppercase">Invoice Cycle</span>
-              <span class="text-xs font-extrabold text-gray-800">Tgl {{ ret.billing_day }} tiap bulan</span>
-            </div>
+            <span class="rounded bg-gray-100 text-gray-800 text-[10px] font-extrabold px-2 py-0.5 uppercase">Tier 1 • Starter</span>
+            <span class="text-sm font-black text-gray-900">Rp 10.000.000</span>
           </div>
-
-          <p v-if="ret.notes" class="text-[11px] text-gray-600 bg-white/70 p-2 rounded border border-indigo-100">
-            {{ ret.notes }}
+          <h4 class="text-sm font-bold text-gray-950">Digital Kasir & Invoice QRIS</h4>
+          <p class="text-xs text-gray-600 leading-relaxed">
+            Cocok untuk Cafe / Toko / Rental kecil yang ingin mengganti nota kertas menjadi struk digital WhatsApp.
           </p>
+          <ul class="text-[11px] text-gray-600 space-y-1 pt-1 border-t border-gray-100">
+            <li>✓ Kasir Web HP/Tablet</li>
+            <li>✓ Auto Invoice PDF & WhatsApp</li>
+            <li>✓ QRIS Statis Otomatis</li>
+            <li>✓ Pelatihan Staf 1 Hari</li>
+          </ul>
         </div>
+
+        <!-- Tier 2 -->
+        <div class="rounded-xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-50/50 to-white p-4 shadow-2xs space-y-3 relative">
+          <div class="flex items-center justify-between">
+            <span class="rounded bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 uppercase">Paling Laris</span>
+            <span class="text-sm font-black text-emerald-950">Rp 20.000.000</span>
+          </div>
+          <h4 class="text-sm font-bold text-gray-950">Mini-ERP Operasional Resto & Villa</h4>
+          <p class="text-xs text-gray-600 leading-relaxed">
+            Paket komplit untuk Restoran ramai atau Villa Management dengan pencatatan stok dan pengeluaran harian.
+          </p>
+          <ul class="text-[11px] text-gray-700 space-y-1 pt-1 border-t border-emerald-100">
+            <li>✓ Semua Fitur Starter</li>
+            <li>✓ Pencatatan Pengeluaran & Foto Nota</li>
+            <li>✓ Multi-User: Akun Kasir vs Akun Owner</li>
+            <li>✓ Dashboard Omset Real-time Jarak Jauh</li>
+          </ul>
+        </div>
+
+        <!-- Tier 3 -->
+        <div class="rounded-xl border border-indigo-200 bg-white p-4 shadow-2xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="rounded bg-indigo-100 text-indigo-900 text-[10px] font-extrabold px-2 py-0.5 uppercase">Enterprise</span>
+            <span class="text-sm font-black text-indigo-950">Rp 35.000.000</span>
+          </div>
+          <h4 class="text-sm font-bold text-gray-950">Multi-Cabang & Auto WhatsApp Report</h4>
+          <p class="text-xs text-gray-600 leading-relaxed">
+            Untuk pemilik beberapa resto/villa sekaligus yang ingin rekap omset otomatis masuk ke WhatsApp tiap jam 22:00.
+          </p>
+          <ul class="text-[11px] text-gray-600 space-y-1 pt-1 border-t border-gray-100">
+            <li>✓ Semua Fitur Mini-ERP</li>
+            <li>✓ Multi-Cabang / Multi-Outlet</li>
+            <li>✓ Bot WhatsApp Otomatis ke HP Owner</li>
+            <li>✓ Garansi SLA Support 24/7</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Retainer Maintenance Box -->
+      <div class="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-indigo-50/30 p-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-black text-indigo-950 flex items-center gap-1.5">
+            <span>🔄</span>
+            <span>Pendapatan Pasif Rutin: Retainer Maintenance Cloud</span>
+          </h4>
+          <span class="rounded bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5">
+            Rp 750.000 – Rp 1.500.000 / bulan / klien
+          </span>
+        </div>
+        <p class="text-xs text-gray-600 leading-relaxed">
+          Setelah aplikasi live, klien dikenakan biaya operasional cloud & backup mingguan. 10 klien aktif = <strong>Rp 7.500.000 – Rp 15.000.000 per bulan pasif</strong> tanpa perlu mencari klien baru lagi!
+        </p>
       </div>
     </div>
 
-    <!-- MODAL 1: NEW DIRECT DEAL -->
-    <div v-if="showNewDirectDealModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
+    <!-- MODAL: TAMBAH TARGET MAPS BARU -->
+    <div v-if="showNewLeadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
       <div class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">Catat Direct Client Deal Baru</h3>
+        <h3 class="text-base font-bold text-gray-900 flex items-center gap-1.5">
+          <span>📍</span>
+          <span>Tambah Target Bisnis dari Google Maps</span>
+        </h3>
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Nama Startup / Klien:</label>
-            <input type="text" v-model="newDeal.client_name" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Acme AI" />
+            <label class="block font-semibold text-gray-700 mb-1">Nama Tempat / Bisnis:</label>
+            <input type="text" v-model="newLead.business_name" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Canggu Surf Cafe" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Founder Handle / Kontak:</label>
-              <input type="text" v-model="newDeal.founder_handle" class="w-full rounded-lg border border-gray-300 p-2" placeholder="@founder_x" />
+              <label class="block font-semibold text-gray-700 mb-1">Kategori:</label>
+              <select v-model="newLead.category" class="w-full rounded-lg border border-gray-300 p-2">
+                <option value="restaurant_cafe">Restaurant / Cafe / Bar</option>
+                <option value="villa_hospitality">Villa / Hotel / Homestay</option>
+                <option value="rental_tour">Rental Motor/Mobil / Tour</option>
+                <option value="spa_salon">Spa / Salon / Wellness</option>
+                <option value="other">Bisnis Lainnya</option>
+              </select>
             </div>
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Nilai Kontrak ($ USD):</label>
-              <input type="number" v-model.number="newDeal.deal_amount_usd" class="w-full rounded-lg border border-gray-300 p-2" />
+              <label class="block font-semibold text-gray-700 mb-1">Area Lokasi:</label>
+              <input type="text" v-model="newLead.location_area" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Canggu, Bali" />
             </div>
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Paket Layanan:</label>
-            <select v-model="newDeal.package_type" class="w-full rounded-lg border border-gray-300 p-2">
-              <option value="48-Hour Technical Audit">48-Hour Technical Audit ($500)</option>
-              <option value="14-Day MVP Sprint">14-Day Production MVP Sprint ($2,500 – $4,000)</option>
-              <option value="AI Agent Workflow">Autonomous AI Agent Workflow ($3,000 – $5,000)</option>
-              <option value="Custom Engineering">Custom Engineering Sprint</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Tahap Pipeline:</label>
-            <select v-model="newDeal.stage" class="w-full rounded-lg border border-gray-300 p-2">
-              <option value="lead">Lead Identified</option>
-              <option value="loom_sent">Loom Audit Sent</option>
-              <option value="call_booked">Discovery Call Booked</option>
-              <option value="deposit_paid">50% Deposit Paid</option>
-              <option value="in_progress">In Progress</option>
-              <option value="delivered">Delivered & Fully Paid</option>
-              <option value="testimonial_secured">Testimonial Secured</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Catatan Tambahan:</label>
-            <textarea v-model="newDeal.notes" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Deposit via Wise, deadline Oct 15"></textarea>
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewDirectDealModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleAddDirectDeal" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 cursor-pointer">
-            Simpan Deal
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 2: NEW RETAINER -->
-    <div v-if="showNewRetainerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-xs">
-      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-indigo-900">Tambah Klien Retainer Bulanan</h3>
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Nama Klien / Perusahaan:</label>
-            <input type="text" v-model="newRetainer.client_name" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. FinTech Alpha (US)" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Tarif Bulanan ($ USD):</label>
-              <input type="number" v-model.number="newRetainer.monthly_rate_usd" class="w-full rounded-lg border border-gray-300 p-2" />
+              <label class="block font-semibold text-gray-700 mb-1">Rating Maps & Jumlah Review:</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.1" v-model.number="newLead.rating" class="w-1/2 rounded-lg border border-gray-300 p-2" placeholder="4.8" />
+                <input type="number" v-model.number="newLead.review_count" class="w-1/2 rounded-lg border border-gray-300 p-2" placeholder="150" />
+              </div>
             </div>
             <div>
-              <label class="block font-semibold text-gray-700 mb-1">Tanggal Tagihan (1-31):</label>
-              <input type="number" min="1" max="31" v-model.number="newRetainer.billing_day" class="w-full rounded-lg border border-gray-300 p-2" />
+              <label class="block font-semibold text-gray-700 mb-1">Nomor WhatsApp Bisnis / Owner:</label>
+              <input type="text" v-model="newLead.contact_wa" class="w-full rounded-lg border border-gray-300 p-2" placeholder="0812xxxx" />
             </div>
           </div>
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Catatan Paket / SLA:</label>
-            <textarea v-model="newRetainer.notes" rows="2" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. 15 jam/bulan architecture tuning & bug fixing"></textarea>
+            <label class="block font-semibold text-gray-700 mb-1">Kendala Operasional yang Dideteksi:</label>
+            <input type="text" v-model="newLead.pain_point" class="w-full rounded-lg border border-gray-300 p-2" placeholder="e.g. Nota masih kertas manual, sering salah hitung stok kasir" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Estimasi Nilai Kontrak (Rp):</label>
+              <input type="number" step="1000000" v-model.number="newLead.deal_value_idr" class="w-full rounded-lg border border-gray-300 p-2" />
+            </div>
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Tahap Status Prospek:</label>
+              <select v-model="newLead.status" class="w-full rounded-lg border border-gray-300 p-2">
+                <option value="lead">Lead Baru Terdata</option>
+                <option value="wa_sent">Video Demo WA Terkirim</option>
+                <option value="replied">Owner Membalas Chat</option>
+                <option value="meeting_demo">Meeting / Demo Offline</option>
+                <option value="dp_paid">DP 50% Sudah Diterima</option>
+                <option value="completed">Aplikasi Live & Lunas</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2 border-t">
-          <button @click="showNewRetainerModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
-          <button @click="handleCreateRetainer" :disabled="saving" class="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 cursor-pointer">
-            {{ saving ? 'Menyimpan...' : 'Simpan Retainer' }}
+          <button @click="showNewLeadModal = false" class="px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer">Batal</button>
+          <button @click="handleAddLead" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 cursor-pointer">
+            Simpan Prospek
           </button>
         </div>
       </div>

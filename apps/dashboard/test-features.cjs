@@ -274,90 +274,100 @@ assert(mockExport.version === '2.2.0', 'Backup export payload correctly reports 
 assert(mockExport.app === 'Second Brain (Student Edition)', 'Backup export payload identifies Student Edition app');
 
 // -----------------------------------------------------------------------------
-// 8. VERDION BUILD-IN-PUBLIC & PUBLIC CREDIBILITY STUDIO ENGINE
+// 8. VERDION LOCAL OPS & GOOGLE MAPS DIGITIZATION ENGINE
 // -----------------------------------------------------------------------------
-console.log('\n📌 [8/8] Testing Verdion Build-in-Public & Public Credibility Studio:');
+console.log('\n📌 [8/8] Testing Verdion Local Ops & Google Maps Digitization Engine:');
 
-// Flagship Case Study Proof Benchmarks
-function verifyCaseStudyBenchmarks(benchmarks) {
-  return (
-    benchmarks.testPassRate === 100 &&
-    benchmarks.apiLatencyMs <= 100 &&
-    benchmarks.dataSecurity === 'PostgreSQL RLS' &&
-    benchmarks.freeTierReady === true
-  );
+// Lead Qualification Scoring (Google Maps)
+function calculateLocalLeadScore(lead) {
+  let score = 30;
+  if (lead.reviewCount >= 200) score += 30;
+  else if (lead.reviewCount >= 100) score += 20;
+  else if (lead.reviewCount >= 30) score += 10;
+
+  if (lead.rating >= 4.5) score += 20;
+  if (lead.contactWa && lead.contactWa.length >= 10) score += 20;
+  return Math.min(100, score);
 }
 
-const flagshipBenchmarks = {
-  testPassRate: 100,
-  apiLatencyMs: 85,
-  dataSecurity: 'PostgreSQL RLS',
-  freeTierReady: true,
+const highPriorityLead = {
+  reviewCount: 245,
+  rating: 4.8,
+  contactWa: '081234567890',
 };
-assert(verifyCaseStudyBenchmarks(flagshipBenchmarks) === true, 'Flagship Case Study #01 satisfies 100% test pass and sub-100ms latency benchmarks');
+assert(calculateLocalLeadScore(highPriorityLead) === 100, 'Busy venue with 200+ reviews, 4.8 rating & WA scores 100/100 (Golden Local Lead)');
 
-// Build-in-Public (BiP) Twitter Hook & Character Constraint
-function generateBipTwitterHook(type, topic, metric, insight) {
-  if (type === 'teardown') {
-    return `Most multi-tenant apps leak data or crash under scale.\n\nHow we built enterprise RLS @VerdionStudio:\n• Filtered at DB level, not app\n• ${insight}\n• Result: ${metric}\n\nProof of work > talk. 🧵👇`;
-  } else if (type === 'performance') {
-    return `⚡ Perf Win @VerdionStudio:\n\nWe just ${metric} on our core API engine.\n\nFix: ${insight}\n\nClean code + async wins. 🛠️`;
-  }
-  return `🚢 Shipped @VerdionStudio:\nRefactored ${topic}.\nResult: ${metric}.\n${insight}`;
+const moderateLead = {
+  reviewCount: 45,
+  rating: 4.6,
+  contactWa: '081987654321',
+};
+assert(calculateLocalLeadScore(moderateLead) === 80, 'Moderate venue scores 80/100 (Viable Target)');
+
+// Instant Mockup & Mini-POS Bill Calculator
+function calculateSandboxBill(items) {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const pb1Tax = Math.round(subtotal * 0.10); // 10% Local Restaurant Tax
+  const total = subtotal + pb1Tax;
+  return { subtotal, pb1Tax, total };
 }
 
-const bipTeardown = generateBipTwitterHook(
-  'teardown',
-  'Supabase RLS',
-  'Dropped latency to 78ms',
-  'Composite indexing prevents sequential scans'
-);
-assert(bipTeardown.length <= 280, `BiP Twitter hook satisfies character limit (${bipTeardown.length} chars <= 280 chars)`);
-assert(bipTeardown.includes('@VerdionStudio') && bipTeardown.includes('Proof of work'), 'BiP hook reinforces Verdion engineering brand and proof of work');
-
-// Cold Loom 90s Script & Founder DM Generator
-function generateColdFounderDm(founderName, startup, problem, fix, loomUrl) {
-  return `Hi ${founderName}, saw your recent launch for ${startup}—really slick product concept!\n\nI was testing the platform and noticed that ${problem}.\n\nTo save your team debugging time, I spun up a 90-second video demo showing how to resolve this with ${fix} (drops latency under 150ms):\n${loomUrl}\n\nNo sales pitch attached—just thought it might be useful as you scale. If you'd like me to deploy and test this into your repo this week, happy to hop on a quick 10-min chat.\n\nBest,\nFrans Alwan\nLead Engineer @ Verdion Studio`;
-}
-
-const coldDmSample = generateColdFounderDm(
-  'Alex',
-  'FinTech Alpha',
-  'dashboard metrics take 4.2s to load',
-  'Redis caching + compound index',
-  'loom.com/share/verdion-demo'
-);
-assert(coldDmSample.includes('Hi Alex') && coldDmSample.includes('FinTech Alpha'), 'Cold DM is hyper-personalized to target founder and startup');
-assert(coldDmSample.includes('90-second video demo') && coldDmSample.includes('loom.com/share/verdion-demo'), 'Cold DM leads with value and custom video proof');
-assert(coldDmSample.includes('Lead Engineer @ Verdion Studio'), 'Outreach establishes Verdion Studio boutique authority');
-
-// Direct Deal Margin & 0% Platform Fee Advantage
-function calculateDirectDealFinancials(dealAmountUsd, usdRate = 16200) {
-  const platformFee = 0.00; // 0% platform fee for direct deals!
-  const netUsd = dealAmountUsd; // 100% retained
-  const netIdr = netUsd * usdRate;
-  const initial50DepositUsd = dealAmountUsd * 0.50;
-  const feeSavedUsd = dealAmountUsd * 0.10; // Compared to Upwork 10% fee
-  return { netUsd, netIdr, initial50DepositUsd, feeSavedUsd };
-}
-
-const directDealResult = calculateDirectDealFinancials(3500, 16200);
-assert(directDealResult.netUsd === 3500, 'Direct deal retains 100% of $3,500 contract ($0 platform cut)');
-assert(directDealResult.netIdr === 56700000, 'Direct deal yields Rp 56.700.000 net IDR');
-assert(directDealResult.initial50DepositUsd === 1750, '50% initial deposit required before sprint start is $1,750');
-assert(directDealResult.feeSavedUsd === 350, 'Saves $350 in platform commissions compared to Upwork');
-
-// Retainer Recurring Revenue Calculation
-const sampleRetainers = [
-  { client: 'FinTech Alpha', rateUsd: 1200, active: true },
-  { client: 'Apex Media', rateUsd: 800, active: true },
-  { client: 'Inactive Client', rateUsd: 500, active: false },
+const sampleCart = [
+  { name: 'Crispy Pork Belly / Ayam Bakar', price: 95000, qty: 2 },
+  { name: 'Dragonfruit Coconut Smoothie', price: 45000, qty: 1 },
 ];
-const activeMrrUsd = sampleRetainers.filter(r => r.active).reduce((sum, r) => sum + r.rateUsd, 0);
-assert(activeMrrUsd === 2000, 'Active Retainers sum to $2,000 MRR');
-const activeMrrIdr = activeMrrUsd * 16200;
-assert(activeMrrIdr === 32400000, 'Active Retainers sum to Rp 32.400.000 recurring monthly IDR');
+const bill = calculateSandboxBill(sampleCart);
+assert(bill.subtotal === 235000, 'Sandbox subtotal calculated correctly (Rp 235.000)');
+assert(bill.pb1Tax === 23500, '10% PB1 tax calculated correctly (Rp 23.500)');
+assert(bill.total === 258500, 'Total bill with PB1 is Rp 258.500');
 
+// WhatsApp Pitch Phone Normalizer & Message Structure
+function formatWhatsAppPitch(businessName, rating, reviewCount, painPoint, waPhone, videoLink) {
+  const cleanPhone = (waPhone || '').replace(/[^0-9]/g, '');
+  const normalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+  const message = `Halo Bli/Kak dan tim ${businessName}! Salam kenal, saya Frans dari Verdion Studio. Saya perhatikan rating ${rating} ⭐ dari ${reviewCount}+ ulasan. Kami buatkan video demo 45s: ${videoLink}`;
+  return { normalPhone, message };
+}
+
+const waResult = formatWhatsAppPitch(
+  'Canggu Breeze Cafe',
+  4.8,
+  245,
+  'nota manual hilang',
+  '081234567890',
+  'loom.com/share/demo'
+);
+assert(waResult.normalPhone === '6281234567890', 'WhatsApp normalizer correctly converts 0812 to international format 62812');
+assert(waResult.message.includes('Canggu Breeze Cafe') && waResult.message.includes('loom.com/share/demo'), 'WA pitch contains business name and custom Loom video link');
+
+// Cash In & Deal DP 50% Calculations
+function calculateCashflow(deals) {
+  return deals.reduce((sum, deal) => {
+    if (deal.status === 'completed' || deal.status === 'retainer_active') {
+      return sum + deal.valueIdr;
+    } else if (deal.status === 'dp_paid') {
+      return sum + deal.valueIdr * 0.50; // 50% DP
+    }
+    return sum;
+  }, 0);
+}
+
+const sampleDeals = [
+  { valueIdr: 15000000, status: 'dp_paid' },       // Rp 7.500.000 DP
+  { valueIdr: 20000000, status: 'completed' },     // Rp 20.000.000 Lunas
+  { valueIdr: 18000000, status: 'wa_sent' },       // Rp 0 (belum deal)
+];
+const cashIn = calculateCashflow(sampleDeals);
+assert(cashIn === 27500000, 'Cash in correctly computes DP 50% + Full payment (Rp 27.500.000)');
+
+// Monthly Cloud Maintenance Retainer MRR
+const localRetainers = [
+  { client: 'Canggu Breeze', monthlyRateIdr: 750000, active: true },
+  { client: 'Seminyak MotoRent', monthlyRateIdr: 1000000, active: true },
+  { client: 'Old Client', monthlyRateIdr: 500000, active: false },
+];
+const activeRetainerMrr = localRetainers.filter(r => r.active).reduce((sum, r) => sum + r.monthlyRateIdr, 0);
+assert(activeRetainerMrr === 1750000, 'Active Retainers sum to Rp 1.750.000/month recurring');
 
 // -----------------------------------------------------------------------------
 // SUMMARY
