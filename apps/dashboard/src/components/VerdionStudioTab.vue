@@ -96,11 +96,79 @@ interface VerdionRetainer {
   created_at: string
 }
 
-const activeSubTab = ref<'deals' | 'milestones' | 'arbitrage' | 'retainers'>('deals')
+const activeSubTab = ref<'war_room' | 'deals' | 'milestones' | 'arbitrage' | 'retainers'>('war_room')
 const loading = ref(true)
 const saving = ref(false)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
+
+// ==========================================
+// FIRST CLIENT WAR ROOM STATE
+// ==========================================
+// 1. Speed Radar
+const warRoomJobAgeMins = ref(15)
+const warRoomProposalsTier = ref<'under_5' | '5_to_10' | 'over_10'>('under_5')
+const warRoomClientPaymentVerified = ref(true)
+
+const isSpeedWindowOptimal = computed(() => {
+  return warRoomJobAgeMins.value <= 30 && warRoomProposalsTier.value === 'under_5' && warRoomClientPaymentVerified.value
+})
+
+// 2. Micro-POC Loom Script Generator
+const warRoomProblem = ref('Stripe webhook timeout under concurrency')
+const warRoomSolution = ref('idempotency key validation & background worker')
+const warRoomSandboxLink = ref('loom.com/share/verdion-stripe-demo')
+
+const warRoomLoomHook = computed(() => {
+  return `I recorded a 60-second video demo specifically solving your ${warRoomProblem.value} here: ${warRoomSandboxLink.value}. No generic bid, just the working fix.`
+})
+
+const warRoom3ActScript = computed(() => {
+  return `[Act 1: 0-15s - Diagnosis]\n"Hi! I saw your post regarding ${warRoomProblem.value}. The root cause is usually unhandled async retries before the DB ack..."\n\n[Act 2: 15-45s - The Live Proof / Sandbox]\n"To show you exactly how to fix it, I spun up this sandbox implementing ${warRoomSolution.value}. Notice how duplicate events are discarded immediately..."\n\n[Act 3: 45-60s - Call to Action]\n"If you want this exact logic merged and tested into your codebase today, let me know in chat. Best, Verdion Studio."`
+})
+
+// 3. Trojan Horse Offer Generator
+const warRoomTrojanType = ref<'micro' | 'speed' | 'escrow'>('micro')
+
+const generatedTrojanOffer = computed(() => {
+  if (warRoomTrojanType.value === 'micro') {
+    return `Because Verdion is actively establishing our verified presence on Upwork, let's start with a tiny $50-$75 discovery milestone to solve this specific issue in 24 hours. If it doesn't meet your highest standard, you don't release the escrow. Zero risk for you.`
+  } else if (warRoomTrojanType.value === 'speed') {
+    return `I can have this resolved and tested within 12 hours from now. Let's set up an Escrow milestone for the initial fix so you can review the pull request before approving.`
+  } else {
+    return `All deliverables will include full automated unit tests and clean architecture documentation. To ensure 100% peace of mind, funds remain in Upwork Escrow until you personally verify the fix in staging.`
+  }
+})
+
+// 4. Objection Destroyer Battlecards
+const objectionCopiedIndex = ref<number | null>(null)
+
+const objectionBattlecards = [
+  {
+    question: "Kenapa akun Upwork Anda belum ada review?",
+    answer: "Verdion adalah software engineering studio yang sebelumnya mengerjakan proyek SaaS & enterprise di luar platform Upwork. Kami baru saja membuka channel resmi di Upwork bulan ini, sehingga prioritas nomor satu kami adalah memberikan hasil pengerjaan bintang 5 untuk reputasi profil kami.",
+  },
+  {
+    question: "Bisa bikin tes kecil dulu tanpa bayar?",
+    answer: "Sesuai standar profesional dan aturan resmi Upwork, mari kita buat kontrak resmi dengan Micro-Milestone seharga $50 di Escrow. Anda bisa mengevaluasi kualitas kode dan komunikasi kami tanpa risiko.",
+  },
+  {
+    question: "Ada freelancer lain yang menawarkan harga lebih murah ($15/jam).",
+    answer: "Benar, ada banyak opsi murah. Namun dengan Verdion, Anda tidak perlu mengulang perbaikan kode 2 minggu ke depan. Kami menyertakan arsitektur bersih, automated test suite, dan dokumentasi lengkap sejak hari pertama.",
+  },
+  {
+    question: "Bisa langsung call Zoom sekarang?",
+    answer: "Tentu! Saya siap call 10-15 menit untuk membahas arsitektur proyek Anda. Silakan kirimkan link Zoom atau jadwalkan di slot waktu Anda.",
+  },
+]
+
+function copyBattlecard(text: string, index: number) {
+  navigator.clipboard.writeText(text)
+  objectionCopiedIndex.value = index
+  setTimeout(() => {
+    objectionCopiedIndex.value = null
+  }, 2000)
+}
 
 // Data state
 const careerGoal = ref<CareerGoal | null>(null)
@@ -702,6 +770,19 @@ onMounted(() => {
 
     <!-- Sub-Tabs Navigation for Verdion Leverage Engine -->
     <div class="flex items-center gap-2 border-b border-gray-200 overflow-x-auto no-scrollbar pb-1">
+      <!-- Tab 0: First Client War Room (Priority Mode) -->
+      <button
+        @click="activeSubTab = 'war_room'"
+        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
+        :class="activeSubTab === 'war_room' ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-yellow-600 text-white shadow-xs' : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'"
+      >
+        <span>🎯</span>
+        <span>First Client War Room</span>
+        <span class="rounded-full bg-white text-rose-700 px-1.5 py-0.2 text-[10px] font-black">
+          PRIORITAS #1
+        </span>
+      </button>
+
       <button
         @click="activeSubTab = 'deals'"
         class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap"
@@ -743,6 +824,315 @@ onMounted(() => {
           {{ retainers.length }}
         </span>
       </button>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- SUB-TAB 0: FIRST CLIENT WAR ROOM (COLD START BREAKER)          -->
+    <!-- ============================================================== -->
+    <div v-if="activeSubTab === 'war_room'" class="space-y-6">
+      <!-- Target Mission Header Banner -->
+      <div class="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-yellow-500/5 p-4 sm:p-5 shadow-2xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🎯</span>
+              <h3 class="text-sm sm:text-base font-black text-gray-950 uppercase tracking-tight">
+                WAR ROOM: MISI TEMBUS KLIEN #1 & AMANKAN BINTANG 5
+              </h3>
+            </div>
+            <p class="text-xs text-gray-600 mt-1 font-medium max-w-2xl">
+              Hancurkan <em>Cold Start Problem</em> (0 review & $0 earned). Gantikan review kosong dengan <strong>Proof of Work (Loom Video Demo)</strong> dan <strong>Penawaran Trojan Horse Bebas Risiko</strong>.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <span class="rounded-lg bg-rose-600 text-white font-extrabold px-3 py-1.5 text-xs shadow-2xs">
+              STATUS: HUNTING CLIENT #1
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-Col Grid: Tools for Winning Client #1 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left: Speed Radar & Micro-POC Loom Generator -->
+        <div class="lg:col-span-6 space-y-4">
+          <!-- 1. Speed-to-Bid Checker -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>Speed-to-Bid Radar (The Golden Window)</span>
+              </h4>
+              <span
+                class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase"
+                :class="isSpeedWindowOptimal ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
+              >
+                {{ isSpeedWindowOptimal ? '🟢 GOLDEN WINDOW' : '🔴 CROWDED TRAP' }}
+              </span>
+            </div>
+
+            <!-- Dynamic Verdict Alert -->
+            <div
+              class="p-2.5 rounded-lg text-xs font-semibold"
+              :class="isSpeedWindowOptimal ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-rose-50 text-rose-900 border border-rose-200'"
+            >
+              <div v-if="isSpeedWindowOptimal" class="flex items-center gap-1.5">
+                <span>🚀</span>
+                <span><strong>SERANG SEKARANG!</strong> Lowongan sangat segar (&lt;30 mnt, &lt;5 pelamar). Peluang proposal Anda dibaca klien mencapai 80%!</span>
+              </div>
+              <div v-else class="flex items-center gap-1.5">
+                <span>⚠️</span>
+                <span><strong>RAWAN TERKUBUR!</strong> Sudah lewat 30 menit atau pelamar &gt; 5. Hanya bid jika Anda punya video Loom yang sangat relevan.</span>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="space-y-3 pt-1 text-xs">
+              <div>
+                <div class="flex justify-between font-semibold text-gray-700 mb-1">
+                  <span>Waktu Sejak Lowongan Diposting:</span>
+                  <span class="font-extrabold text-gray-900">{{ warRoomJobAgeMins }} Menit Lalu</span>
+                </div>
+                <input
+                  type="range"
+                  min="2"
+                  max="120"
+                  step="2"
+                  v-model.number="warRoomJobAgeMins"
+                  class="w-full accent-rose-600 cursor-pointer"
+                />
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-semibold text-gray-700 mb-1">Jumlah Pelamar Saat Ini:</label>
+                  <select v-model="warRoomProposalsTier" class="w-full rounded-lg border border-gray-300 p-1.5 font-medium">
+                    <option value="under_5">&lt; 5 Proposals (Fresh)</option>
+                    <option value="5_to_10">5 to 10 Proposals</option>
+                    <option value="over_10">&gt; 10 Proposals (Crowded)</option>
+                  </select>
+                </div>
+                <div class="flex items-center pt-5">
+                  <label class="flex items-center gap-2 font-semibold text-gray-800 cursor-pointer">
+                    <input type="checkbox" v-model="warRoomClientPaymentVerified" class="rounded text-rose-600 h-4 w-4" />
+                    <span>Payment Verified?</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Micro-POC Loom Script Generator -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="border-b border-gray-100 pb-2.5">
+              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>🎥</span>
+                <span>The 60-Second Micro-POC Loom Script Generator</span>
+              </h4>
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                Gantikan ulasan kosong dengan video demo berdurasi 60 detik yang dibuat khusus untuk masalah klien.
+              </p>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+              <div>
+                <label class="block font-semibold text-gray-700 mb-0.5">Masalah Spesifik Klien:</label>
+                <input type="text" v-model="warRoomProblem" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="e.g. Stripe webhook concurrency timeout" />
+              </div>
+              <div>
+                <label class="block font-semibold text-gray-700 mb-0.5">Solusi / Kode Yang Anda Siapkan:</label>
+                <input type="text" v-model="warRoomSolution" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="e.g. idempotency key validation & background worker" />
+              </div>
+              <div>
+                <label class="block font-semibold text-gray-700 mb-0.5">Tautan Loom / Sandbox Demo:</label>
+                <input type="text" v-model="warRoomSandboxLink" class="w-full rounded-lg border border-gray-300 p-1.5" placeholder="loom.com/share/..." />
+              </div>
+
+              <!-- Output Hook 1 Baris Pertama Proposal -->
+              <div class="rounded-lg border border-amber-300 bg-amber-50/60 p-2.5 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-amber-900 uppercase">1st Line Proposal Hook (Teks Wajib Baris #1):</span>
+                  <button
+                    @click="copyBattlecard(warRoomLoomHook, 991)"
+                    class="rounded bg-gray-900 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+                  >
+                    {{ objectionCopiedIndex === 991 ? '✅ Disalin' : '📋 Salin Hook' }}
+                  </button>
+                </div>
+                <p class="text-[11px] font-mono text-gray-900 select-all leading-relaxed">
+                  {{ warRoomLoomHook }}
+                </p>
+              </div>
+
+              <!-- Output Naskah Video 3 Babak -->
+              <div class="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-gray-700 uppercase">Naskah Video Loom 60 Detik (3 Babak):</span>
+                  <button
+                    @click="copyBattlecard(warRoom3ActScript, 992)"
+                    class="rounded bg-white border border-gray-300 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    {{ objectionCopiedIndex === 992 ? '✅ Disalin' : '📋 Salin Naskah' }}
+                  </button>
+                </div>
+                <pre class="text-[10px] font-mono text-gray-800 whitespace-pre-wrap leading-relaxed bg-white p-2 rounded border border-gray-200">{{ warRoom3ActScript }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Trojan Horse Offer & Objection Destroyer -->
+        <div class="lg:col-span-6 space-y-4">
+          <!-- 3. Trojan Horse Offer Generator -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="border-b border-gray-100 pb-2.5">
+              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>The "Trojan Horse" De-Risking Offer Drafter</span>
+              </h4>
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                Hilangkan 100% ketakutan klien merekrut profil baru dengan klausul penawaran bebas risiko.
+              </p>
+            </div>
+
+            <!-- Strategy Selector Buttons -->
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                @click="warRoomTrojanType = 'micro'"
+                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
+                :class="warRoomTrojanType === 'micro' ? 'border-rose-500 bg-rose-50 text-rose-900 ring-1 ring-rose-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
+              >
+                Micro-Milestone ($50-$75)
+              </button>
+              <button
+                type="button"
+                @click="warRoomTrojanType = 'speed'"
+                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
+                :class="warRoomTrojanType === 'speed' ? 'border-amber-500 bg-amber-50 text-amber-900 ring-1 ring-amber-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
+              >
+                12-Hour Speed Fix
+              </button>
+              <button
+                type="button"
+                @click="warRoomTrojanType = 'escrow'"
+                class="rounded-lg p-2 text-center text-xs font-bold border transition-all cursor-pointer"
+                :class="warRoomTrojanType === 'escrow' ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-400' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'"
+              >
+                100% Escrow Guarantee
+              </button>
+            </div>
+
+            <!-- Output Box -->
+            <div class="rounded-lg border border-purple-200 bg-purple-50/50 p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-purple-900 uppercase">Teks Penawaran De-risking Siap Kirim:</span>
+                <button
+                  @click="copyBattlecard(generatedTrojanOffer, 993)"
+                  class="rounded bg-purple-700 text-white px-2.5 py-1 text-[10px] font-bold hover:bg-purple-800 transition-colors shadow-2xs cursor-pointer"
+                >
+                  {{ objectionCopiedIndex === 993 ? '✅ Disalin' : '📋 Salin Penawaran' }}
+                </button>
+              </div>
+              <p class="text-xs font-mono text-gray-900 select-all leading-relaxed">
+                {{ generatedTrojanOffer }}
+              </p>
+            </div>
+          </div>
+
+          <!-- 4. Objection Destroyer Battlecards -->
+          <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs space-y-3">
+            <div class="border-b border-gray-100 pb-2.5">
+              <h4 class="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <span>🥊</span>
+                <span>Live Chat & Call Objection Destroyer (Battlecards)</span>
+              </h4>
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                Senjata jawaban siap salin saat klien bertanya hal sulit di chat Upwork atau call Zoom.
+              </p>
+            </div>
+
+            <div class="space-y-2.5">
+              <div
+                v-for="(card, idx) in objectionBattlecards"
+                :key="idx"
+                class="rounded-lg border border-gray-200 bg-gray-50/70 p-2.5 text-xs space-y-1.5"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="font-extrabold text-gray-900 flex items-center gap-1">
+                    <span class="text-rose-600">❓</span>
+                    <span>"{{ card.question }}"</span>
+                  </span>
+                  <button
+                    @click="copyBattlecard(card.answer, idx)"
+                    class="rounded bg-white border border-gray-300 px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    {{ objectionCopiedIndex === idx ? '✅ Disalin' : '📋 Salin Jawaban' }}
+                  </button>
+                </div>
+                <p class="text-[11px] text-gray-700 leading-relaxed font-sans bg-white p-2 rounded border border-gray-200/60">
+                  {{ card.answer }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Bottom Card: 5-Star Review & Rising Talent Harvesting Protocol -->
+      <div class="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-4 sm:p-5 shadow-2xs space-y-3">
+        <div class="flex items-center justify-between border-b border-emerald-100 pb-3">
+          <div>
+            <h4 class="text-sm sm:text-base font-black text-emerald-950 flex items-center gap-2">
+              <span>⭐</span>
+              <span>The 5-Star Review & Rising Talent Harvesting Protocol</span>
+            </h4>
+            <p class="text-xs text-emerald-800 mt-0.5">
+              1 Review bintang 5 pertama bernilai $10,000 untuk profil Verdion. Amankan ulasan publik 5.0 dan skor Private Feedback 10/10.
+            </p>
+          </div>
+          <span class="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-xs font-black text-emerald-900">
+            TROPHY #1
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <!-- Handover Checklist -->
+          <div class="space-y-2">
+            <span class="font-bold text-gray-800 block">Checklist Sebelum Minta Klien Selesaikan Kontrak:</span>
+            <div class="space-y-1.5 text-gray-700">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
+                <span>Kode diserahkan dengan automated test suite (tanpa bug tersisa).</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
+                <span>Kirimkan 1 video Loom panduan serah terima (walkthrough handover).</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" checked class="rounded text-emerald-600 h-3.5 w-3.5" />
+                <span>Tanyakan: <em>"Apakah ada hal lain yang bisa saya sempurnakan sebelum kita tutup kontrak?"</em></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Closing Script for 5-Star Review -->
+          <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-emerald-900 uppercase">Script Penutup Pengunci Bintang 5:</span>
+              <button
+                @click="copyBattlecard('It was a pleasure working with you on this project! If you were satisfied with the code quality and communication, I would deeply appreciate your 5-star review and feedback on Upwork to help Verdion grow. Thank you for your trust!', 994)"
+                class="rounded bg-emerald-700 text-white px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-800 transition-colors cursor-pointer"
+              >
+                {{ objectionCopiedIndex === 994 ? '✅ Disalin' : '📋 Salin Script' }}
+              </button>
+            </div>
+            <p class="text-[11px] font-mono text-gray-800 select-all leading-relaxed">
+              "It was a pleasure working with you on this project! If you were satisfied with the code quality and communication, I would deeply appreciate your 5-star review and feedback on Upwork to help Verdion grow. Thank you for your trust!"
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================== -->

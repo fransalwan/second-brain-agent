@@ -356,15 +356,49 @@ assert(activeMrrUsd === 1400, 'Active Retainers sum to $1,400 MRR');
 const activeMrrIdr = activeMrrUsd * 16200;
 assert(activeMrrIdr === 22680000, 'Active Retainers sum to Rp 22.680.000 recurring monthly IDR');
 
-// Authorization Guard Verification (Exclusive for fransalwan55@gmail.com)
-function isVerdionAuthorized(email) {
-  return (email ?? '').toLowerCase().trim() === 'fransalwan55@gmail.com';
+// -----------------------------------------------------------------------------
+// 9. FIRST CLIENT WAR ROOM & COLD START BREAKERS
+// -----------------------------------------------------------------------------
+console.log('\n📌 [9/9] Testing First Client War Room & Cold Start Breakers:');
+
+// Speed-to-bid evaluation
+function evaluateSpeedWindow(ageMins, tier, paymentVerified) {
+  return ageMins <= 30 && tier === 'under_5' && paymentVerified;
 }
-assert(isVerdionAuthorized('fransalwan55@gmail.com') === true, 'fransalwan55@gmail.com is authorized for Verdion Studio');
-assert(isVerdionAuthorized('FRANSALWAN55@GMAIL.COM ') === true, 'Case-insensitive & trimmed email is authorized');
-assert(isVerdionAuthorized('student@ugm.ac.id') === false, 'Student email is strictly denied from Verdion Studio');
-assert(isVerdionAuthorized('hacker@domain.com') === false, 'Other emails are denied from Verdion Studio');
-assert(isVerdionAuthorized(null) === false, 'Unauthenticated user is denied from Verdion Studio');
+assert(evaluateSpeedWindow(15, 'under_5', true) === true, '15 mins old & <5 proposals with verified payment is in Golden Window');
+assert(evaluateSpeedWindow(45, 'under_5', true) === false, '45 mins old is outside Golden Window');
+assert(evaluateSpeedWindow(10, 'over_10', true) === false, 'Over 10 proposals is flagged as crowded trap');
+assert(evaluateSpeedWindow(10, 'under_5', false) === false, 'Unverified payment client is flagged as non-optimal');
+
+// 60-Second Loom Hook generator
+function generateLoomHook(problem, demoLink) {
+  return `I recorded a 60-second video demo specifically solving your ${problem} here: ${demoLink}. No generic bid, just the working fix.`;
+}
+const testLoomHook = generateLoomHook('Stripe webhook timeout', 'loom.com/share/demo');
+assert(testLoomHook.includes('60-second video demo'), 'Loom hook highlights 60-second video demo format');
+assert(testLoomHook.includes('loom.com/share/demo'), 'Loom hook contains custom Loom link');
+assert(testLoomHook.length <= 200, `Loom hook is concise (${testLoomHook.length} chars <= 200 chars) for Upwork client preview`);
+
+// Trojan Horse Offer
+function generateTrojanOffer(type) {
+  if (type === 'micro') {
+    return 'Because Verdion is actively establishing our verified presence on Upwork, let\'s start with a tiny $50-$75 discovery milestone to solve this specific issue in 24 hours. If it doesn\'t meet your highest standard, you don\'t release the escrow. Zero risk for you.';
+  } else if (type === 'speed') {
+    return 'I can have this resolved and tested within 12 hours from now. Let\'s set up an Escrow milestone for the initial fix so you can review the pull request before approving.';
+  }
+  return 'Funds remain in Upwork Escrow until you personally verify the fix in staging.';
+}
+const microOffer = generateTrojanOffer('micro');
+assert(microOffer.includes('discovery milestone') && microOffer.includes('Zero risk for you'), 'Trojan micro offer offers zero-risk escrow milestone');
+
+// Objection Destroyer Coverage
+const objectionQuestions = [
+  'Kenapa akun Upwork Anda belum ada review?',
+  'Bisa bikin tes kecil dulu tanpa bayar?',
+  'Ada freelancer lain yang menawarkan harga lebih murah ($15/jam).',
+  'Bisa langsung call Zoom sekarang?'
+];
+assert(objectionQuestions.length === 4, 'All 4 critical Upwork client objections covered in battlecards');
 
 // -----------------------------------------------------------------------------
 // SUMMARY

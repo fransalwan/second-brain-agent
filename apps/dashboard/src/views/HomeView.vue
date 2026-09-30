@@ -115,21 +115,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-
-const VERDION_AUTHORIZED_EMAIL = 'fransalwan55@gmail.com'
-
-const isVerdionAuthorized = computed(() => {
-  return (userEmail.value ?? '').toLowerCase().trim() === VERDION_AUTHORIZED_EMAIL
-})
-
 const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide' | 'verdion'>('overview')
-
-// Guard: jika akun bukan fransalwan55@gmail.com, dilarang mengakses tab verdion
-watch([activeTab, isVerdionAuthorized], ([tab, authorized]) => {
-  if (tab === 'verdion' && !authorized) {
-    activeTab.value = 'overview'
-  }
-})
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -929,7 +915,6 @@ onMounted(() => {
           </button>
 
           <button
-            v-if="isVerdionAuthorized"
             @click="activeTab = 'verdion'"
             class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ml-auto"
             :class="activeTab === 'verdion' ? 'border-amber-500 text-amber-900 bg-amber-50/70' : 'border-transparent text-gray-700 hover:text-amber-800'"
@@ -967,9 +952,9 @@ onMounted(() => {
         :user-id="currentUserId"
       />
 
-      <!-- Tab Verdion: Profit Leverage Studio (Khusus fransalwan55@gmail.com) -->
+      <!-- Tab Verdion: Profit Leverage Studio -->
       <VerdionStudioTab
-        v-else-if="activeTab === 'verdion' && currentUserId && isVerdionAuthorized"
+        v-else-if="activeTab === 'verdion' && currentUserId"
         :user-id="currentUserId"
       />
 
