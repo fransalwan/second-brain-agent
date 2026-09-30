@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { supabase } from '../lib/supabase'
-import { playNotificationSound } from '../lib/notifications'
 
 const props = defineProps<{
   userId: string
@@ -36,31 +35,8 @@ const saving = ref(false)
 const showSleepModal = ref(false)
 
 // Data states
-function getLocalDateIso(): string {
-  const d = new Date()
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const todayIso = getLocalDateIso()
-const hydrationStorageKey = computed(() => `sb_hydration_${props.userId}_${todayIso}`)
-
-function loadLocalHydration(): HydrationLog {
-  try {
-    const raw = localStorage.getItem(hydrationStorageKey.value)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return {
-    id: 0,
-    date: todayIso,
-    glasses: 0,
-    target_glasses: 8,
-  }
-}
-
-const hydration = ref<HydrationLog>(loadLocalHydration())
+const todayIso = new Date().toISOString().split('T')[0]
+const hydration = ref<HydrationLog | null>(null)
 const sleepLogs = ref<SleepLog[]>([])
 const healthCheck = ref<HealthCheckLog | null>(null)
 
@@ -86,27 +62,15 @@ function calculateDurationFromTimes() {
 async function fetchHealthData() {
   loading.value = true
   try {
-    // 1. Hydration today (Load local cache first)
-    const localHydra = loadLocalHydration()
-    hydration.value = localHydra
+    // 1. Hydration today
+    const { data: hydraData } = await supabase
+      .from('hydration_logs')
+      .select('*')
+      .eq('user_id', props.userId)
+      .eq('date', todayIso)
+      .maybeSingle()
 
-    try {
-      const { data: hydraData, error } = await supabase
-        .from('hydration_logs')
-        .select('*')
-        .eq('user_id', props.userId)
-        .eq('date', todayIso)
-        .maybeSingle()
-
-      if (!error && hydraData) {
-        hydration.value = hydraData
-        localStorage.setItem(hydrationStorageKey.value, JSON.stringify(hydraData))
-      } else if (!hydraData && localHydra.glasses > 0) {
-        syncHydrationToSupabase(localHydra.glasses, localHydra.target_glasses)
-      }
-    } catch (e) {
-      console.warn('Supabase hydration fetch fallback to local:', e)
-    }
+    hydration.value = hydraData
 
     // 2. Sleep logs last 14 days
     const { data: sleepData } = await supabase
@@ -134,43 +98,24 @@ async function fetchHealthData() {
   }
 }
 
-// Hydration actions: 100% Instant Optimistic Update + Persistent Local Storage + Resilient Cloud Sync
+// Hydration actions
 async function setHydrationGlasses(targetValue: number) {
   const val = Math.max(0, targetValue)
+  const prevVal = hydration.value?.glasses ?? 0
   const target = hydration.value?.target_glasses ?? 8
 
-  // 1. Instant Optimistic UI Update (0ms latency guarantee)
-  const updatedLog: HydrationLog = {
-    id: hydration.value?.id || Date.now(),
-    date: todayIso,
-    glasses: val,
-    target_glasses: target,
-  }
-  hydration.value = updatedLog
-
-  // 2. Persist to localStorage immediately
-  try {
-    localStorage.setItem(hydrationStorageKey.value, JSON.stringify(updatedLog))
-  } catch {}
-
-  // 3. Audio chime feedback
-  playNotificationSound('chime')
-
-  // 4. Background cloud sync without fragile onConflict dependency
-  syncHydrationToSupabase(val, target)
-}
-
-function handleGlassClick(i: number) {
-  const current = hydration.value?.glasses ?? 0
-  // Jika klik gelas yang sedang aktif (terakhir terisi), decrement 1 (undo/kurangi)
-  if (current === i) {
-    setHydrationGlasses(i - 1)
+  // Optimistic update
+  if (!hydration.value) {
+    hydration.value = {
+      id: 0,
+      date: todayIso,
+      glasses: val,
+      target_glasses: target,
+    }
   } else {
-    setHydrationGlasses(i)
+    hydration.value.glasses = val
   }
-}
 
-async function syncHydrationToSupabase(val: number, target: number) {
   try {
     const { data: existing } = await supabase
       .from('hydration_logs')
@@ -189,12 +134,8 @@ async function syncHydrationToSupabase(val: number, target: number) {
         })
         .eq('id', existing.id)
         .select()
-        .maybeSingle()
-
-      if (data) {
-        hydration.value = data
-        localStorage.setItem(hydrationStorageKey.value, JSON.stringify(data))
-      }
+        .single()
+      if (data) hydration.value = data
     } else {
       const { data } = await supabase
         .from('hydration_logs')
@@ -205,15 +146,23 @@ async function syncHydrationToSupabase(val: number, target: number) {
           target_glasses: target,
         })
         .select()
-        .maybeSingle()
-
-      if (data) {
-        hydration.value = data
-        localStorage.setItem(hydrationStorageKey.value, JSON.stringify(data))
-      }
+        .single()
+      if (data) hydration.value = data
     }
   } catch (err) {
-    console.warn('Sync hidrasi ke cloud tertunda/offline:', err)
+    console.error('Gagal update hidrasi:', err)
+    if (hydration.value) {
+      hydration.value.glasses = prevVal
+    }
+  }
+}
+
+function handleGlassClick(i: number) {
+  const current = hydration.value?.glasses ?? 0
+  if (current === i) {
+    setHydrationGlasses(i - 1)
+  } else {
+    setHydrationGlasses(i)
   }
 }
 
@@ -456,10 +405,10 @@ onMounted(() => {
                 type="button"
                 @click="handleGlassClick(i)"
                 :title="`Klik untuk set/toggle ${i} gelas (${i * 250} ml)`"
-                class="h-10 rounded-lg flex flex-col items-center justify-center text-xs border transition-all cursor-pointer hover:scale-105 active:scale-95 select-none"
+                class="h-10 rounded-lg flex flex-col items-center justify-center text-xs border transition-all cursor-pointer hover:scale-105"
                 :class="i <= (hydration?.glasses || 0)
-                  ? 'bg-blue-500 text-white border-blue-600 shadow-2xs font-bold ring-2 ring-blue-300'
-                  : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'"
+                  ? 'bg-blue-500 text-white border-blue-600 shadow-2xs font-bold'
+                  : 'bg-gray-50 text-gray-300 border-gray-200 hover:border-blue-300'"
               >
                 <span>🥛</span>
                 <span class="text-[9px] mt-0.5 leading-none">{{ i }}</span>
@@ -472,35 +421,33 @@ onMounted(() => {
         <div class="mt-6 pt-4 border-t border-gray-100 space-y-2">
           <div class="flex items-center gap-2">
             <button
-              type="button"
               @click="adjustHydration(1)"
-              class="flex-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              :disabled="saving"
+              class="flex-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span>💧</span>
               <span>+1 Gelas (250ml)</span>
             </button>
             <button
-              type="button"
               @click="adjustHydration(2)"
-              class="flex-1 rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-xs font-bold text-blue-700 hover:bg-blue-100 active:scale-95 transition-all cursor-pointer"
+              :disabled="saving"
+              class="flex-1 rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
             >
               +500ml Botol
             </button>
           </div>
           <div class="flex items-center justify-between text-xs pt-1">
             <button
-              type="button"
               @click="adjustHydration(-1)"
-              :disabled="(hydration?.glasses || 0) <= 0"
-              class="text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer font-medium"
+              :disabled="saving || (hydration?.glasses || 0) <= 0"
+              class="text-gray-500 hover:text-gray-800 disabled:opacity-30 cursor-pointer"
             >
               - 1 Gelas
             </button>
             <button
-              type="button"
               @click="setHydrationGlasses(0)"
-              :disabled="(hydration?.glasses || 0) <= 0"
-              class="text-gray-400 hover:text-rose-600 disabled:opacity-30 text-[11px] cursor-pointer font-medium"
+              :disabled="saving || (hydration?.glasses || 0) <= 0"
+              class="text-gray-400 hover:text-rose-600 disabled:opacity-30 text-[11px] cursor-pointer"
             >
               Reset Hari Ini
             </button>

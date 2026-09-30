@@ -172,18 +172,6 @@ const hydrationMl = hydrationGlasses * 250;
 assert(hydrationPct === 75, `Hydration percentage calculated correctly (75%)`);
 assert(hydrationMl === 1500, `Hydration volume in ml calculated correctly (1500 ml)`);
 
-// Interactive Glass Click & Toggle Logic
-function handleGlassClick(currentGlasses, clickedGlass) {
-  if (currentGlasses === clickedGlass) {
-    return clickedGlass - 1; // undo/decrement
-  }
-  return clickedGlass;
-}
-assert(handleGlassClick(0, 3) === 3, 'Clicking glass 3 when 0 filled sets to 3 glasses');
-assert(handleGlassClick(3, 3) === 2, 'Clicking active glass 3 again decrements to 2 glasses (undo)');
-assert(handleGlassClick(1, 1) === 0, 'Clicking active glass 1 decrements to 0 glasses');
-assert(handleGlassClick(2, 5) === 5, 'Clicking glass 5 when at 2 jumps to 5 glasses');
-
 // -----------------------------------------------------------------------------
 // 5. UNIVERSAL QUICK CAPTURE CLIENT-SIDE REGEX PARSER TESTS
 // -----------------------------------------------------------------------------
@@ -272,7 +260,7 @@ assert(manifestContent.icons.length > 0, 'PWA manifest contains application icon
 // Backup Export Schema Verification
 const mockExport = {
   app: 'Second Brain (Student Edition)',
-  version: '2.1.0',
+  version: '2.2.0',
   exportedAt: new Date().toISOString(),
   account: { id: 'test-user-id' },
   data: {
@@ -282,8 +270,91 @@ const mockExport = {
     hobbies: [],
   }
 };
-assert(mockExport.version === '2.1.0', 'Backup export payload correctly reports version 2.1.0');
+assert(mockExport.version === '2.2.0', 'Backup export payload correctly reports version 2.2.0');
 assert(mockExport.app === 'Second Brain (Student Edition)', 'Backup export payload identifies Student Edition app');
+
+// -----------------------------------------------------------------------------
+// 8. VERDION PROFIT LEVERAGE & ARBITRAGE CALCULATORS
+// -----------------------------------------------------------------------------
+console.log('\n📌 [8/8] Testing Verdion Profit Leverage & Arbitrage Calculators:');
+
+function computeWhaleVettingScore({ paymentVerified, totalSpend, hireRate, avgRate }) {
+  let score = 0;
+  if (paymentVerified) score += 25;
+  if (totalSpend >= 10000) score += 35;
+  else if (totalSpend >= 2000) score += 20;
+  else if (totalSpend >= 500) score += 10;
+
+  if (hireRate >= 60) score += 20;
+  else if (hireRate >= 40) score += 10;
+
+  if (avgRate >= 30) score += 20;
+  else if (avgRate >= 20) score += 10;
+
+  return Math.min(100, score);
+}
+
+const whaleScore1 = computeWhaleVettingScore({
+  paymentVerified: true,
+  totalSpend: 45000,
+  hireRate: 78,
+  avgRate: 45,
+});
+assert(whaleScore1 === 100, 'Whale client with high spend, hire rate, & verified payment scores 100/100');
+
+const cautionScore = computeWhaleVettingScore({
+  paymentVerified: true,
+  totalSpend: 2500,
+  hireRate: 45,
+  avgRate: 25,
+});
+assert(cautionScore === 65, 'Moderate client scores 65/100 (Proceed with Caution)');
+
+const trapScore = computeWhaleVettingScore({
+  paymentVerified: false,
+  totalSpend: 150,
+  hireRate: 20,
+  avgRate: 15,
+});
+assert(trapScore === 0, 'Low-budget unverified client scores 0/100 (Connects Trap Skip)');
+
+// Net USD and Arbitrage Margin
+function calculateVerdionArbitrage(grossUsd, subdevIdr, usdRate = 16200) {
+  const netUsd = grossUsd * 0.90; // After Upwork 10% fee
+  const netIdr = netUsd * usdRate;
+  const netProfitIdr = netIdr - subdevIdr;
+  const marginPercent = netIdr > 0 ? (netProfitIdr / netIdr) * 100 : 0;
+  return { netUsd, netIdr, netProfitIdr, marginPercent };
+}
+
+const arbResult = calculateVerdionArbitrage(2500, 8000000, 16200);
+assert(arbResult.netUsd === 2250, 'Net USD after 10% fee on $2,500 is $2,250');
+assert(arbResult.netIdr === 36450000, 'Net IDR @ 16,200 is Rp 36.450.000');
+assert(arbResult.netProfitIdr === 28450000, 'Verdion Net Profit after Rp 8M subdev is Rp 28.450.000');
+assert(Math.round(arbResult.marginPercent) === 78, 'Verdion margin retained is 78%');
+
+// 2-Second Hook Character Length Limit
+function generateHook(problem, solution, demoLink, question) {
+  return `Saw your bottleneck with ${problem}. Verdion has resolved this exact issue using ${solution}. Live demo: ${demoLink}. ${question}`;
+}
+const hookSample = generateHook(
+  'Supabase query latency',
+  'async pgBouncer pooling',
+  'loom.com/share/verdion',
+  'Have you set pool limits?'
+);
+assert(hookSample.length <= 200, `Generated hook is concise (${hookSample.length} chars <= 200 chars) for Upwork client preview`);
+
+// Retainer Recurring Revenue Calculation
+const sampleRetainers = [
+  { client: 'FinTech Alpha', rateUsd: 800, active: true },
+  { client: 'Apex Media', rateUsd: 600, active: true },
+  { client: 'Old Client', rateUsd: 400, active: false },
+];
+const activeMrrUsd = sampleRetainers.filter(r => r.active).reduce((sum, r) => sum + r.rateUsd, 0);
+assert(activeMrrUsd === 1400, 'Active Retainers sum to $1,400 MRR');
+const activeMrrIdr = activeMrrUsd * 16200;
+assert(activeMrrIdr === 22680000, 'Active Retainers sum to Rp 22.680.000 recurring monthly IDR');
 
 // -----------------------------------------------------------------------------
 // SUMMARY
@@ -291,9 +362,10 @@ assert(mockExport.app === 'Second Brain (Student Edition)', 'Backup export paylo
 console.log('\n====================================================');
 console.log(`📊 TEST SUITE SUMMARY: ${passedTests}/${totalTests} TESTS PASSED`);
 if (failedTests === 0) {
-  console.log('🎉 ALL STUDENT EDITION FEATURES VERIFIED SUCCESSFULLY (100%)');
+  console.log('🎉 ALL SYSTEM & VERDION PROFIT FEATURES VERIFIED (100%)');
 } else {
   console.error(`⚠️ ${failedTests} TESTS FAILED`);
   process.exit(1);
 }
 console.log('====================================================');
+

@@ -266,71 +266,19 @@ async function handleSubmit() {
         emit('created', { type: 'task', data })
       }
     } else if (intent.type === 'hydration') {
-      const delta = (intent as any).glasses || Math.max(1, Math.round(((intent as any).amount || 250) / 250))
-      const today = new Date()
-      const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-      const storageKey = `sb_hydration_${props.userId}_${todayIso}`
+      const { data, error } = await supabase
+        .from('hydration_logs')
+        .insert({
+          user_id: props.userId,
+          amount_ml: intent.amount || 250,
+          logged_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
 
-      let currentGlasses = 0
-      try {
-        const raw = localStorage.getItem(storageKey)
-        if (raw) currentGlasses = JSON.parse(raw).glasses || 0
-      } catch {}
-
-      const newGlasses = currentGlasses + delta
-      const updatedObj = {
-        id: Date.now(),
-        user_id: props.userId,
-        date: todayIso,
-        glasses: newGlasses,
-        target_glasses: 8,
+      if (!error && data) {
+        emit('created', { type: 'hydration', data })
       }
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updatedObj))
-      } catch {}
-
-      // Cloud sync
-      try {
-        const { data: existing } = await supabase
-          .from('hydration_logs')
-          .select('id, glasses')
-          .eq('user_id', props.userId)
-          .eq('date', todayIso)
-          .maybeSingle()
-
-        if (existing?.id) {
-          const { data } = await supabase
-            .from('hydration_logs')
-            .update({
-              glasses: existing.glasses + delta,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existing.id)
-            .select()
-            .maybeSingle()
-          if (data) {
-            localStorage.setItem(storageKey, JSON.stringify(data))
-          }
-        } else {
-          const { data } = await supabase
-            .from('hydration_logs')
-            .insert({
-              user_id: props.userId,
-              date: todayIso,
-              glasses: delta,
-              target_glasses: 8,
-            })
-            .select()
-            .maybeSingle()
-          if (data) {
-            localStorage.setItem(storageKey, JSON.stringify(data))
-          }
-        }
-      } catch (err) {
-        console.warn('Sync quick capture hydration cloud error:', err)
-      }
-
-      emit('created', { type: 'hydration', data: updatedObj })
     } else if (intent.type === 'sleep') {
       const { data, error } = await supabase
         .from('sleep_logs')

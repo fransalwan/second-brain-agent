@@ -47,7 +47,11 @@ from app.models import (
     ThesisChapter,
     TimeLog,
     UpworkContract,
+    UpworkMilestone,
     UpworkProposal,
+    VerdionChangeRequest,
+    VerdionRetainer,
+    VerdionSubcontractorLog,
     utcnow,
 )
 
@@ -868,10 +872,13 @@ async def seed_data():
         career_goal = CareerGoal(
             user_id=user_id,
             month=target_month,
-            target_revenue_usd=1200.0,
+            target_revenue_usd=2500.0,
             target_proposals_count=20,
-            current_badge="Rising Talent",
+            current_badge="Top Rated",
             usd_to_idr_rate=16200.0,
+            company_name="Verdion",
+            min_project_budget_usd=800.0,
+            monthly_profit_target_idr=40000000.0,
             created_at=now_dt - timedelta(days=20),
         )
         session.add(career_goal)
@@ -880,22 +887,32 @@ async def seed_data():
         proposals_data = [
             UpworkProposal(
                 user_id=user_id,
-                job_title="AI Agent & Workflow Automation Developer",
-                bid_amount_usd=450.0,
-                connects_spent=8,
+                job_title="AI Agent & Autonomous Workflow Engine",
+                bid_amount_usd=1200.0,
+                connects_spent=16,
                 client_country="United States",
+                client_spend_usd=45000.0,
+                client_hire_rate=78,
+                client_rating=4.95,
+                hook_text="Saw your bottleneck in parallel LLM agent orchestration. Verdion has built pre-tested async workers cutting latency by 65%. Demo: loom.com/share/verdion-agent",
+                proposal_score=95,
                 job_url="https://www.upwork.com/jobs/~01exampleaiagent",
                 status="hired",
-                notes="Fokus integrasi Google Gemini dan asynchronous worker.",
+                notes="Whale client: Enterprise SaaS di San Francisco, potensi retainer jangka panjang.",
                 submitted_at=now_dt - timedelta(days=12),
                 created_at=now_dt - timedelta(days=12),
             ),
             UpworkProposal(
                 user_id=user_id,
-                job_title="FastAPI Backend & Telegram Bot Architect",
-                bid_amount_usd=200.0,
-                connects_spent=8,
+                job_title="FastAPI & Supabase High-Concurrency Bot",
+                bid_amount_usd=850.0,
+                connects_spent=12,
                 client_country="Singapore",
+                client_spend_usd=18500.0,
+                client_hire_rate=65,
+                client_rating=5.0,
+                hook_text="Your database connection pool will exhaust under 500 RPS without async pgBouncer pooling. Here is our benchmark repo: github.com/verdion/pool-guard",
+                proposal_score=88,
                 job_url="https://www.upwork.com/jobs/~02examplefastapibot",
                 status="hired",
                 notes="Realtime bot dashboard & webhook integration.",
@@ -904,25 +921,35 @@ async def seed_data():
             ),
             UpworkProposal(
                 user_id=user_id,
-                job_title="Full-Stack Web Scraper & Data Pipeline",
-                bid_amount_usd=300.0,
-                connects_spent=6,
-                client_country="Germany",
-                job_url="https://www.upwork.com/jobs/~03examplescraper",
+                job_title="Next.js 14 & Supabase Multi-Tenant SaaS MVP",
+                bid_amount_usd=1500.0,
+                connects_spent=16,
+                client_country="Canada",
+                client_spend_usd=28000.0,
+                client_hire_rate=72,
+                client_rating=4.88,
+                hook_text="Reviewed your PRD: We can reuse our pre-audited Supabase RLS multi-tenant boilerplate to deliver the core MVP in 10 days instead of 4 weeks.",
+                proposal_score=92,
+                job_url="https://www.upwork.com/jobs/~04examplesaas",
                 status="interviewing",
-                notes="Tahap diskusi format output JSON dan cloud storage.",
-                submitted_at=now_dt - timedelta(days=3),
-                created_at=now_dt - timedelta(days=3),
+                notes="Whale client Canada, sedang negosiasi milestone 1 & 2.",
+                submitted_at=now_dt - timedelta(days=2),
+                created_at=now_dt - timedelta(days=2),
             ),
             UpworkProposal(
                 user_id=user_id,
-                job_title="Next.js & Supabase SaaS MVP",
-                bid_amount_usd=600.0,
+                job_title="Distributed Web Scraper & Cloud Pipeline",
+                bid_amount_usd=900.0,
                 connects_spent=12,
-                client_country="Canada",
-                job_url="https://www.upwork.com/jobs/~04examplesaas",
+                client_country="Germany",
+                client_spend_usd=8200.0,
+                client_hire_rate=55,
+                client_rating=4.75,
+                hook_text="Cloudflare anti-bot bypass requires residential proxy rotation and browser fingerprint spoofing. Here is our architecture diagram.",
+                proposal_score=78,
+                job_url="https://www.upwork.com/jobs/~03examplescraper",
                 status="submitted",
-                notes="Proposal komprehensif dengan demo portfolio live.",
+                notes="Diskusi format output JSON dan cloud storage.",
                 submitted_at=now_dt - timedelta(days=1),
                 created_at=now_dt - timedelta(days=1),
             ),
@@ -932,9 +959,14 @@ async def seed_data():
                 bid_amount_usd=350.0,
                 connects_spent=10,
                 client_country="United Kingdom",
+                client_spend_usd=1200.0,
+                client_hire_rate=35,
+                client_rating=4.2,
+                hook_text="I can fix your embeddings cosine similarity threshold.",
+                proposal_score=45,
                 job_url="https://www.upwork.com/jobs/~05examplerag",
                 status="rejected",
-                notes="Klien memilih freelancer dengan timezone Eropa.",
+                notes="Klien budget rendah & hire rate rendah (skor 45). Menjadi pelajaran filter vetting.",
                 submitted_at=now_dt - timedelta(days=15),
                 created_at=now_dt - timedelta(days=15),
             ),
@@ -959,11 +991,11 @@ async def seed_data():
                 client_name="FinTech Alpha (US)",
                 project_title="Autonomous Agent Workflow Engine",
                 contract_type="fixed",
-                rate_or_budget_usd=450.0,
-                total_earned_usd=450.0,
+                rate_or_budget_usd=1200.0,
+                total_earned_usd=1200.0,
                 status="completed",
                 rating=5.0,
-                feedback="Frans is an exceptional AI engineer! Prompt, clear communication, and outstanding deliverables.",
+                feedback="Verdion delivered world-class engineering! The agent workflow exceeded expectations. We signed a monthly retainer immediately.",
                 deadline=now_dt - timedelta(days=2),
                 created_at=now_dt - timedelta(days=10),
             ),
@@ -973,8 +1005,8 @@ async def seed_data():
                 client_name="Apex Media SG",
                 project_title="Telegram Notification & CRM Bot",
                 contract_type="fixed",
-                rate_or_budget_usd=300.0,
-                total_earned_usd=200.0,
+                rate_or_budget_usd=850.0,
+                total_earned_usd=500.0,
                 status="active",
                 deadline=now_dt + timedelta(days=5),
                 created_at=now_dt - timedelta(days=6),
@@ -982,16 +1014,90 @@ async def seed_data():
         ]
         session.add_all(contracts_data)
         await session.commit()
+
+        # Ambil contract aktif Apex Media SG
+        apex_contract_res = await session.execute(
+            select(UpworkContract)
+            .where(UpworkContract.user_id == user_id, UpworkContract.client_name == "Apex Media SG")
+        )
+        apex_contract = apex_contract_res.scalar_one_or_none()
+
+        if apex_contract:
+            milestones_data = [
+                UpworkMilestone(
+                    contract_id=apex_contract.id,
+                    title="Milestone 1: Webhook Architecture & Async Engine",
+                    amount_usd=500.0,
+                    escrow_funded=True,
+                    status="paid",
+                    submitted_at=now_dt - timedelta(days=2),
+                    auto_release_deadline=now_dt + timedelta(days=12),
+                    deliverables_notes="Architecture repo delivered & tested with 10k messages stress test.",
+                    created_at=now_dt - timedelta(days=6),
+                ),
+                UpworkMilestone(
+                    contract_id=apex_contract.id,
+                    title="Milestone 2: CRM API Queue & Admin Broadcast",
+                    amount_usd=350.0,
+                    escrow_funded=True,
+                    status="in_progress",
+                    submitted_at=None,
+                    auto_release_deadline=None,
+                    deliverables_notes="Sedang pengerjaan worker Celery dan broadcast scheduling.",
+                    created_at=now_dt - timedelta(days=6),
+                ),
+            ]
+            session.add_all(milestones_data)
+
+            cr_data = [
+                VerdionChangeRequest(
+                    contract_id=apex_contract.id,
+                    request_title="Custom Analytics Dashboard for Telegram Broadcasts",
+                    estimated_hours=4.0,
+                    additional_price_usd=250.0,
+                    status="quoted",
+                    notes="Klien minta dashboard visual tambahan di luar brief awal. Dikutip $250 sebagai Milestone 3.",
+                    created_at=now_dt - timedelta(days=1),
+                )
+            ]
+            session.add_all(cr_data)
+
+            subdev_data = [
+                VerdionSubcontractorLog(
+                    contract_id=apex_contract.id,
+                    subdev_name="Rian (Junior Python Dev)",
+                    task_scope="Slicing UI Telegram Command Parser & Mock Data",
+                    payout_idr=1200000.0,
+                    status="paid",
+                    created_at=now_dt - timedelta(days=4),
+                )
+            ]
+            session.add_all(subdev_data)
+
+        retainer_data = [
+            VerdionRetainer(
+                user_id=user_id,
+                client_name="FinTech Alpha (US)",
+                monthly_rate_usd=800.0,
+                start_date=today,
+                billing_day=1,
+                status="active",
+                notes="Maintenance retainer: 10 jam/bulan SLA monitoring & bug fixing.",
+                created_at=now_dt - timedelta(days=2),
+            )
+        ]
+        session.add_all(retainer_data)
+        await session.commit()
         print(
-            "Berhasil membuat data Upwork Career: Target $1,200, 5 Proposal, dan 2 Kontrak ($650 earned)."
+            "Berhasil membuat data Verdion Leverage Engine: Target $2,500, 5 Whale Proposals, 2 Kontrak ($1,700 earned), 2 Milestones, 1 CR ($250), 1 Subdev Log, & 1 Retainer ($800/mo)."
         )
 
     print("\n=======================================================")
     print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
     print("Seluruh modul kini terisi data nyata & siap diuji:")
-    print("• /karir      -> Upwork Career Engine & Revenue Target ($650 / $1,200 - 54%)")
-    print("• /proposal   -> 5 proposal (1 submitting, 1 interview, 2 hired, 1 rejected)")
-    print("• /kontrak    -> 2 kontrak Upwork (1 aktif, 1 selesai rating 5.0)")
+    print("• /karir      -> Verdion Leverage Engine & Revenue Target ($1,700 / $2,500 - 68%)")
+    print("• /proposal   -> 5 Whale proposals (1 submitting, 1 interview, 2 hired, 1 rejected)")
+    print("• /kontrak    -> 2 kontrak Upwork ($1,700 earned, 2 Milestones, 1 CR, 1 Retainer)")
     print("• /kuliah     -> Master Command Center Akademik")
     print("• /tugas      -> 4 tugas kuliah (Kritis Besok, H-3, H-6, Reading)")
     print("• /ujian      -> 2 ujian (UTS Machine Learning H-5, UAS DistSys)")
