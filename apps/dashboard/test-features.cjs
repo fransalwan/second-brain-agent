@@ -356,6 +356,16 @@ assert(activeMrrUsd === 1400, 'Active Retainers sum to $1,400 MRR');
 const activeMrrIdr = activeMrrUsd * 16200;
 assert(activeMrrIdr === 22680000, 'Active Retainers sum to Rp 22.680.000 recurring monthly IDR');
 
+// Authorization Guard Verification (Exclusive for fransalwan55@gmail.com)
+function isVerdionAuthorized(email) {
+  return (email ?? '').toLowerCase().trim() === 'fransalwan55@gmail.com';
+}
+assert(isVerdionAuthorized('fransalwan55@gmail.com') === true, 'fransalwan55@gmail.com is authorized for Verdion Studio');
+assert(isVerdionAuthorized('FRANSALWAN55@GMAIL.COM ') === true, 'Case-insensitive & trimmed email is authorized');
+assert(isVerdionAuthorized('student@ugm.ac.id') === false, 'Student email is strictly denied from Verdion Studio');
+assert(isVerdionAuthorized('hacker@domain.com') === false, 'Other emails are denied from Verdion Studio');
+assert(isVerdionAuthorized(null) === false, 'Unauthenticated user is denied from Verdion Studio');
+
 // -----------------------------------------------------------------------------
 // SUMMARY
 // -----------------------------------------------------------------------------
