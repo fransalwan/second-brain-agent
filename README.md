@@ -275,35 +275,8 @@ ResNet-18 Benchmark & Batch: 64 & Akurasi: 88.2\% \\
 
 ---
 
-## ⚡ Verdion Studio (Profit Leverage Engine)
-
-Bagi founder dan technical builder yang ingin melipatgandakan penghasilan dari **proyek Upwork menuju Software House / Agency mandiri (Verdion)**:
-
-```
-[ Whale Deal Radar ] ──▶ [ 2-Sec Hook Studio ] ──▶ [ Escrow Fortress ] ──▶ [ Arbitrage Engine ] ──▶ [ Retainer LTV ]
-   (Min. $800 - $5k)      (Win Rate 25%+)         (100% Funded Rule)      (USD in, IDR out)        (Recurring MRR)
-```
-
-1. **Whale Client Vetting Scorecard (0–100):**
-   * Filter ketat lowongan berdaya beli tinggi (Payment Verified, Total Spend > \$10k, Hire Rate > 60%, Avg Rate > \$30/hr).
-   * Mencegah pemborosan connects pada lowongan murah yang menguras energi.
-2. **"2-Second Hook" Workbench:**
-   * Generator kalimat pembuka proposal (maksimal 150–200 karakter) yang lolos di preview dashboard klien Upwork sebelum proposal dibuka.
-   * Format: Diagnosis langsung $\rightarrow$ Link bukti demo/Loom $\rightarrow$ Pertanyaan arsitektur tajam.
-3. **Milestone Fortress & 100% Escrow Rule:**
-   * Proteksi pengerjaan: 🟢 **Escrow Funded (Aman Dikerjakan)** vs 🔴 **Not Funded (Strict Code Freeze)**.
-   * Timer 14 hari *Auto-Release Protection* pasca penyerahan hasil kerja (*Submit Work for Payment*).
-   * **Change Request (CR) Monetizer:** Mengubah penambahan fitur dari chat klien menjadi omset milestone baru (\$250–\$500+).
-4. **Labor & Margin Arbitrage Engine:**
-   * Mendapatkan kontrak dalam USD dari pasar global (misal \$2,500 kotor $\rightarrow$ \$2,250 net USD $\approx$ Rp 36,45 Juta).
-   * Mendelegasikan pekerjaan repetitif ke junior dev lokal (Rp 8 Juta), mempertahankan **Net Profit Margin 78% (Rp 28,45 Juta)** untuk kas Verdion.
-5. **Retainer & Client LTV Multiplier:**
-   * Mengubah klien proyek satu kali menjadi langganan maintenance bulanan (\$500–\$1,200/bln).
-
----
-
 ## 📄 Lisensi & Kontribusi
 
 Project ini berlisensi **MIT**. Terbuka untuk kontribusi komunitas di seluruh Indonesia.
 
-*Dibuat dengan ❤️ untuk kemerdekaan finansial & keseimbangan hidup.*
+*Dibuat dengan ❤️ untuk produktivitas & kesehatan mental mahasiswa.*

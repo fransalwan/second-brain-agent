@@ -49,9 +49,6 @@ from app.models import (
     UpworkContract,
     UpworkMilestone,
     UpworkProposal,
-    VerdionChangeRequest,
-    VerdionRetainer,
-    VerdionSubcontractorLog,
     utcnow,
 )
 
@@ -876,7 +873,7 @@ async def seed_data():
             target_proposals_count=20,
             current_badge="Top Rated",
             usd_to_idr_rate=16200.0,
-            company_name="Verdion",
+            company_name="Student Freelance",
             min_project_budget_usd=800.0,
             monthly_profit_target_idr=40000000.0,
             created_at=now_dt - timedelta(days=20),
@@ -894,11 +891,11 @@ async def seed_data():
                 client_spend_usd=45000.0,
                 client_hire_rate=78,
                 client_rating=4.95,
-                hook_text="Saw your bottleneck in parallel LLM agent orchestration. Verdion has built pre-tested async workers cutting latency by 65%. Demo: loom.com/share/verdion-agent",
+                hook_text="Saw your bottleneck in parallel LLM agent orchestration. Built pre-tested async workers cutting latency by 65%. Demo: github.com/fransalwan/agent-demo",
                 proposal_score=95,
                 job_url="https://www.upwork.com/jobs/~01exampleaiagent",
                 status="hired",
-                notes="Whale client: Enterprise SaaS di San Francisco, potensi retainer jangka panjang.",
+                notes="Enterprise SaaS di San Francisco, potensi kolaborasi jangka panjang.",
                 submitted_at=now_dt - timedelta(days=12),
                 created_at=now_dt - timedelta(days=12),
             ),
@@ -911,7 +908,7 @@ async def seed_data():
                 client_spend_usd=18500.0,
                 client_hire_rate=65,
                 client_rating=5.0,
-                hook_text="Your database connection pool will exhaust under 500 RPS without async pgBouncer pooling. Here is our benchmark repo: github.com/verdion/pool-guard",
+                hook_text="Your database connection pool will exhaust under 500 RPS without async pgBouncer pooling. Here is a benchmark: github.com/fransalwan/pool-guard",
                 proposal_score=88,
                 job_url="https://www.upwork.com/jobs/~02examplefastapibot",
                 status="hired",
@@ -995,7 +992,7 @@ async def seed_data():
                 total_earned_usd=1200.0,
                 status="completed",
                 rating=5.0,
-                feedback="Verdion delivered world-class engineering! The agent workflow exceeded expectations. We signed a monthly retainer immediately.",
+                feedback="Delivered world-class engineering! The agent workflow exceeded expectations. Great collaboration.",
                 deadline=now_dt - timedelta(days=2),
                 created_at=now_dt - timedelta(days=10),
             ),
@@ -1048,56 +1045,18 @@ async def seed_data():
                 ),
             ]
             session.add_all(milestones_data)
+            await session.commit()
 
-            cr_data = [
-                VerdionChangeRequest(
-                    contract_id=apex_contract.id,
-                    request_title="Custom Analytics Dashboard for Telegram Broadcasts",
-                    estimated_hours=4.0,
-                    additional_price_usd=250.0,
-                    status="quoted",
-                    notes="Klien minta dashboard visual tambahan di luar brief awal. Dikutip $250 sebagai Milestone 3.",
-                    created_at=now_dt - timedelta(days=1),
-                )
-            ]
-            session.add_all(cr_data)
-
-            subdev_data = [
-                VerdionSubcontractorLog(
-                    contract_id=apex_contract.id,
-                    subdev_name="Rian (Junior Python Dev)",
-                    task_scope="Slicing UI Telegram Command Parser & Mock Data",
-                    payout_idr=1200000.0,
-                    status="paid",
-                    created_at=now_dt - timedelta(days=4),
-                )
-            ]
-            session.add_all(subdev_data)
-
-        retainer_data = [
-            VerdionRetainer(
-                user_id=user_id,
-                client_name="FinTech Alpha (US)",
-                monthly_rate_usd=800.0,
-                start_date=today,
-                billing_day=1,
-                status="active",
-                notes="Maintenance retainer: 10 jam/bulan SLA monitoring & bug fixing.",
-                created_at=now_dt - timedelta(days=2),
-            )
-        ]
-        session.add_all(retainer_data)
-        await session.commit()
         print(
-            "Berhasil membuat data Verdion Leverage Engine: Target $2,500, 5 Whale Proposals, 2 Kontrak ($1,700 earned), 2 Milestones, 1 CR ($250), 1 Subdev Log, & 1 Retainer ($800/mo)."
+            "Berhasil membuat data Student Career & Freelance: Target $2,500, 5 Proposals, 2 Kontrak ($1,700 earned), 2 Milestones."
         )
 
     print("\n=======================================================")
     print("🎉 MASTER SEED BERHASIL DIEKSEKUSI 100%!")
     print("Seluruh modul kini terisi data nyata & siap diuji:")
-    print("• /karir      -> Verdion Leverage Engine & Revenue Target ($1,700 / $2,500 - 68%)")
-    print("• /proposal   -> 5 Whale proposals (1 submitting, 1 interview, 2 hired, 1 rejected)")
-    print("• /kontrak    -> 2 kontrak Upwork ($1,700 earned, 2 Milestones, 1 CR, 1 Retainer)")
+    print("• /karir      -> Student Career Engine & Revenue Target ($1,700 / $2,500 - 68%)")
+    print("• /proposal   -> 5 proposals (1 submitting, 1 interview, 2 hired, 1 rejected)")
+    print("• /kontrak    -> 2 kontrak Upwork ($1,700 earned, 2 Milestones)")
     print("• /kuliah     -> Master Command Center Akademik")
     print("• /tugas      -> 4 tugas kuliah (Kritis Besok, H-3, H-6, Reading)")
     print("• /ujian      -> 2 ujian (UTS Machine Learning H-5, UAS DistSys)")

@@ -299,7 +299,7 @@ class CareerGoal(SQLModel, table=True):
     target_proposals_count: int = Field(default=20)
     current_badge: str = Field(default="Rising Talent")  # Rising Talent, Top Rated, Top Rated Plus
     usd_to_idr_rate: float = Field(default=16200.0)
-    company_name: str = Field(default="Verdion")
+    company_name: str = Field(default="Student Freelancer")
     min_project_budget_usd: float = Field(default=800.0)
     monthly_profit_target_idr: float = Field(default=50000000.0)
     created_at: datetime = Field(
@@ -374,48 +374,4 @@ class UpworkMilestone(SQLModel, table=True):
         default_factory=utcnow, sa_type=DateTime(timezone=True)
     )
 
-
-class VerdionChangeRequest(SQLModel, table=True):
-    __tablename__ = "verdion_change_requests"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    contract_id: int = Field(foreign_key="upwork_contracts.id", index=True)
-    request_title: str
-    estimated_hours: float = Field(default=0.0)
-    additional_price_usd: float = Field(default=0.0)
-    status: str = Field(default="quoted")  # quoted, accepted, declined
-    notes: Optional[str] = None
-    created_at: datetime = Field(
-        default_factory=utcnow, sa_type=DateTime(timezone=True)
-    )
-
-
-class VerdionSubcontractorLog(SQLModel, table=True):
-    __tablename__ = "verdion_subcontractor_logs"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    contract_id: int = Field(foreign_key="upwork_contracts.id", index=True)
-    subdev_name: str
-    task_scope: str
-    payout_idr: float = Field(default=0.0)
-    status: str = Field(default="pending")  # pending, completed, paid
-    created_at: datetime = Field(
-        default_factory=utcnow, sa_type=DateTime(timezone=True)
-    )
-
-
-class VerdionRetainer(SQLModel, table=True):
-    __tablename__ = "verdion_retainers"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: UUID = Field(foreign_key="profiles.id", index=True)
-    client_name: str
-    monthly_rate_usd: float = Field(default=0.0)
-    start_date: date = Field(default_factory=date.today, sa_type=Date)
-    billing_day: int = Field(default=1)
-    status: str = Field(default="active")  # active, paused, cancelled
-    notes: Optional[str] = None
-    created_at: datetime = Field(
-        default_factory=utcnow, sa_type=DateTime(timezone=True)
-    )
 
