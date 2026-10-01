@@ -11,7 +11,6 @@ import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
-import VerdionStudioTab from '../components/VerdionStudioTab.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
@@ -115,7 +114,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide' | 'verdion'>('overview')
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -913,16 +912,6 @@ onMounted(() => {
             <span>Panduan</span>
             <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-800">Tips</span>
           </button>
-
-          <button
-            @click="activeTab = 'verdion'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ml-auto"
-            :class="activeTab === 'verdion' ? 'border-amber-500 text-amber-900 bg-amber-50/70' : 'border-transparent text-gray-700 hover:text-amber-800'"
-          >
-            <span class="text-amber-500 font-black">⚡</span>
-            <span class="font-extrabold tracking-wide text-gray-900">Verdion Studio</span>
-            <span class="rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 px-2 py-0.2 text-[10px] font-black text-white shadow-2xs">PROFIT</span>
-          </button>
         </div>
       </div>
     </header>
@@ -949,12 +938,6 @@ onMounted(() => {
       <!-- Tab 4: Hobby -->
       <HobbyTab
         v-else-if="activeTab === 'hobby' && currentUserId"
-        :user-id="currentUserId"
-      />
-
-      <!-- Tab Verdion: Profit Leverage Studio -->
-      <VerdionStudioTab
-        v-else-if="activeTab === 'verdion' && currentUserId"
         :user-id="currentUserId"
       />
 

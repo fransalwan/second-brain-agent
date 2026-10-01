@@ -1,5 +1,5 @@
-// Service Worker for Second Brain PWA (Network-First Navigation Strategy)
-const CACHE_NAME = 'secondbrain-cache-v2-4-0'
+// Service Worker for Second Brain PWA
+const CACHE_NAME = 'secondbrain-cache-v1'
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -32,37 +32,22 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  // Hanya tangani GET request non-API
+  // Hanya tangani GET request non-API (jangan cache request Supabase realtime/REST)
   if (event.request.method !== 'GET') return
   const url = new URL(event.request.url)
   if (url.origin !== location.origin) return
 
-  // 1. Navigation request (HTML document) -> NETWORK FIRST
-  // Menjamin user selalu mendapatkan update kode & UI terbaru saat membuka halaman
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone()
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache)
-            })
-          }
-          return networkResponse
-        })
-        .catch(async () => {
-          const cached = await caches.match('/index.html')
-          return cached || caches.match('/')
-        })
-    )
-    return
-  }
-
-  // 2. Static Assets (CSS, JS hashed, images) -> Cache first with network fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
+        // Fetch background update (stale-while-revalidate)
+        fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, networkResponse)
+            })
+          }
+        }).catch(() => {})
         return cachedResponse
       }
 
@@ -75,6 +60,11 @@ self.addEventListener('fetch', (event) => {
           cache.put(event.request, responseToCache)
         })
         return networkResponse
+      }).catch(() => {
+        // Fallback to cached index.html for navigation requests
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html')
+        }
       })
     })
   )

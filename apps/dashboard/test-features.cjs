@@ -274,108 +274,12 @@ assert(mockExport.version === '2.2.0', 'Backup export payload correctly reports 
 assert(mockExport.app === 'Second Brain (Student Edition)', 'Backup export payload identifies Student Edition app');
 
 // -----------------------------------------------------------------------------
-// 8. VERDION LOCAL OPS & GOOGLE MAPS DIGITIZATION ENGINE
-// -----------------------------------------------------------------------------
-console.log('\n📌 [8/8] Testing Verdion Local Ops & Google Maps Digitization Engine:');
-
-// Lead Qualification Scoring (Google Maps)
-function calculateLocalLeadScore(lead) {
-  let score = 30;
-  if (lead.reviewCount >= 200) score += 30;
-  else if (lead.reviewCount >= 100) score += 20;
-  else if (lead.reviewCount >= 30) score += 10;
-
-  if (lead.rating >= 4.5) score += 20;
-  if (lead.contactWa && lead.contactWa.length >= 10) score += 20;
-  return Math.min(100, score);
-}
-
-const highPriorityLead = {
-  reviewCount: 245,
-  rating: 4.8,
-  contactWa: '081234567890',
-};
-assert(calculateLocalLeadScore(highPriorityLead) === 100, 'Busy venue with 200+ reviews, 4.8 rating & WA scores 100/100 (Golden Local Lead)');
-
-const moderateLead = {
-  reviewCount: 45,
-  rating: 4.6,
-  contactWa: '081987654321',
-};
-assert(calculateLocalLeadScore(moderateLead) === 80, 'Moderate venue scores 80/100 (Viable Target)');
-
-// Instant Mockup & Mini-POS Bill Calculator
-function calculateSandboxBill(items) {
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const pb1Tax = Math.round(subtotal * 0.10); // 10% Local Restaurant Tax
-  const total = subtotal + pb1Tax;
-  return { subtotal, pb1Tax, total };
-}
-
-const sampleCart = [
-  { name: 'Crispy Pork Belly / Ayam Bakar', price: 95000, qty: 2 },
-  { name: 'Dragonfruit Coconut Smoothie', price: 45000, qty: 1 },
-];
-const bill = calculateSandboxBill(sampleCart);
-assert(bill.subtotal === 235000, 'Sandbox subtotal calculated correctly (Rp 235.000)');
-assert(bill.pb1Tax === 23500, '10% PB1 tax calculated correctly (Rp 23.500)');
-assert(bill.total === 258500, 'Total bill with PB1 is Rp 258.500');
-
-// WhatsApp Pitch Phone Normalizer & Message Structure
-function formatWhatsAppPitch(businessName, rating, reviewCount, painPoint, waPhone, videoLink) {
-  const cleanPhone = (waPhone || '').replace(/[^0-9]/g, '');
-  const normalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
-  const message = `Halo Bli/Kak dan tim ${businessName}! Salam kenal, saya Frans dari Verdion Studio. Saya perhatikan rating ${rating} ⭐ dari ${reviewCount}+ ulasan. Kami buatkan video demo 45s: ${videoLink}`;
-  return { normalPhone, message };
-}
-
-const waResult = formatWhatsAppPitch(
-  'Canggu Breeze Cafe',
-  4.8,
-  245,
-  'nota manual hilang',
-  '081234567890',
-  'loom.com/share/demo'
-);
-assert(waResult.normalPhone === '6281234567890', 'WhatsApp normalizer correctly converts 0812 to international format 62812');
-assert(waResult.message.includes('Canggu Breeze Cafe') && waResult.message.includes('loom.com/share/demo'), 'WA pitch contains business name and custom Loom video link');
-
-// Cash In & Deal DP 50% Calculations
-function calculateCashflow(deals) {
-  return deals.reduce((sum, deal) => {
-    if (deal.status === 'completed' || deal.status === 'retainer_active') {
-      return sum + deal.valueIdr;
-    } else if (deal.status === 'dp_paid') {
-      return sum + deal.valueIdr * 0.50; // 50% DP
-    }
-    return sum;
-  }, 0);
-}
-
-const sampleDeals = [
-  { valueIdr: 15000000, status: 'dp_paid' },       // Rp 7.500.000 DP
-  { valueIdr: 20000000, status: 'completed' },     // Rp 20.000.000 Lunas
-  { valueIdr: 18000000, status: 'wa_sent' },       // Rp 0 (belum deal)
-];
-const cashIn = calculateCashflow(sampleDeals);
-assert(cashIn === 27500000, 'Cash in correctly computes DP 50% + Full payment (Rp 27.500.000)');
-
-// Monthly Cloud Maintenance Retainer MRR
-const localRetainers = [
-  { client: 'Canggu Breeze', monthlyRateIdr: 750000, active: true },
-  { client: 'Seminyak MotoRent', monthlyRateIdr: 1000000, active: true },
-  { client: 'Old Client', monthlyRateIdr: 500000, active: false },
-];
-const activeRetainerMrr = localRetainers.filter(r => r.active).reduce((sum, r) => sum + r.monthlyRateIdr, 0);
-assert(activeRetainerMrr === 1750000, 'Active Retainers sum to Rp 1.750.000/month recurring');
-
-// -----------------------------------------------------------------------------
 // SUMMARY
 // -----------------------------------------------------------------------------
 console.log('\n====================================================');
 console.log(`📊 TEST SUITE SUMMARY: ${passedTests}/${totalTests} TESTS PASSED`);
 if (failedTests === 0) {
-  console.log('🎉 ALL SYSTEM & VERDION PROFIT FEATURES VERIFIED (100%)');
+  console.log('🎉 ALL STUDENT EDITION FEATURES VERIFIED (100%)');
 } else {
   console.error(`⚠️ ${failedTests} TESTS FAILED`);
   process.exit(1);
