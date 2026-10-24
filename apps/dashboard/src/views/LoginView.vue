@@ -27,6 +27,11 @@ function resetAlerts() {
   errorMessage.value = ''
 }
 
+function handleGuestDemo() {
+  localStorage.setItem('secondbrain_demo_mode', 'true')
+  router.push({ name: 'home' })
+}
+
 function switchMode(mode: 'login' | 'register') {
   authMode.value = mode
   resetAlerts()
@@ -318,6 +323,21 @@ async function handleRegister() {
             </div>
             <p class="text-[11px] text-slate-400">Personalized Life &amp; Academic Operating System</p>
           </div>
+        </div>
+
+        <!-- 1-Click Recruiter Demo Button -->
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-900/50 via-indigo-900/50 to-blue-900/50 border border-purple-500/30 space-y-2">
+          <button
+            type="button"
+            @click="handleGuestDemo"
+            class="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:from-purple-500 hover:to-blue-500 transition-all cursor-pointer"
+          >
+            <span>✨</span>
+            <span>Coba Mode Demo Instan (1-Click Recruiter Preview)</span>
+          </button>
+          <p class="text-[10px] text-center text-slate-300">
+            Akses langsung seluruh fitur, RAG semantik, & data simulasi tanpa input email
+          </p>
         </div>
 
         <!-- Auth Header Title -->

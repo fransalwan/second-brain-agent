@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import HealthTab from '../components/HealthTab.vue'
 import CourseworkTab from '../components/CourseworkTab.vue'
@@ -12,12 +13,20 @@ import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
 import BrainRagModal from '../components/BrainRagModal.vue'
+import TechSpecsModal from '../components/TechSpecsModal.vue'
 
+const router = useRouter()
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
 const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
 const brainRagModalRef = ref<InstanceType<typeof BrainRagModal> | null>(null)
+const techSpecsModalRef = ref<InstanceType<typeof TechSpecsModal> | null>(null)
+const isDemoMode = ref(false)
+
+function handleOpenTechSpecs() {
+  techSpecsModalRef.value?.openModal()
+}
 
 function handleOpenBrainRag() {
   brainRagModalRef.value?.openModal()
@@ -314,8 +323,14 @@ async function handleToggleHabit(habitId: number) {
   if (existingLogIndex >= 0) {
     const logId = habitLogs.value[existingLogIndex].id
     habitLogs.value.splice(existingLogIndex, 1)
-    await supabase.from('habit_logs').delete().eq('id', logId)
+    if (!isDemoMode.value) {
+      await supabase.from('habit_logs').delete().eq('id', logId)
+    }
   } else {
+    if (isDemoMode.value) {
+      habitLogs.value.push({ id: Date.now(), habit_id: habitId, completed_date: todayIso })
+      return
+    }
     const { data } = await supabase
       .from('habit_logs')
       .insert({
@@ -421,12 +436,124 @@ async function fetchData() {
   loading.value = true
   errorMsg.value = null
 
+  isDemoMode.value = localStorage.getItem('secondbrain_demo_mode') === 'true'
+
+  if (isDemoMode.value) {
+    userEmail.value = 'fransalwanpurba@mail.ugm.ac.id'
+    currentUserId.value = 'demo-ugm-student-id'
+    profile.value = {
+      id: 'demo-ugm-student-id',
+      email: 'fransalwanpurba@mail.ugm.ac.id',
+      full_name: 'Frans Alwan Purba (Demo Mode)',
+      telegram_chat_id: 6745429419,
+      brief_time: '07:00:00',
+      night_cutoff_time: '23:00:00',
+    }
+    profileLoaded.value = true
+    areas.value = [
+      { id: 1, name: 'Kesehatan & Vitalitas', position: 1 },
+      { id: 2, name: 'Kuliah & Akademik', position: 2 },
+      { id: 3, name: 'Riset & Skripsi', position: 3 },
+      { id: 4, name: 'Hobby & Rest', position: 4 },
+    ]
+    tasks.value = [
+      {
+        id: 101,
+        area_id: 3,
+        title: 'Revisi Bab 3 Metodologi: Evaluasi F1-Score & Reciprocal Rank Fusion',
+        deadline: todayIso,
+        is_urgent: true,
+        status: 'pending',
+        completed_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 102,
+        area_id: 2,
+        title: 'Tubes Machine Learning: Pipeline Preprocessing Dataset Medis',
+        deadline: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        is_urgent: true,
+        status: 'pending',
+        completed_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 103,
+        area_id: 1,
+        title: 'Hidrasi Sehat: Minum 8 Gelas Air & Rutin Peregangan Leher',
+        deadline: todayIso,
+        is_urgent: false,
+        status: 'pending',
+        completed_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 104,
+        area_id: 4,
+        title: 'Guilt-Free Gaming & Me-Time 60 Menit (Weekend Reset)',
+        deadline: null,
+        is_urgent: false,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      },
+    ]
+    habits.value = [
+      { id: 1, name: 'Tidur Sebelum 23:00 (Bedtime Guardian)', is_active: true, position: 1 },
+      { id: 2, name: 'Minum 2 Liter Air Putih', is_active: true, position: 2 },
+      { id: 3, name: 'Deep Work Riset Tesis 90 Menit', is_active: true, position: 3 },
+    ]
+    habitLogs.value = [
+      { id: 1, habit_id: 1, completed_date: todayIso },
+      { id: 2, habit_id: 2, completed_date: todayIso },
+    ]
+    timeLogs.value = [
+      {
+        id: 1,
+        project_name: 'Eksperimen Model AI & Evaluasi Latensi',
+        started_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+        ended_at: new Date(Date.now() - 3600000).toISOString(),
+        duration_minutes: 60,
+      },
+    ]
+    notes.value = [
+      {
+        id: 1,
+        content: 'Metodologi Bab 3: Menggunakan HNSW Index pada PostgreSQL pgvector untuk pencarian embedding 768 dimensi Gemini.',
+        tags: ['skripsi', 'ai', 'rag'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        content: 'Arsitektur Concurrency: Golang telemetry daemon mengevaluasi deadline <24h dan sleep debt tanpa membebani Python runner.',
+        tags: ['golang', 'backend', 'telemetri'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 3,
+        content: 'Target revisi bimbingan: konsultasi bab 4 pembahasan hasil komparasi model transformer vs baseline.',
+        tags: ['dospem', 'skripsi'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 4,
+        content: 'Pola tidur dan hidrasi terbukti berkorelasi positif dengan fokus pengerjaan kode 90 menit deep work.',
+        tags: ['kesehatan', 'fokus'],
+        created_at: new Date().toISOString(),
+      },
+    ]
+    loading.value = false
+    initGraphData()
+    return
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
   if (!session) {
     loading.value = false
+    router.push({ name: 'login' })
     return
   }
   userEmail.value = session.user?.email ?? null
@@ -835,6 +962,22 @@ onMounted(() => {
             <span class="text-gray-300">|</span>
             <span>🌙 Malam: <strong class="text-gray-800">{{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</strong></span>
           </div>
+
+          <!-- Demo Mode Recruiter Pill -->
+          <div v-if="isDemoMode" class="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-900">
+            <span>✨ Demo Preview</span>
+          </div>
+
+          <!-- Arsitektur & Tech Specs Button -->
+          <button
+            type="button"
+            @click="handleOpenTechSpecs"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-colors shadow-2xs cursor-pointer"
+            title="Lihat Arsitektur Polyglot & Tech Specs"
+          >
+            <span>🛠️</span>
+            <span class="hidden sm:inline">Tech Specs</span>
+          </button>
 
           <!-- Tanya AI (pgvector RAG) Button -->
           <button
@@ -1624,6 +1767,9 @@ onMounted(() => {
       :user-id="currentUserId"
       :user-email="userEmail"
     />
+
+    <!-- Tech Specs & Architecture Inspector Modal -->
+    <TechSpecsModal ref="techSpecsModalRef" />
 
     <!-- Brain RAG & Semantic Search Modal -->
     <BrainRagModal
