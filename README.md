@@ -33,12 +33,49 @@ Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan
 
 Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas deterministik teruji:
 
-| No | Pilar | Prioritas | Fitur Unggulan Mahasiswa |
+| No | Pilar | Prioritas | Fitur Unggulan Sistem |
 |:---:|:---|:---:|:---|
 | **#1** | **🩺 Kesehatan & Vitalitas** | Paling Utama | Hidrasi 8 gelas/hari, pelacak durasi & kualitas tidur (*Sleep Debt*), jam malam (*Bedtime Guardian*), & radar risiko *burnout*. |
 | **#2** | **🎓 Kuliah & Akademik** | Prioritas #2 | **Simulator Target Nilai Ujian & IPK Semester**, bobot nilai %, sortir tenggat waktu (*deadline*), *Tubes Milestone Tracker*, dan kisi-kisi UTS/UAS. |
-| **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
-| **#4** | **🎨 Hobby & Rest** | Prioritas #4 | *Guilt-free me-time* terukur (90 mnt/hari), wishlist personal (bersih per akun tanpa data dummy), evaluasi *Energy Return* (1–5 ⚡), dan tombol hapus wishlist. |
+| **#3** | **🔬 Riset & Skripsi** | Prioritas #3 | Pelacak progres Bab 1–5, *Anti-Ghosting Dospem Radar* (>14 hari), telemetri eksperimen CatBoost, & **1-klik ekspor tabel LaTeX IEEE/Overleaf**. |
+| **#4** | **⚡ Agent Ops & Telemetry** | Prioritas #4 | Monitoring cluster worker Go (`:8085`), inferensi hybrid vector RAG pgvector (768-D), dan sinkronisasi Git commit hook/webhook 3 repo akademik. |
+
+---
+
+## ⚡ Mode Demo Instan & Recruiter Walkthrough Tour (60 Detik)
+
+Untuk mempermudah Tech Lead, Engineering Manager, dan Recruiter menguji kapabilitas sistem tanpa proses registrasi:
+
+* **⚡ 1-Click Instant Recruiter Preview:**
+  * Tombol akses cepat di halaman login yang langsung memuat lingkungan simulasi dengan data akademik realistis Frans Alwan Purba (analisis metrik CatBoost, Tubes Machine Learning, hidrasi harian, dan ringkasan AI).
+* **✨ Guided Tour Interaktif (60 Detik):**
+  * Klik pill `✨ Demo (Tour 60s)` di navbar atas untuk membuka walkthrough interaktif 4 langkah:
+    1. **Arsitektur Polyglot:** Hubungan antara FastAPI AI Engine dan Go Telemetry Worker.
+    2. **Hybrid Vector RAG:** Implementasi pgvector 768-D dan Reciprocal Rank Fusion (RRF).
+    3. **Academic Git Pipeline:** Integrasi otomatis commit Git lokal & GitHub Webhooks dari 3 repo.
+    4. **Profil Rekayasa Frans Alwan Purba:** Informasi riset magister AI di UGM dan link kontak.
+
+---
+
+## 🎛️ Raycast-Style Command Palette (`Ctrl + K` / `Cmd + K`) & Omnibar
+
+Pusat kendali navigasi dan pencarian semantik instan yang dapat diakses dari halaman mana pun:
+
+* **Mode `>` (Sistem & Navigasi):** Ketik `>` untuk berpindah tab secara instan, membuka Tech Specs, atau menginspeksi kebijakan privasi data.
+* **Mode `?` (Vector AI Search):** Ketik `? [pertanyaan]` untuk langsung melakukan pencarian semantik ke database pgvector (RAG) atas seluruh catatan kuliah dan eksperimen skripsi.
+* **Natural Quick Capture:** Ketik langsung teks bebas (misal: `! deadline besok Tubes ML Bab 3`) untuk menyimpan tugas dengan ekstraksi regex otomatis.
+* **Keyboard First Navigation:** Dukungan penuh navigasi panah atas/bawah (`↑` / `↓`), `Enter`, dan `Esc`.
+
+---
+
+## 🍱 Bento Grid 2.0 & Shimmer Skeleton Loading
+
+Halaman utama (**Ringkasan**) mengadopsi standar desain asimetris **Bento Grid**:
+
+* **Hero Briefing Card (8 Kolom):** Sapaan cerdas, status briefing akademik, dan sorotan tugas berstatus mendesak (*urgent*).
+* **Cluster Telemetry Monitor (4 Kolom):** Indikator denyut real-time background worker Go, konektivitas pgvector, dan status sinkronisasi 3 repositori akademik.
+* **Focus Session Bar:** Pengendali sesi *Deep Work* langsung dari grid utama dengan visual animasi detak fokus.
+* **Filter Tugas Fleksibel:** Tombol filter instan termasuk filter khusus `🔥 Mendesak` untuk memprioritaskan pekerjaan krusial.
 
 ---
 
@@ -47,7 +84,7 @@ Second Brain mengatur ritme hidup mahasiswa dengan prinsip prioritas determinist
 Agar mahasiswa baru dapat langsung menguasai ritme aplikasi tanpa kebingungan, kini tersedia tab khusus **📖 Panduan**:
 
 * **🌅 4 Langkah Alur Harian:** Panduan alur konkret dari briefing pagi (05:00), catat tugas kuliah siang, sesi riset sore, hingga cutoff malam (23:00).
-* **🎯 Kupas Tuntas 4 Pilar:** Alasan ilmiah di balik urutan prioritas Kesehatan (#1) > Kuliah (#2) > Riset (#3) > Hobby (#4).
+* **🎯 Kupas Tuntas 4 Pilar:** Alasan ilmiah di balik urutan prioritas Kesehatan (#1) > Kuliah (#2) > Riset (#3) > Agent Ops (#4).
 * **⚡ Cheat Sheet Interaktif:** Daftar sintaks Quick Capture dengan tombol **1-Klik Salin (Copy)** dan tombol **Langsung Coba Palette**.
 * **❓ FAQ Mahasiswa:** Jawaban lengkap tentang keamanan cloud (Supabase RLS), cara install PWA di HP, dan tanpa biaya langganan.
 
@@ -75,7 +112,7 @@ Menghapus kecemasan mahasiswa menjelang musim ujian akhir:
 Beban belajar mahasiswa menuntut ritme kerja terstruktur tanpa memicu kelelahan mental (*brain fog*):
 
 * **Live Navbar Timer Pill (`🍅 25:00`):**
-  * Terpasang langsung di bilah navigasi atas dashboard. Timer tetap berdetak dan berkedip aktif (*pulse animation*) saat mahasiswa berpindah-pindah antar tab (*Coursework, Research, Health, Hobby*).
+  * Terpasang langsung di bilah navigasi atas dashboard. Timer tetap berdetak dan berkedip aktif (*pulse animation*) saat mahasiswa berpindah-pindah antar tab (*Coursework, Research, Health, Agent Ops*).
 * **Multi-Preset Durasi Deep Work:**
   * **🍅 25m (Standar Pomodoro):** Pilihan optimal untuk kuis, latihan soal, atau membaca materi kuliah.
   * **🎯 45m (Deep Work):** Sesi mendalam untuk modul koding, analisis data, atau pengerjaan tugas besar (*tubes*).

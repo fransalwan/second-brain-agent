@@ -14,7 +14,7 @@ __pycache__/
 env/
 pip-log.txt
 
-# Node/React (untuk dashboard nanti)
+# Node/React/Vue
 node_modules/
 dist/
 .next/
@@ -24,3 +24,7 @@ dist/
 .idea/
 .DS_Store
 .continue/.agents/rules/personal-context.md
+
+# Portfolio Demo & Architecture PDFs (Interview Prep & Cheatsheets)
+*.pdf
+docs/*.pdf

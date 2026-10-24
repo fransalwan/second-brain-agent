@@ -30,15 +30,19 @@ router.beforeEach(async (to) => {
     await initialAuthPromise
   }
 
+  const isDemo = localStorage.getItem('secondbrain_demo_mode') === 'true'
+
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  if (to.meta.requiresAuth && !session) {
+  // Akses rute yang membutuhkan auth: izinkan jika ada session aktif ATAU sedang dalam mode demo
+  if (to.meta.requiresAuth && !session && !isDemo) {
     return { name: 'login' }
   }
 
-  if (to.name === 'login' && session) {
+  // Jika sudah login atau mode demo aktif dan mencoba buka /login, arahkan ke dashboard
+  if (to.name === 'login' && (session || isDemo)) {
     return { name: 'home' }
   }
 })

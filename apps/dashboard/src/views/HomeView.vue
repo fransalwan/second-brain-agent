@@ -559,7 +559,13 @@ async function fetchData() {
 async function handleLogout() {
   loggingOut.value = true
   try {
+    localStorage.removeItem('secondbrain_demo_mode')
+    isDemoMode.value = false
     await supabase.auth.signOut()
+    router.push({ name: 'login' })
+  } catch (e) {
+    // Fallback redirect
+    router.push({ name: 'login' })
   } finally {
     loggingOut.value = false
   }
