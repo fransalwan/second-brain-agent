@@ -923,27 +923,41 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 text-gray-900 pb-16">
-    <!-- Header Navbar -->
-    <header class="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-xs">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+    <!-- Header Navbar (Clean SaaS Design) -->
+    <header class="border-b border-slate-200/80 bg-white sticky top-0 z-20 shadow-2xs backdrop-blur-md">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2.5 sm:px-6">
+        <!-- Brand & User Profile -->
         <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-lg font-bold shadow-xs">
+          <div class="h-9 w-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-lg font-bold shadow-xs shrink-0">
             🧠
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-base font-bold tracking-tight text-gray-900 sm:text-lg">Second Brain</h1>
-              <span class="rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700">Autonomous AI Agent</span>
+            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <h1 class="text-sm sm:text-base font-bold tracking-tight text-slate-900">Second Brain</h1>
+              <span class="rounded-full bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 whitespace-nowrap">
+                AI Agent
+              </span>
+              <span v-if="isDemoMode" class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap flex items-center gap-1">
+                <span>✨ Demo</span>
+              </span>
             </div>
-            <p class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
-              <span v-if="profile?.full_name" class="font-semibold text-gray-800">{{ profile.full_name }}</span>
-              <span v-if="profile?.full_name" class="text-gray-300">•</span>
-              <span>{{ userEmail }}</span>
+            <p class="text-[11px] text-slate-500 flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-md mt-0.5">
+              <span class="font-medium text-slate-700 truncate">{{ profile?.full_name?.replace(' (Demo Mode)', '') || 'Mahasiswa' }}</span>
+              <span class="text-slate-300">•</span>
+              <span class="truncate text-slate-400">{{ userEmail }}</span>
             </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-2.5">
+        <!-- Right Controls: Aligned & Clean Grouping -->
+        <div class="flex items-center gap-2">
+          <!-- Schedule Pill (Compact & Clean) -->
+          <div v-if="profile" class="hidden md:flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 h-8.5 whitespace-nowrap">
+            <span>☀️ {{ profile.brief_time?.slice(0, 5) || '07:00' }}</span>
+            <span class="text-slate-300">|</span>
+            <span>🌙 {{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</span>
+          </div>
+
           <!-- Notification Center In-App -->
           <NotificationCenter
             v-if="currentUserId"
@@ -956,58 +970,47 @@ onMounted(() => {
             @navigate-tab="(tab) => activeTab = tab"
           />
 
-          <!-- Indikator Jadwal -->
-          <div v-if="profile" class="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
-            <span>☀️ Brief: <strong class="text-gray-800">{{ profile.brief_time?.slice(0, 5) || '07:00' }}</strong></span>
-            <span class="text-gray-300">|</span>
-            <span>🌙 Malam: <strong class="text-gray-800">{{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</strong></span>
-          </div>
-
-          <!-- Demo Mode Recruiter Pill -->
-          <div v-if="isDemoMode" class="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-900">
-            <span>✨ Demo Preview</span>
-          </div>
-
-          <!-- Arsitektur & Tech Specs Button -->
+          <!-- Tech Specs Modal Button -->
           <button
             type="button"
             @click="handleOpenTechSpecs"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-colors shadow-2xs cursor-pointer"
+            class="h-8.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition-all shadow-2xs whitespace-nowrap cursor-pointer"
             title="Lihat Arsitektur Polyglot & Tech Specs"
           >
             <span>🛠️</span>
             <span class="hidden sm:inline">Tech Specs</span>
           </button>
 
-          <!-- Tanya AI (pgvector RAG) Button -->
+          <!-- Tanya AI (pgvector RAG) Primary Button -->
           <button
             type="button"
             @click="handleOpenBrainRag"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors shadow-2xs cursor-pointer"
+            class="h-8.5 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-3 text-xs font-bold text-white hover:from-purple-500 hover:to-indigo-500 transition-all shadow-xs shadow-purple-600/20 whitespace-nowrap cursor-pointer"
             title="Tanya AI & Semantic Search (pgvector)"
           >
             <span>🧠</span>
-            <span class="hidden sm:inline">Tanya AI (RAG)</span>
+            <span class="hidden sm:inline">Tanya AI</span>
           </button>
 
-          <!-- Privacy & Data Sovereignty Center Button -->
-          <button
-            type="button"
-            @click="handleOpenPrivacy('policy')"
-            class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer"
-            title="Pusat Privasi & Kedaulatan Data"
-          >
-            <span>🛡️</span>
-            <span class="hidden sm:inline">Privasi</span>
-          </button>
+          <!-- Privacy & Logout Clean Control Group -->
+          <div class="flex items-center border-l border-slate-200 pl-2 ml-1 gap-1.5">
+            <button
+              type="button"
+              @click="handleOpenPrivacy('policy')"
+              class="h-8.5 w-8.5 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer shrink-0"
+              title="Pusat Privasi & Kedaulatan Data"
+            >
+              <span>🛡️</span>
+            </button>
 
-          <button
-            @click="handleLogout"
-            :disabled="loggingOut"
-            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            {{ loggingOut ? 'Keluar...' : 'Logout' }}
-          </button>
+            <button
+              @click="handleLogout"
+              :disabled="loggingOut"
+              class="h-8.5 inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+            >
+              {{ isDemoMode ? 'Keluar Demo' : (loggingOut ? 'Keluar...' : 'Logout') }}
+            </button>
+          </div>
         </div>
       </div>
 

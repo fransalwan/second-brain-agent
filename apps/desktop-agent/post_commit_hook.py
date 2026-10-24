@@ -18,8 +18,8 @@ import urllib.request
 CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
 
 
-def get_git_info() -> tuple[str, str, str]:
-    """Mengambil pesan commit terakhir, nama branch, dan nama repository."""
+def get_git_info() -> tuple[str, str, str, str]:
+    """Mengambil pesan commit terakhir, nama branch, nama repository, dan author email."""
     try:
         msg = subprocess.check_output(
             ["git", "log", "-1", "--pretty=%B"],
@@ -51,18 +51,41 @@ def get_git_info() -> tuple[str, str, str]:
     except Exception:
         repo_name = "unknown-repo"
 
-    return msg, branch, repo_name
+    try:
+        author_email = subprocess.check_output(
+            ["git", "log", "-1", "--pretty=%ae"],
+            text=True,
+            encoding="utf-8",
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if not author_email:
+            author_email = subprocess.check_output(
+                ["git", "config", "user.email"],
+                text=True,
+                encoding="utf-8",
+                stderr=subprocess.DEVNULL,
+            ).strip()
+    except Exception:
+        author_email = ""
+
+    return msg, branch, repo_name, author_email
 
 
 def main():
-    commit_msg, branch, repo_name = get_git_info()
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
+    commit_msg, branch, repo_name, git_email = get_git_info()
     if not commit_msg:
         sys.exit(0)
 
     # Baca config
     backend_url = "http://localhost:8000"
     api_key = "second-brain-ambient-key"
-    email = "fransalwan55@gmail.com"
+    email = git_email or "fransalwanpurba@mail.ugm.ac.id"
     notify_telegram = True
 
     if CONFIG_PATH.exists():
@@ -71,7 +94,8 @@ def main():
                 cfg = json.load(f)
                 backend_url = cfg.get("backend_url", backend_url).rstrip("/")
                 api_key = cfg.get("api_key", api_key)
-                email = cfg.get("user_email", email)
+                if not git_email:
+                    email = cfg.get("user_email", email)
                 notify_telegram = cfg.get("notify_telegram", True)
         except Exception:
             pass
@@ -93,22 +117,36 @@ def main():
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
 
     try:
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=4) as resp:
             resp_data = json.loads(resp.read().decode("utf-8"))
             completed_tasks = resp_data.get("completed_tasks", [])
             auto_habits = resp_data.get("auto_checked_habits", [])
+            academic_sync = resp_data.get("academic_sync", {})
+
+            print("=" * 60)
+            print(f"[Second Brain] ⚡ Terhubung: {repo_name} ({branch})")
+
+            # Academic Sync outputs
+            if academic_sync.get("chapter_updated"):
+                cu = academic_sync["chapter_updated"]
+                print(f"[Second Brain] 📚 Bab {cu['chapter_num']}: {cu['title']} -> {cu['progress']}% ({cu['status']})")
+            if academic_sync.get("supervision_logged"):
+                print("[Second Brain] 👨‍🏫 Catatan bimbingan dospem berhasil dicatat ke riset!")
+            if academic_sync.get("metric_recorded"):
+                mr = academic_sync["metric_recorded"]
+                print(f"[Second Brain] 🧪 Evaluasi Model: {mr['model_name']} ({mr['metrics_summary']})")
+            if academic_sync.get("assignment_completed"):
+                ac = academic_sync["assignment_completed"]
+                print(f"[Second Brain] 🎓 Tugas Kuliah Selesai: {ac['title']} ({ac['course_name']})")
 
             if completed_tasks:
-                print(
-                    f"[Second Brain] [DONE] {len(completed_tasks)} tugas otomatis diselesaikan via commit:"
-                )
+                print(f"[Second Brain] ✅ {len(completed_tasks)} tugas selesai:")
                 for t in completed_tasks:
                     print(f"  - #{t['id']} {t['title']}")
             if auto_habits:
                 for h in auto_habits:
-                    print(
-                        f"[Second Brain] [HABIT] '{h['name']}' dicentang! (Streak: {h['streak']} hari)"
-                    )
+                    print(f"[Second Brain] 🔥 Habit '{h['name']}' tercentang! (Streak: {h['streak']} hari)")
+            print("=" * 60)
     except urllib.error.URLError:
         # Backend offline atau tidak terjangkau -> lewati tanpa error agar git commit tetap sukses
         pass

@@ -305,6 +305,30 @@ onMounted(() => {
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
             Pantau progres penulisan 5 bab naskah skripsi, log interaktif arahan dospem (anti-ghosting), dan benchmark metrik eksperimen AI.
           </p>
+          <div class="mt-2.5 flex items-center gap-2 flex-wrap">
+            <a
+              href="https://github.com/fransalwan/thesis-manuscripts"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/70 px-2.5 py-1 text-[11px] font-semibold text-purple-900 hover:bg-purple-100 transition-colors shadow-2xs"
+              title="Repositori Naskah Skripsi: Commit otomatis update progres Bab 1-5 & bimbingan"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+              <span>📝 fransalwan/thesis-manuscripts</span>
+              <span class="text-[10px] text-purple-700 bg-white border border-purple-200 px-1 py-0.2 rounded font-bold">Naskah Sync</span>
+            </a>
+            <a
+              href="https://github.com/fransalwan/thesis-experiments"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100 transition-colors shadow-2xs"
+              title="Repositori Eksperimen: Commit otomatis rekam metrik model AI ke Bab 4"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
+              <span>🧪 fransalwan/thesis-experiments</span>
+              <span class="text-[10px] text-indigo-700 bg-white border border-indigo-200 px-1 py-0.2 rounded font-bold">Model Sync</span>
+            </a>
+          </div>
         </div>
         <div class="flex flex-wrap gap-2">
           <button

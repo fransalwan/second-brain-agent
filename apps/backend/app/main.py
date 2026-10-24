@@ -261,6 +261,90 @@ async def api_ambient_git_commit(
     return result
 
 
+@app.post("/api/v1/github/webhook")
+async def api_github_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    x_github_event: str | None = Header(default="push", alias="X-GitHub-Event"),
+    x_hub_signature_256: str | None = Header(default=None, alias="X-Hub-Signature-256"),
+):
+    """Menerima webhook dari GitHub untuk integrasi otomatis materi-kuliah, thesis-manuscripts, & thesis-experiments."""
+    import hashlib
+    import hmac
+
+    raw_body = await request.body()
+
+    # Verifikasi Secret jika dikonfigurasi
+    secret = getattr(settings, "GITHUB_WEBHOOK_SECRET", None)
+    if secret:
+        if not x_hub_signature_256 or not x_hub_signature_256.startswith("sha256="):
+            raise HTTPException(status_code=401, detail="Header X-Hub-Signature-256 tidak valid")
+        expected_sig = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(x_hub_signature_256, expected_sig):
+            raise HTTPException(status_code=401, detail="Tanda tangan GitHub Webhook tidak cocok")
+
+    # Handle Ping event dari setup webhook GitHub
+    if x_github_event == "ping":
+        return {
+            "status": "pong",
+            "message": "GitHub Webhook Second Brain aktif dan terhubung!",
+        }
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    repo_info = payload.get("repository", {})
+    repo_name = repo_info.get("name") or "unknown-repo"
+    ref = payload.get("ref", "")
+    branch = ref.replace("refs/heads/", "") if ref.startswith("refs/heads/") else ref
+
+    pusher = payload.get("pusher", {})
+    pusher_email = pusher.get("email")
+
+    commits = payload.get("commits")
+    if not commits and payload.get("head_commit"):
+        commits = [payload["head_commit"]]
+
+    if not commits:
+        return {
+            "status": "ignored",
+            "reason": "no_commits_found",
+            "repo": repo_name,
+            "event": x_github_event,
+        }
+
+    bot = ptb_app.bot if ptb_app and ptb_app.bot else None
+    results = []
+
+    for c in commits:
+        commit_msg = c.get("message", "")
+        author_email = (
+            c.get("author", {}).get("email")
+            or pusher_email
+            or "fransalwanpurba@mail.ugm.ac.id"
+        )
+        res = await handle_git_commit_event(
+            session=session,
+            email=author_email,
+            commit_message=commit_msg,
+            repo_name=repo_name,
+            branch=branch,
+            notify_telegram=True,
+            bot=bot,
+        )
+        results.append(res)
+
+    return {
+        "status": "success",
+        "processed_commits": len(results),
+        "repo": repo_name,
+        "branch": branch,
+        "details": results,
+    }
+
+
 class QuickCaptureRequest(BaseModel):
     email: str
     text: str

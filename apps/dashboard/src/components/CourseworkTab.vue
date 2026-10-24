@@ -425,6 +425,19 @@ onMounted(() => {
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
             Manajemen tugas kuliah prioritas tinggi, radar kisi-kisi UTS/UAS, dan pemantauan deliverable proyek tim (tubes).
           </p>
+          <div class="mt-2.5 flex items-center gap-2 flex-wrap">
+            <a
+              href="https://github.com/fransalwan/materi-kuliah"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-colors shadow-2xs"
+              title="Repositori Git Kuliah: Commit otomatis menyelesaikan tugas matkul"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>📦 fransalwan/materi-kuliah</span>
+              <span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded font-bold">Git Auto-Sync</span>
+            </a>
+          </div>
         </div>
         <div class="flex flex-wrap gap-2">
           <button

@@ -17,6 +17,7 @@ from .config import settings
 from .habits import check_habit_for_today, get_user_habits_status
 from .models import (
     Area,
+    CourseAssignment,
     ExperimentMetric,
     Habit,
     HabitLog,
@@ -55,10 +56,36 @@ def _diff_seconds(t1: datetime, t2: datetime) -> float:
 
 
 async def get_profile_by_email(session: AsyncSession, email: str) -> Optional[Profile]:
-    """Cari profil user berdasarkan email (case-insensitive)."""
+    """Cari profil user berdasarkan email (case-insensitive) dengan fallback alias universitas & github."""
     clean_email = email.strip().lower()
     res = await session.execute(select(Profile).where(Profile.email == clean_email))
-    return res.scalars().first()
+    profile = res.scalars().first()
+    if profile:
+        return profile
+
+    # Alias fallback untuk akun Frans Alwan Purba
+    frans_aliases = {
+        "fransalwanpurba@mail.ugm.ac.id": "fransalwan55@gmail.com",
+        "fransalwan": "fransalwan55@gmail.com",
+        "fransalwan55@gmail.com": "fransalwanpurba@mail.ugm.ac.id",
+    }
+    alt_email = frans_aliases.get(clean_email)
+    if alt_email:
+        res_alt = await session.execute(select(Profile).where(Profile.email == alt_email))
+        profile = res_alt.scalars().first()
+        if profile:
+            return profile
+
+    # Fallback jika email commit mengandung 'fransalwan' atau 'frans'
+    if "frans" in clean_email:
+        res_like = await session.execute(
+            select(Profile).where(col(Profile.email).contains("frans"))
+        )
+        profile = res_like.scalars().first()
+        if profile:
+            return profile
+
+    return None
 
 
 async def start_ambient_timer(
@@ -442,7 +469,14 @@ async def handle_git_commit_event(
     notify_telegram: bool = True,
     bot: Optional[Any] = None,
 ) -> dict:
-    """Memproses event git commit: otomatis menyelesaikan task terkait dan mencentang habit coding."""
+    """Memproses event git commit untuk 3 repo akademik (materi-kuliah, thesis-manuscripts, thesis-experiments):
+    - Menyelesaikan task yang ID atau kata kuncinya cocok
+    - Mengupdate progres Bab Naskah Skripsi (Bab 1 - 5)
+    - Menyimpan log bimbingan dospem (anti-ghosting)
+    - Mencatat metrik evaluasi eksperimen machine learning
+    - Menyelesaikan tugas kuliah (CourseAssignment)
+    - Mencatat streak habit harian yang relevan
+    """
     profile = await get_profile_by_email(session, email)
     if not profile:
         return {
@@ -454,6 +488,19 @@ async def handle_git_commit_event(
     if not clean_msg:
         return {"status": "ignored", "reason": "empty_commit_message"}
 
+    git_stop_words = {
+        "feat", "fix", "chore", "refactor", "docs", "test", "style", "perf",
+        "merge", "branch", "update", "wip", "selesaikan", "beres", "kelar",
+        "done", "tambah", "ubah", "hapus", "add", "remove", "dan", "yang",
+        "di", "ke", "dari", "ini", "itu",
+    }
+    msg_words = {
+        w.lower().strip(".,:;!()[]{}'\"") for w in clean_msg.split() if len(w) > 2
+    } - git_stop_words
+
+    completed_tasks = []
+    now_utc = utcnow()
+
     # 1. Ekstrak Task ID eksplisit: #12, task #12, fix #12, tugas 12, dll.
     explicit_ids = set()
     for m in re.finditer(r"#(\d+)", clean_msg):
@@ -463,9 +510,6 @@ async def handle_git_commit_event(
         clean_msg,
     ):
         explicit_ids.add(int(m.group(1)))
-
-    completed_tasks = []
-    now_utc = utcnow()
 
     if explicit_ids:
         # Cari task pending berdasarkan ID yang diekstrak
@@ -495,46 +539,11 @@ async def handle_git_commit_event(
         )
         pending_tasks = res_all_pending.scalars().all()
 
-        git_stop_words = {
-            "feat",
-            "fix",
-            "chore",
-            "refactor",
-            "docs",
-            "test",
-            "style",
-            "perf",
-            "merge",
-            "branch",
-            "update",
-            "wip",
-            "selesaikan",
-            "beres",
-            "kelar",
-            "done",
-            "tambah",
-            "ubah",
-            "hapus",
-            "add",
-            "remove",
-            "dan",
-            "yang",
-            "di",
-            "ke",
-            "dari",
-            "ini",
-            "itu",
-        }
-        msg_words = {
-            w.lower().strip(".,:;!()[]{}'\"") for w in clean_msg.split() if len(w) > 2
-        } - git_stop_words
-
         for t in pending_tasks:
             t_words = {
                 w.lower().strip(".,:;!()[]{}'\"") for w in t.title.split() if len(w) > 2
             } - git_stop_words
             overlap = t_words.intersection(msg_words)
-            # Jika ada minimal 2 kata kunci spesifik yang cocok atau seluruh kata kunci pendek tugas ada di commit
             if len(overlap) >= 2 or (len(t_words) == 1 and len(overlap) == 1):
                 t.status = "completed"
                 t.completed_at = now_utc
@@ -543,32 +552,279 @@ async def handle_git_commit_event(
                 await session.commit()
                 break
 
-    # 3. Otomatis centang habit coding hari ini jika ada commit
+    # 3. Deteksi Domain Repositori Akademik & Proses Spesifik
+    academic_sync = {
+        "repo_type": "general",
+        "chapter_updated": None,
+        "supervision_logged": None,
+        "metric_recorded": None,
+        "assignment_completed": None,
+    }
+
+    norm_repo = (repo_name or "").lower().strip()
+    norm_msg = clean_msg.lower()
+
+    is_thesis_manuscript = any(
+        kw in norm_repo for kw in ["thesis-manuscripts", "manuscript", "naskah", "skripsi-naskah"]
+    ) or any(
+        kw in norm_msg for kw in ["bab 1", "bab 2", "bab 3", "bab 4", "bab 5", "chapter 1", "chapter 2", "chapter 3", "chapter 4", "chapter 5", "dospem", "bimbingan skripsi"]
+    )
+
+    is_thesis_experiment = any(
+        kw in norm_repo for kw in ["thesis-experiments", "experiment", "eksperimen"]
+    ) or any(
+        kw in norm_msg for kw in ["xgboost", "lightgbm", "catboost", "random forest", "accuracy:", "acc:", "f1:", "auc:", "loss:"]
+    )
+
+    is_coursework = any(
+        kw in norm_repo for kw in ["materi-kuliah", "kuliah", "coursework", "matkul"]
+    ) or any(
+        kw in norm_msg for kw in ["tugas kuliah", "praktikum", "kuis", "tubes", "ujian"]
+    )
+
+    # A. THESIS MANUSCRIPTS SYNC
+    if is_thesis_manuscript and not is_thesis_experiment:
+        academic_sync["repo_type"] = "thesis-manuscripts"
+
+        # Deteksi bab naskah skripsi
+        chap_num = None
+        m_chap = re.search(r"\b(?:bab|chapter)\s*([1-5])\b", norm_msg)
+        if m_chap:
+            chap_num = int(m_chap.group(1))
+        elif "pendahuluan" in norm_msg:
+            chap_num = 1
+        elif any(k in norm_msg for k in ["tinjauan pustaka", "landasan teori", "kajian pustaka"]):
+            chap_num = 2
+        elif any(k in norm_msg for k in ["metodologi", "metode penelitian"]):
+            chap_num = 3
+        elif any(k in norm_msg for k in ["hasil", "pembahasan", "analisis"]):
+            chap_num = 4
+        elif any(k in norm_msg for k in ["kesimpulan", "saran"]):
+            chap_num = 5
+
+        if chap_num:
+            from .thesis import get_or_create_thesis_chapters
+            await get_or_create_thesis_chapters(session, profile.id)
+
+            res_c = await session.execute(
+                select(ThesisChapter).where(
+                    ThesisChapter.user_id == profile.id,
+                    ThesisChapter.chapter_num == chap_num,
+                )
+            )
+            chap = res_c.scalars().first()
+            if chap:
+                m_pct = re.search(r"(\d{1,3})\s*%", clean_msg)
+                if m_pct:
+                    new_prog = min(100, max(0, int(m_pct.group(1))))
+                    new_status = "Selesai" if new_prog >= 100 else ("Revisi" if "revisi" in norm_msg else "Drafting")
+                elif any(k in norm_msg for k in ["selesai", "acc", "kelar", "done", "final"]):
+                    new_prog = 100
+                    new_status = "Selesai"
+                elif "revisi" in norm_msg:
+                    new_prog = min(95, max(chap.progress or 0, 75))
+                    new_status = "Revisi"
+                elif any(k in norm_msg for k in ["draft", "tulis", "wip", "tambah", "kerjakan"]):
+                    new_prog = min(90, max((chap.progress or 0) + 15, 30))
+                    new_status = "Drafting"
+                else:
+                    new_prog = min(95, (chap.progress or 0) + 10)
+                    new_status = chap.status if chap.status != "Belum Mulai" else "Drafting"
+
+                chap.progress = new_prog
+                chap.status = new_status
+                chap.updated_at = now_utc
+                session.add(chap)
+                await session.commit()
+                academic_sync["chapter_updated"] = {
+                    "chapter_num": chap.chapter_num,
+                    "title": chap.title,
+                    "progress": chap.progress,
+                    "status": chap.status,
+                }
+
+        # Deteksi notulensi bimbingan dospem
+        if any(k in norm_msg for k in ["bimbingan", "dospem", "catatan bimbingan", "feedback dospem", "review pembimbing", "revisi dospem"]):
+            new_log = SupervisionLog(
+                user_id=profile.id,
+                notes=clean_msg,
+                action_items="Tercatat otomatis via Git Commit di repo thesis-manuscripts",
+                created_at=now_utc,
+            )
+            session.add(new_log)
+            await session.commit()
+            academic_sync["supervision_logged"] = clean_msg
+
+    # B. THESIS EXPERIMENTS SYNC
+    elif is_thesis_experiment:
+        academic_sync["repo_type"] = "thesis-experiments"
+
+        # Model name
+        m_model = re.search(r"(?i)\b(XGBoost|LightGBM|CatBoost|Random\s*Forest|MLP|SVM|IDCS[-_]EJOR|IDCS|Baseline|Decision\s*Tree|Deep\s*Learning)\b", clean_msg)
+        if m_model:
+            model_name = m_model.group(1).strip()
+        else:
+            m_generic = re.search(r"(?i)(?:model|algo(?:rithm)?)\s*[:=]\s*([a-zA-Z0-9_\-]+)", clean_msg)
+            model_name = m_generic.group(1).strip() if m_generic else "IDCS ML Experiment"
+
+        # Metrics
+        metrics_parts = []
+        m_acc = re.search(r"(?i)\bacc(?:uracy)?\s*[:=]\s*([\d\.]+%?)", clean_msg)
+        if m_acc:
+            metrics_parts.append(f"Akurasi: {m_acc.group(1)}")
+        m_f1 = re.search(r"(?i)\bf1(?:-score)?\s*[:=]\s*([\d\.]+%?)", clean_msg)
+        if m_f1:
+            metrics_parts.append(f"F1: {m_f1.group(1)}")
+        m_auc = re.search(r"(?i)\bauc(?:-roc)?\s*[:=]\s*([\d\.]+%?)", clean_msg)
+        if m_auc:
+            metrics_parts.append(f"AUC: {m_auc.group(1)}")
+        m_loss = re.search(r"(?i)\bloss\s*[:=]\s*([\d\.]+)", clean_msg)
+        if m_loss:
+            metrics_parts.append(f"Loss: {m_loss.group(1)}")
+
+        # Parameters
+        param_parts = []
+        m_epoch = re.search(r"(?i)\bepoch[s]?\s*[:=]\s*(\d+)", clean_msg)
+        if m_epoch:
+            param_parts.append(f"Epoch: {m_epoch.group(1)}")
+        m_lr = re.search(r"(?i)\blr\s*[:=]\s*([\d\.e-]+)", clean_msg)
+        if m_lr:
+            param_parts.append(f"LR: {m_lr.group(1)}")
+        m_batch = re.search(r"(?i)\bbatch(?:_size)?\s*[:=]\s*(\d+)", clean_msg)
+        if m_batch:
+            param_parts.append(f"Batch: {m_batch.group(1)}")
+
+        metrics_summary = ", ".join(metrics_parts) if metrics_parts else clean_msg[:120]
+        params_str = ", ".join(param_parts) if param_parts else None
+
+        res_em = await session.execute(
+            select(ExperimentMetric).where(
+                ExperimentMetric.user_id == profile.id,
+                ExperimentMetric.model_name == model_name,
+            )
+        )
+        existing_em = res_em.scalars().first()
+        if existing_em:
+            existing_em.metrics_summary = metrics_summary
+            if params_str:
+                existing_em.parameters = params_str
+            session.add(existing_em)
+        else:
+            new_em = ExperimentMetric(
+                user_id=profile.id,
+                model_name=model_name,
+                metrics_summary=metrics_summary,
+                parameters=params_str,
+                created_at=now_utc,
+            )
+            session.add(new_em)
+        await session.commit()
+        academic_sync["metric_recorded"] = {
+            "model_name": model_name,
+            "metrics_summary": metrics_summary,
+            "parameters": params_str,
+        }
+
+    # C. COURSEWORK SYNC (materi-kuliah)
+    elif is_coursework:
+        academic_sync["repo_type"] = "materi-kuliah"
+
+        res_ca = await session.execute(
+            select(CourseAssignment).where(
+                CourseAssignment.user_id == profile.id,
+                CourseAssignment.status == "pending",
+            )
+        )
+        pending_assignments = res_ca.scalars().all()
+        matched_assignment = None
+
+        for ca in pending_assignments:
+            ca_title_words = {w.lower() for w in ca.title.split() if len(w) > 2}
+            ca_course_words = {w.lower() for w in ca.course_name.split() if len(w) > 2}
+            overlap = (ca_title_words | ca_course_words).intersection(msg_words)
+            if overlap:
+                matched_assignment = ca
+                break
+
+        if matched_assignment:
+            matched_assignment.status = "done"
+            matched_assignment.completed_at = now_utc
+            session.add(matched_assignment)
+            await session.commit()
+            academic_sync["assignment_completed"] = {
+                "id": matched_assignment.id,
+                "course_name": matched_assignment.course_name,
+                "title": matched_assignment.title,
+            }
+        elif any(k in norm_msg for k in ["tugas", "praktikum", "kuis", "tubes"]):
+            new_ca = CourseAssignment(
+                user_id=profile.id,
+                course_name="Materi Kuliah",
+                title=clean_msg[:100],
+                assignment_type="Individu",
+                status="done",
+                completed_at=now_utc,
+                notes="Diselesaikan via Git Commit di repo materi-kuliah",
+                created_at=now_utc,
+            )
+            session.add(new_ca)
+            await session.commit()
+            academic_sync["assignment_completed"] = {
+                "id": new_ca.id,
+                "course_name": new_ca.course_name,
+                "title": new_ca.title,
+            }
+
+    # 4. Otomatis centang habit harian berdasarkan konteks repository
+    project_label = repo_name or "Coding"
+    if academic_sync["repo_type"] == "thesis-manuscripts":
+        project_label = "Menulis Skripsi"
+    elif academic_sync["repo_type"] == "thesis-experiments":
+        project_label = "Riset Eksperimen"
+    elif academic_sync["repo_type"] == "materi-kuliah":
+        project_label = "Belajar Kuliah"
+
     auto_habits = await auto_check_habits_on_focus(
         session=session,
         user_id=profile.id,
-        project_name=repo_name or "Coding",
-        duration_minutes=20,
+        project_name=project_label,
+        duration_minutes=25,
         min_minutes=15,
     )
 
-    # 4. Kirim notifikasi Telegram pasif
+    # 5. Kirim notifikasi Telegram pasif
+    has_academic_activity = any(
+        academic_sync.get(k)
+        for k in ["chapter_updated", "supervision_logged", "metric_recorded", "assignment_completed"]
+    )
     if (
         notify_telegram
         and profile.telegram_chat_id
         and bot
-        and (completed_tasks or auto_habits)
+        and (completed_tasks or auto_habits or has_academic_activity)
     ):
         try:
             repo_display = html.escape(repo_name) if repo_name else "local-repo"
             branch_display = f" ({html.escape(branch)})" if branch else ""
             msg = (
-                f"🎯 <b>[Git Auto-Sync]</b> Commit terdeteksi!\n"
+                f"🎯 <b>[Git Academic Sync]</b> Commit terdeteksi!\n"
                 f"📦 <code>{repo_display}</code>{branch_display}\n"
                 f'💬 <i>"{html.escape(clean_msg[:120])}"</i>\n\n'
             )
+            if academic_sync.get("chapter_updated"):
+                cu = academic_sync["chapter_updated"]
+                msg += f"📚 <b>Naskah Skripsi:</b> Bab {cu['chapter_num']} ({html.escape(cu['title'])}) -> <b>{cu['progress']}%</b> [{cu['status']}]\n"
+            if academic_sync.get("supervision_logged"):
+                msg += f"👨‍🏫 <b>Bimbingan Dospem:</b> Catatan revisi berhasil disimpan ke riset!\n"
+            if academic_sync.get("metric_recorded"):
+                mr = academic_sync["metric_recorded"]
+                msg += f"🧪 <b>Eksperimen AI:</b> {html.escape(mr['model_name'])} ({html.escape(mr['metrics_summary'])})\n"
+            if academic_sync.get("assignment_completed"):
+                ac = academic_sync["assignment_completed"]
+                msg += f"🎓 <b>Tugas Kuliah Selesai:</b> {html.escape(ac['title'])} ({html.escape(ac['course_name'])})\n"
+
             if completed_tasks:
-                msg += "✅ <b>Tugas Berhasil Diselesaikan:</b>\n"
+                msg += "\n✅ <b>Tugas Berhasil Diselesaikan:</b>\n"
                 for ct in completed_tasks:
                     msg += f"• <b>{html.escape(ct['title'])}</b> (ID: #{ct['id']})\n"
             if auto_habits:
@@ -588,6 +844,7 @@ async def handle_git_commit_event(
         "status": "success",
         "completed_tasks": completed_tasks,
         "auto_checked_habits": auto_habits,
+        "academic_sync": academic_sync,
         "repo": repo_name,
         "branch": branch,
     }

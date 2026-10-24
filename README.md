@@ -279,6 +279,32 @@ ResNet-18 Benchmark & Batch: 64 & Akurasi: 88.2\% \\
 
 ---
 
+## 🐙 Integrasi GitHub Repositori Akademik (Kuliah & Riset)
+
+Second Brain terintegrasi secara dua arah dengan ekosistem GitHub mahasiswa — baik saat bekerja di komputer lokal (*Git post-commit hook*) maupun saat push ke GitHub (*GitHub Webhooks*):
+
+### 1. Repositori Terintegrasi
+* 🎓 **[materi-kuliah](https://github.com/fransalwan/materi-kuliah):** Setiap commit yang mencantumkan tugas atau mata kuliah otomatis menandai tugas (`CourseAssignment`) sebagai selesai dan mencatat habit belajar harian.
+* 📝 **[thesis-manuscripts](https://github.com/fransalwan/thesis-manuscripts):** Setiap commit naskah (misal: `feat(bab 3): metodologi progres 80%`) otomatis memperbarui progres Bab 1–5 skripsi. Jika commit mencatat arahan pembimbing (`bimbingan`, `dospem`), sistem otomatis mencatat notulensi ke log riset.
+* 🧪 **[thesis-experiments](https://github.com/fransalwan/thesis-experiments):** Setiap commit evaluasi model AI (misal: `eval XGBoost: acc=94.5% f1=93.8% loss=0.12 epoch=100`) otomatis mengekstrak metrik evaluasi & hyperparameter ke database untuk siap diekspor ke tabel LaTeX Bab 4.
+
+### 2. Pemasangan Git Hook Lokal (1-Klik)
+Jalankan perintah ini di terminal laptop:
+```bash
+python apps/desktop-agent/install_git_hook.py --academic
+```
+Hook akan otomatis terpasang di `.git/hooks/post-commit`. Setiap kali Anda menjalankan `git commit` di terminal, Second Brain akan memberikan konfirmasi langsung tanpa mengganggu alur kerja git.
+
+### 3. Pemasangan GitHub Webhooks (Cloud)
+Untuk integrasi otomatis saat melakukan push ke GitHub:
+1. Masuk ke tab **Settings ➔ Webhooks ➔ Add webhook** di repository GitHub Anda.
+2. Masukkan Payload URL: `https://<backend-domain>/api/v1/github/webhook`
+3. Content type: `application/json`
+4. Trigger events: `Just the push event`
+5. Klik **Add webhook**.
+
+---
+
 ## 🧠 Arsitektur AI & RAG Knowledge Hub (pgvector + Reciprocal Rank Fusion)
 
 Untuk mendukung riset dan pencarian cerdas catatan akademik mahasiswa tingkat magister, Second Brain dilengkapi sistem **Retrieval-Augmented Generation (RAG)** hibrida:
