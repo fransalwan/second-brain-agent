@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 const emit = defineEmits<{
-  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'hobby'): void
+  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'agentops'): void
   (e: 'open-quick-capture'): void
 }>()
 
@@ -34,9 +34,9 @@ const faqs = ref([
     isOpen: false,
   },
   {
-    question: 'Kenapa fitur Telegram dan AI disembunyikan?',
+    question: 'Bagaimana arsitektur AI & RAG di Second Brain bekerja?',
     answer:
-      'Kami merombak Second Brain menjadi 100% Standalone Web App agar kamu tidak perlu repot setup bot atau bayar kuota token AI. Semua fitur utama (Quick Capture regex, pengenalan suara browser, pusat notifikasi, audio chime) berjalan langsung di perangkatmu tanpa pihak ketiga.',
+      'Second Brain ditenagai model Google Gemini dan PostgreSQL pgvector (768-D). Catatan ide dan riset dikonversi ke vektor embedding dan diindeks secara hibrida menggunakan Reciprocal Rank Fusion (RRF) untuk pencarian semantik sub-milidetik dan jawaban grounded tanpa halusinasi.',
     isOpen: false,
   },
   {
@@ -230,18 +230,18 @@ function toggleFaq(index: number) {
               <span class="text-xs font-extrabold text-indigo-600 uppercase tracking-wider">04 • Malam Hari</span>
               <span class="text-lg">🌙</span>
             </div>
-            <h4 class="text-xs font-bold text-gray-900">Me-Time & Night Cutoff</h4>
+            <h4 class="text-xs font-bold text-gray-900">Bedtime Guardian &amp; Night Cutoff</h4>
             <p class="text-[11px] text-gray-600 leading-relaxed">
-              Nikmati kuota 90 menit santai tanpa rasa bersalah di tab <strong>Hobby</strong>. Di atas jam 23:00, hentikan laptop dan tidur cukup demi kesehatan otak besok.
+              Di atas batas jam malam (<code>23:00</code>), Go Telemetry Worker otomatis mengaktifkan peringatan istirahat agar otak mahasiswa terhindar dari *sleep debt*.
             </p>
           </div>
           <div class="pt-3 border-t border-gray-100 mt-2">
             <button
               type="button"
-              @click="emit('navigate-tab', 'hobby')"
+              @click="emit('navigate-tab', 'agentops')"
               class="w-full rounded-xl bg-indigo-50 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100 transition-colors text-center cursor-pointer"
             >
-              Lihat Kuota Me-Time ➔
+              Lihat Telemetri Worker ➔
             </button>
           </div>
         </div>
@@ -365,37 +365,37 @@ function toggleFaq(index: number) {
           </div>
         </div>
 
-        <!-- Pilar 4: Hobby & Rest -->
-        <div class="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/50 to-white p-5 shadow-xs flex flex-col justify-between space-y-4">
+        <!-- Pilar 4: Agent Ops & Telemetri Terdistribusi -->
+        <div class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="text-2xl">🎨</span>
+                <span class="text-2xl">⚡</span>
                 <div>
-                  <h4 class="text-sm font-bold text-amber-950">Prioritas #4: Hobby & Rest</h4>
-                  <p class="text-[11px] text-amber-700">Guilt-Free Me-Time Hub</p>
+                  <h4 class="text-sm font-bold text-emerald-950">Prioritas #4: Agent Ops &amp; Telemetri</h4>
+                  <p class="text-[11px] text-emerald-700">Distributed Polyglot Concurrency Hub</p>
                 </div>
               </div>
-              <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">#4</span>
+              <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">#4</span>
             </div>
             <p class="text-xs text-gray-700 leading-relaxed">
-              <strong>Istirahat bukan dosa:</strong> Otak butuh <em>diffuse mode</em> (mode relaksasi) untuk memecahkan problem koding atau kalkulus yang buntu. Jangan biarkan dirimu burnout!
+              <strong>Arsitektur Skala Industri:</strong> Menghubungkan agen Python/FastAPI dengan Go Telemetry Worker untuk memproses ribuan event telemetri non-blocking.
             </p>
             <ul class="text-xs text-gray-600 space-y-1 pl-4 list-disc">
-              <li><strong>Kuota 90 Menit:</strong> Alokasi santai harian terukur tanpa rasa bersalah.</li>
-              <li><strong>Wishlist Bersih:</strong> Tambahkan game, novel, anime, atau olahraga yang ingin kamu nikmati.</li>
-              <li><strong>Energy Return Score:</strong> Beri nilai 1–5 ⚡ seberapa segar energimu setelah bersenang-senang.</li>
+              <li><strong>Go Worker Engine:</strong> Evaluasi sleep debt 7 hari, jam malam, dan radar dospem secara instan.</li>
+              <li><strong>Git &amp; Webhook Pipeline:</strong> Sinkronisasi live dari <code>materi-kuliah</code>, <code>thesis-manuscripts</code>, dan <code>thesis-experiments</code>.</li>
+              <li><strong>Live Event Simulator:</strong> Sandbox interaktif bagi recruiter untuk menguji pemrosesan commit secara nyata.</li>
             </ul>
           </div>
 
           <div class="pt-2">
             <button
               type="button"
-              @click="emit('navigate-tab', 'hobby')"
-              class="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-700 transition-colors cursor-pointer shadow-xs"
+              @click="emit('navigate-tab', 'agentops')"
+              class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-xs"
             >
-              <span>🎨</span>
-              <span>Buka Tab Hobby ➔</span>
+              <span>⚡</span>
+              <span>Buka Tab Agent Ops ➔</span>
             </button>
           </div>
         </div>

@@ -240,3 +240,4 @@ async def test_github_webhook_endpoint(async_session: AsyncSession, sample_user:
             assert data["repo"] == "thesis-manuscripts"
     finally:
         app.dependency_overrides.clear()
+

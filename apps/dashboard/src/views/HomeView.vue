@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import HealthTab from '../components/HealthTab.vue'
 import CourseworkTab from '../components/CourseworkTab.vue'
 import ResearchTab from '../components/ResearchTab.vue'
-import HobbyTab from '../components/HobbyTab.vue'
+import AgentOpsTab from '../components/AgentOpsTab.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
 import DailyBriefCard from '../components/DailyBriefCard.vue'
 import QuickCaptureModal from '../components/QuickCaptureModal.vue'
@@ -129,7 +129,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'hobby' | 'guide'>('overview')
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'agentops' | 'guide'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -454,7 +454,7 @@ async function fetchData() {
       { id: 1, name: 'Kesehatan & Vitalitas', position: 1 },
       { id: 2, name: 'Kuliah & Akademik', position: 2 },
       { id: 3, name: 'Riset & Skripsi', position: 3 },
-      { id: 4, name: 'Hobby & Rest', position: 4 },
+      { id: 4, name: 'Agent Ops & Telemetry', position: 4 },
     ]
     tasks.value = [
       {
@@ -1057,13 +1057,13 @@ onMounted(() => {
           </button>
 
           <button
-            @click="activeTab = 'hobby'"
+            @click="activeTab = 'agentops'"
             class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'hobby' ? 'border-amber-600 text-amber-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            :class="activeTab === 'agentops' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
           >
-            <span>🎨</span>
-            <span>Hobby</span>
-            <span class="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800">#4</span>
+            <span>⚡</span>
+            <span>Agent Ops</span>
+            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">Telemetry</span>
           </button>
 
           <button
@@ -1098,10 +1098,11 @@ onMounted(() => {
         :user-id="currentUserId"
       />
 
-      <!-- Tab 4: Hobby -->
-      <HobbyTab
-        v-else-if="activeTab === 'hobby' && currentUserId"
+      <!-- Tab 4: Agent Ops & Telemetry -->
+      <AgentOpsTab
+        v-else-if="activeTab === 'agentops' && currentUserId"
         :user-id="currentUserId"
+        :user-email="userEmail"
       />
 
       <!-- Tab 5: Panduan Penggunaan -->
