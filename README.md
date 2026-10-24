@@ -18,11 +18,11 @@
 [![AI Evaluation](https://img.shields.io/badge/Evaluation-Quality%20Flywheel%20%E2%89%A590%25-10B981.svg)](apps/backend/tests)
 
 > **Personalized Life & Academic Operating System (Master's Thesis Research)**  
-> *"Lulus Skripsi & Kuliah Sukses, Tetap Sehat, dan Me-Time Tanpa Rasa Bersalah."*
+> *"Riset Skripsi Terarah, Kuliah Terstruktur, dan Vitalitas Sirkadian Terjaga."*
 
-**Second Brain: Autonomous AI Productivity Agent** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
+**Second Brain: Autonomous AI Productivity Agent** adalah platform manajemen riset dan produktivitas otonom berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban kognitif mahasiswa magister dan software engineer: tugas berbobot tinggi, milestone skripsi, pola tidur sirkadian, dan pencegahan *burnout*. 
 
-Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Tanya AI & Semantic Search (pgvector + RAG)**, **Concurrent Go Telemetry Engine**, **Simulator Target Nilai & IPK Semester**, **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Tanya AI & Semantic Search (pgvector + RAG)**, **Concurrent Go Telemetry Engine**, **Simulator Target Nilai & IPK Semester**, **Raycast-Style Command Palette (`Ctrl + K`)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
 
 🌐 **Akses Aplikasi (Gratis):**  
 👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
@@ -76,17 +76,6 @@ Halaman utama (**Ringkasan**) mengadopsi standar desain asimetris **Bento Grid**
 * **Cluster Telemetry Monitor (4 Kolom):** Indikator denyut real-time background worker Go, konektivitas pgvector, dan status sinkronisasi 3 repositori akademik.
 * **Focus Session Bar:** Pengendali sesi *Deep Work* langsung dari grid utama dengan visual animasi detak fokus.
 * **Filter Tugas Fleksibel:** Tombol filter instan termasuk filter khusus `🔥 Mendesak` untuk memprioritaskan pekerjaan krusial.
-
----
-
-## 📖 Tab Panduan Penggunaan Mahasiswa (In-App Student Handbook)
-
-Agar mahasiswa baru dapat langsung menguasai ritme aplikasi tanpa kebingungan, kini tersedia tab khusus **📖 Panduan**:
-
-* **🌅 4 Langkah Alur Harian:** Panduan alur konkret dari briefing pagi (05:00), catat tugas kuliah siang, sesi riset sore, hingga cutoff malam (23:00).
-* **🎯 Kupas Tuntas 4 Pilar:** Alasan ilmiah di balik urutan prioritas Kesehatan (#1) > Kuliah (#2) > Riset (#3) > Agent Ops (#4).
-* **⚡ Cheat Sheet Interaktif:** Daftar sintaks Quick Capture dengan tombol **1-Klik Salin (Copy)** dan tombol **Langsung Coba Palette**.
-* **❓ FAQ Mahasiswa:** Jawaban lengkap tentang keamanan cloud (Supabase RLS), cara install PWA di HP, dan tanpa biaya langganan.
 
 ---
 
@@ -175,13 +164,13 @@ Seluruh pengelolaan dapat diselesaikan langsung dalam genggaman:
 
 ---
 
-## 💬 Curhat & Feedback Mahasiswa Terintegrasi
+## 🛠️ Issue Tracking & Architecture Telemetry
 
-Dashboard dilengkapi saluran masukan langsung agar mahasiswa bisa memberikan feedback, lapor kendala, atau request fitur baru:
+Dashboard dilengkapi integrasi observabilitas dan pelaporan kendala teknis:
 
-* **Tombol Melayang:** `💬 Curhat / Request Fitur` di pojok kiri bawah dashboard.
-* **Modal Penilaian Instan:** Pilih kategori (*Request Fitur*, *Lapor Bug*, *Review*), beri rating 1–5 ⭐, dan tuliskan pesan yang langsung tersimpan di database.
-* **Script Generator Google Form:** Disediakan script otomatis Google Apps Script di [`scripts/google_form_creator.js`](scripts/google_form_creator.js) untuk menghasilkan form kuesioner evaluasi 9 pertanyaan dalam 1 klik via [script.new](https://script.new).
+* **Pusat Spesifikasi Teknis (Tech Specs):** Modal inspeksi arsitektur polyglot, endpoint latency P95, dan cluster health worker Go.
+* **Kedaulatan Data & Privasi:** Verifikasi status proteksi PostgreSQL Row-Level Security (RLS) dan ekspor data mandiri.
+* **Script Generator Evaluasi:** Tersedia script pendukung di [`scripts/`](scripts/) untuk regenerasi dokumen teknis, pengujian unit backend (90 tests), dan benchmark inferensi.
 
 ---
 

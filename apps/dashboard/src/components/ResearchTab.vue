@@ -303,7 +303,7 @@ onMounted(() => {
             <span class="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-800">Prioritas #3</span>
           </div>
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
-            Pantau progres penulisan 5 bab naskah skripsi, log interaktif arahan dospem (anti-ghosting), dan benchmark metrik eksperimen AI.
+            Pantau progres penulisan 5 bab naskah skripsi, log interaktif arahan pembimbing (advisory cadence), dan benchmark metrik eksperimen AI.
           </p>
           <div class="mt-2.5 flex items-center gap-2 flex-wrap">
             <a
@@ -482,7 +482,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Anti-Ghosting Urgent Alert Banner (>= 14 hari) -->
+            <!-- Advisory Cadence Urgent Alert Banner (>= 14 hari) -->
             <div
               v-if="daysSinceLastSupervision !== null && daysSinceLastSupervision >= 14"
               class="mt-3 rounded-xl border border-rose-200 bg-rose-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-pulse"
@@ -490,7 +490,7 @@ onMounted(() => {
               <div class="flex items-center gap-2">
                 <span class="text-lg">⚠️</span>
                 <p class="text-xs text-rose-900 leading-snug">
-                  <strong>Radar Anti-Ghosting:</strong> Sudah <strong>{{ daysSinceLastSupervision }} hari</strong> tidak bimbingan. Hubungi dospem hari ini agar skripsi tidak macet!
+                  <strong>Advisory Cadence Alert:</strong> Sudah <strong>{{ daysSinceLastSupervision }} hari</strong> sejak bimbingan terakhir. Jadwalkan follow-up naskah agar progres skripsi terjaga.
                 </p>
               </div>
               <button

@@ -209,8 +209,8 @@ function openWhatsApp() {
           <div class="flex items-center gap-2.5">
             <span class="text-2xl p-1.5 rounded-xl bg-purple-50 border border-purple-100">💬</span>
             <div>
-              <h3 class="text-sm font-bold text-gray-900 sm:text-base">Anti-Ghosting Dospem Chat Generator</h3>
-              <p class="text-[11px] text-gray-500">Draft WhatsApp sopan beretika akademik sesuai kaidah perguruan tinggi</p>
+              <h3 class="text-sm font-bold text-gray-900 sm:text-base">Supervisory Communication Assistant</h3>
+              <p class="text-[11px] text-gray-500">Komunikasi formal beretika akademik dengan dosen pembimbing tesis</p>
             </div>
           </div>
           <button

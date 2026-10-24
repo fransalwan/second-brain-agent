@@ -305,17 +305,17 @@ const burnoutScore = computed(() => {
 const burnoutBadge = computed(() => {
   const score = burnoutScore.value
   if (score <= 30) return {
-    label: 'Rendah (Kondisi Prima 🟢)',
+    label: 'Optimal (High Cognitive Capacity 🟢)',
     color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
     advice: 'Energi dan fokus Anda sangat stabil. Waktu yang tepat untuk mengerjakan tugas dengan bobot tinggi.',
   }
   if (score <= 60) return {
-    label: 'Sedang (Perlu Jeda 🟡)',
+    label: 'Moderate Fatigue (Scheduled Rest 🟡)',
     color: 'text-amber-700 bg-amber-50 border-amber-200',
     advice: 'Mulai terasa kelelahan. Gunakan jeda Pomodoro 5 menit dan pastikan minum air serta peregangan.',
   }
   return {
-    label: 'Tinggi (Kritis Burnout 🔴)',
+    label: 'Critical Cognitive Fatigue (Recovery Mode 🔴)',
     color: 'text-rose-700 bg-rose-50 border-rose-200',
     advice: 'Beban kerja terlalu tinggi dengan tidur minim. Hentikan deep work sekarang dan prioritaskan tidur lebih awal.',
   }
@@ -334,11 +334,11 @@ onMounted(() => {
         <div>
           <div class="flex items-center gap-2">
             <span class="text-2xl">🩺</span>
-            <h2 class="text-lg font-bold text-gray-900 sm:text-xl">Radar Kesehatan &amp; Energi Harian</h2>
+            <h2 class="text-lg font-bold text-gray-900 sm:text-xl">Circadian Rhythm &amp; Vitality Analytics</h2>
             <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Prioritas #1</span>
           </div>
           <p class="mt-1 text-xs text-gray-500 sm:text-sm">
-            Pantau asupan hidrasi, kualitas tidur semalam, dan skor pemulihan fisik untuk menjaga performa kerja stabil.
+            Analisis telemetri defisit tidur 14 hari, kalkulator Sleep Debt kumulatif, dan radar kelelahan kognitif.
           </p>
         </div>
         <button

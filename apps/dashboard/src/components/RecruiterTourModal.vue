@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 const emit = defineEmits<{
-  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'agentops' | 'guide'): void
+  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'agentops'): void
   (e: 'open-rag', query?: string): void
   (e: 'open-tech-specs'): void
 }>()
@@ -102,7 +102,7 @@ defineExpose({
 
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
           <p>
-            • <strong>Golang Worker Engine (:8085):</strong> Worker pool mandiri dengan Goroutines untuk mengevaluasi peringatan jam malam, deteksi sleep debt 7 hari, dan radar anti-ghosting dospem secara non-blocking.
+            • <strong>Golang Worker Engine (:8085):</strong> Worker pool mandiri dengan Goroutines untuk mengevaluasi peringatan jam malam, deteksi sleep debt 7 hari, dan monitoring SLA bimbingan tesis (>14 hari) secara non-blocking.
           </p>
           <p>
             • <strong>FastAPI Backend (:8000):</strong> Mengelola orkestrasi model AI Google Gemini, webhook GitHub, dan perutean domain akademik.

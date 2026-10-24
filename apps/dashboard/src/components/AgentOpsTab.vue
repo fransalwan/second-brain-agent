@@ -171,7 +171,7 @@ onMounted(() => {
           </span>
         </div>
         <p class="mt-1 text-[11px] text-slate-500">
-          Goroutines pool untuk evaluasi sleep debt 7 hari, bedtime guardian cutoff, &amp; anti-ghosting dospem.
+          Goroutines pool untuk evaluasi sleep debt 7 hari, bedtime guardian cutoff, &amp; monitoring SLA bimbingan (>14 hari).
         </p>
         <div class="mt-3 flex items-center justify-between text-[11px] border-t border-slate-100 pt-2 text-slate-600">
           <span>Concurrency: <strong>Worker Pool</strong></span>

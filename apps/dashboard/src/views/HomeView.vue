@@ -9,8 +9,6 @@ import AgentOpsTab from '../components/AgentOpsTab.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
 import DailyBriefCard from '../components/DailyBriefCard.vue'
 import QuickCaptureModal from '../components/QuickCaptureModal.vue'
-import FeedbackModal from '../components/FeedbackModal.vue'
-import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
 import BrainRagModal from '../components/BrainRagModal.vue'
 import TechSpecsModal from '../components/TechSpecsModal.vue'
@@ -134,7 +132,7 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'agentops' | 'guide'>('overview')
+const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'agentops'>('overview')
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -444,8 +442,8 @@ async function fetchData() {
       },
       {
         id: 104,
-        area_id: 4,
-        title: 'Guilt-Free Gaming & Me-Time 60 Menit (Weekend Reset)',
+        area_id: 1,
+        title: 'Circadian Recharge & Cognitive Rest (Sesi Istirahat 60 Menit)',
         deadline: null,
         is_urgent: false,
         status: 'completed',
@@ -1011,7 +1009,7 @@ onMounted(() => {
             :class="activeTab === 'health' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
           >
             <span>🩺</span>
-            <span>Kesehatan</span>
+            <span>Vitalitas</span>
             <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">#1</span>
           </button>
 
@@ -1044,22 +1042,12 @@ onMounted(() => {
             <span>Agent Ops</span>
             <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">Telemetry</span>
           </button>
-
-          <button
-            @click="activeTab = 'guide'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'guide' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
-          >
-            <span>📖</span>
-            <span>Panduan</span>
-            <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-800">Tips</span>
-          </button>
         </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
-      <!-- Tab 1: Kesehatan -->
+      <!-- Tab 1: Vitalitas & Kesehatan -->
       <HealthTab
         v-if="activeTab === 'health' && currentUserId"
         :user-id="currentUserId"
@@ -1082,14 +1070,6 @@ onMounted(() => {
         v-else-if="activeTab === 'agentops' && currentUserId"
         :user-id="currentUserId"
         :user-email="userEmail"
-      />
-
-      <!-- Tab 5: Panduan Penggunaan -->
-      <GuideTab
-        v-else-if="activeTab === 'guide'"
-        @navigate-tab="(tab) => activeTab = tab"
-        @open-quick-capture="handleOpenQuickCapture"
-        @open-privacy="handleOpenPrivacy"
       />
 
       <!-- Shimmer Skeleton Loading State -->
@@ -1650,13 +1630,6 @@ onMounted(() => {
       @open-rag="(q) => handleOpenBrainRag(q)"
       @open-tech-specs="handleOpenTechSpecs"
       @open-privacy="() => handleOpenPrivacy('policy')"
-    />
-
-    <!-- In-App Student Feedback / Request Fitur Button & Modal -->
-    <FeedbackModal
-      v-if="currentUserId"
-      :user-id="currentUserId"
-      :user-email="userEmail"
     />
 
     <!-- Privacy & Data Sovereignty Center Modal -->

@@ -438,3 +438,4 @@ if __name__ == "__main__":
     pdf2 = os.path.join(docs_dir, "Second_Brain_Live_Demo_Cheatsheet.pdf")
     build_pdf_fundamentals(pdf1)
     build_pdf_cheatsheet(pdf2)
+

@@ -6,7 +6,7 @@ export interface AppNotification {
   category: 'coursework' | 'health' | 'general'
   timestamp: string
   read: boolean
-  actionTab?: 'overview' | 'health' | 'coursework' | 'research' | 'agentops' | 'guide'
+  actionTab?: 'overview' | 'health' | 'coursework' | 'research' | 'agentops'
   actionLabel?: string
   actionData?: Record<string, any>
 }

@@ -271,7 +271,7 @@ async function handleRegister() {
               <span class="text-xl p-2 rounded-xl bg-purple-500/20 shrink-0">🔬</span>
               <div>
                 <h2 class="text-xs font-bold text-purple-300">Priority #3: Riset &amp; Skripsi</h2>
-                <p class="text-[11px] text-slate-400 mt-0.5">Pelacak eksperimen CatBoost, milestone 5 Bab, radar anti-ghosting dospem, &amp; ekspor LaTeX.</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Pelacak eksperimen CatBoost, milestone 5 Bab, monitoring SLA bimbingan, &amp; ekspor LaTeX.</p>
               </div>
             </div>
           </div>
