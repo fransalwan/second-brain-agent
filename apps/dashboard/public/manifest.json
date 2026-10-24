@@ -1,7 +1,7 @@
 {
-  "name": "Second Brain (Student Edition)",
-  "short_name": "SecondBrain",
-  "description": "Autonomous Life & Study Balance Hub untuk Mahasiswa",
+  "name": "Second Brain: Autonomous AI Productivity Agent",
+  "short_name": "Second Brain",
+  "description": "Personalized Life & Academic Operating System (Master's Thesis Research)",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -16,8 +16,8 @@
     }
   ],
   "categories": [
-    "education",
-    "productivity"
+    "productivity",
+    "education"
   ],
   "lang": "id"
 }

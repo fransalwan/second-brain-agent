@@ -63,7 +63,7 @@ async function handleExportData() {
     } catch {}
 
     const backupPayload = {
-      app: 'Second Brain (Student Edition)',
+      app: 'Second Brain: Autonomous AI Productivity Agent',
       version: '2.2.0',
       exportedAt: new Date().toISOString(),
       account: {

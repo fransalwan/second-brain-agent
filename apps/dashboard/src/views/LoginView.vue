@@ -206,11 +206,11 @@ async function handleRegister() {
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xl font-black tracking-tight text-white">Second Brain</span>
-              <span class="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-[11px] font-bold text-indigo-300 border border-indigo-500/30">
-                Student Edition 🎓
+              <span class="rounded-full bg-purple-500/20 px-2.5 py-0.5 text-[11px] font-bold text-purple-300 border border-purple-500/30">
+                Autonomous AI Agent
               </span>
             </div>
-            <p class="text-xs text-slate-400">Autonomous AI Copilot &amp; Life Balance Hub</p>
+            <p class="text-xs text-slate-400">Personalized Life &amp; Academic Operating System (Master's Thesis Research)</p>
           </div>
         </div>
 
@@ -312,11 +312,11 @@ async function handleRegister() {
           <div>
             <div class="flex items-center gap-1.5">
               <span class="text-base font-black tracking-tight text-white">Second Brain</span>
-              <span class="rounded-full bg-indigo-500/20 px-2 py-0.2 text-[10px] font-bold text-indigo-300 border border-indigo-500/30">
-                Student 🎓
+              <span class="rounded-full bg-purple-500/20 px-2 py-0.2 text-[10px] font-bold text-purple-300 border border-purple-500/30">
+                AI Agent
               </span>
             </div>
-            <p class="text-[11px] text-slate-400">Autonomous AI Copilot &amp; Life Balance Hub</p>
+            <p class="text-[11px] text-slate-400">Personalized Life &amp; Academic Operating System</p>
           </div>
         </div>
 
