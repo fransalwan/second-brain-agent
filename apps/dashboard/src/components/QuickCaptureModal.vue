@@ -10,6 +10,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'created', payload: { type: string; data?: any }): void
+  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'agentops' | 'guide'): void
+  (e: 'open-rag', query?: string): void
+  (e: 'open-tech-specs'): void
+  (e: 'open-privacy'): void
 }>()
 
 const isOpen = ref(false)
@@ -343,6 +347,156 @@ function setQuickTemplate(templateText: string) {
     inputRef.value?.focus()
   })
 }
+
+// 3. Raycast-Style Command Actions
+interface CommandAction {
+  id: string
+  title: string
+  subtitle: string
+  icon: string
+  badge?: string
+  keywords: string[]
+  execute: () => void
+}
+
+const commands: CommandAction[] = [
+  {
+    id: 'cmd-rag',
+    title: 'Tanya AI & Semantic Search',
+    subtitle: 'Cari catatan via PostgreSQL pgvector 768-D & RRF',
+    icon: '🧠',
+    badge: 'AI Engine',
+    keywords: ['tanya', 'ai', 'rag', 'search', 'cari', 'vector', 'pgvector', 'gemini'],
+    execute: () => {
+      const q = rawInput.value.replace(/^[?>]\s*/, '').trim()
+      emit('open-rag', q)
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-agentops',
+    title: 'Buka Agent Ops & Telemetri',
+    subtitle: 'Cluster status Go worker :8085, FastAPI :8000, & Git webhooks',
+    icon: '⚡',
+    badge: 'Go + Python',
+    keywords: ['ops', 'agent', 'telemetri', 'worker', 'golang', 'cluster', 'node', 'health'],
+    execute: () => {
+      emit('navigate-tab', 'agentops')
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-research',
+    title: 'Buka Riset & Skripsi Hub',
+    subtitle: 'Pelacak Bab 1-5, log dospem santun, & metrik model LaTeX',
+    icon: '🔬',
+    badge: 'Prioritas #3',
+    keywords: ['riset', 'skripsi', 'thesis', 'bab', 'dospem', 'latex', 'experiment', 'catboost', 'xgboost'],
+    execute: () => {
+      emit('navigate-tab', 'research')
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-coursework',
+    title: 'Buka Hub Kuliah & Tugas Matkul',
+    subtitle: 'Radar tugas mendesak, jadwal ujian, & simulator IPK',
+    icon: '🎓',
+    badge: 'Prioritas #2',
+    keywords: ['kuliah', 'tugas', 'matkul', 'ujian', 'uts', 'uas', 'tubes', 'ipk'],
+    execute: () => {
+      emit('navigate-tab', 'coursework')
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-health',
+    title: 'Buka Radar Kesehatan & Sleep Debt',
+    subtitle: 'Evaluasi sleep debt 7 hari & penjaga jam malam',
+    icon: '🩺',
+    badge: 'Prioritas #1',
+    keywords: ['kesehatan', 'tidur', 'sleep', 'burnout', 'bedtime', 'istirahat'],
+    execute: () => {
+      emit('navigate-tab', 'health')
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-techspecs',
+    title: 'Lihat Arsitektur & Tech Specs',
+    subtitle: 'Inspeksi arsitektur polyglot Go worker, FastAPI, & SQLModel',
+    icon: '🛠️',
+    badge: 'Specs',
+    keywords: ['tech', 'specs', 'arsitektur', 'polyglot', 'backend', 'db'],
+    execute: () => {
+      emit('open-tech-specs')
+      closeModal()
+    },
+  },
+  {
+    id: 'cmd-privacy',
+    title: 'Pusat Privasi & Kedaulatan Data',
+    subtitle: 'Inspeksi keamanan RLS database & unduh arsip data',
+    icon: '🛡️',
+    badge: 'RLS Safe',
+    keywords: ['privasi', 'privacy', 'security', 'rls', 'data', 'keamanan'],
+    execute: () => {
+      emit('open-privacy')
+      closeModal()
+    },
+  },
+]
+
+const selectedIndex = ref(0)
+
+const isAiSearchMode = computed(() => {
+  return rawInput.value.trim().startsWith('?')
+})
+
+const isCommandMode = computed(() => {
+  return rawInput.value.trim().startsWith('>')
+})
+
+const matchingCommands = computed(() => {
+  const query = rawInput.value.trim().toLowerCase().replace(/^[?>]\s*/, '')
+  if (!query) {
+    return commands
+  }
+  return commands.filter((cmd) => {
+    return (
+      cmd.title.toLowerCase().includes(query) ||
+      cmd.subtitle.toLowerCase().includes(query) ||
+      cmd.keywords.some((k) => k.includes(query))
+    )
+  })
+})
+
+function handleInputKeydown(e: KeyboardEvent) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (matchingCommands.value.length > 0) {
+      selectedIndex.value = (selectedIndex.value + 1) % matchingCommands.value.length
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    if (matchingCommands.value.length > 0) {
+      selectedIndex.value = (selectedIndex.value - 1 + matchingCommands.value.length) % matchingCommands.value.length
+    }
+  } else if (e.key === 'Enter') {
+    if (isAiSearchMode.value) {
+      e.preventDefault()
+      const query = rawInput.value.replace(/^\?\s*/, '').trim()
+      emit('open-rag', query)
+      closeModal()
+    } else if ((isCommandMode.value || rawInput.value.trim() === '') && matchingCommands.value.length > 0) {
+      e.preventDefault()
+      const cmd = matchingCommands.value[selectedIndex.value] || matchingCommands.value[0]
+      cmd.execute()
+    } else if (!rawInput.value.trim().startsWith('>') && !rawInput.value.trim().startsWith('?')) {
+      handleSubmit()
+    }
+  }
+}
 </script>
 
 <template>
@@ -376,23 +530,23 @@ function setQuickTemplate(templateText: string) {
         <!-- Header -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-white text-xs font-bold">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white text-xs font-bold">
               ⚡
             </span>
             <div>
-              <h3 class="text-sm font-bold text-gray-900">Universal Quick Capture</h3>
-              <p class="text-[11px] text-gray-500">Ketik bebas: tugas, minum, tidur, atau ide kilat</p>
+              <h3 class="text-sm font-bold text-slate-900">Command Palette &amp; Quick Capture</h3>
+              <p class="text-[11px] text-slate-500">Ketik bebas untuk simpan tugas, awalan &gt; untuk aksi sistem, atau ? untuk Tanya AI</p>
             </div>
           </div>
 
           <div class="flex items-center gap-1.5">
-            <kbd class="hidden sm:inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-mono text-gray-500 border border-gray-200">
+            <kbd class="hidden sm:inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-500 border border-slate-200">
               ESC
             </kbd>
             <button
               type="button"
               @click="closeModal"
-              class="p-1 text-gray-400 hover:text-gray-700 text-sm cursor-pointer"
+              class="p-1 text-slate-400 hover:text-slate-700 text-sm cursor-pointer"
             >
               ✕
             </button>
@@ -405,9 +559,9 @@ function setQuickTemplate(templateText: string) {
             ref="inputRef"
             v-model="rawInput"
             type="text"
-            placeholder="Contoh: tugas kalkulus kuis besok mendesak..."
-            class="w-full rounded-2xl border border-gray-300 bg-gray-50/80 px-4 py-3.5 pr-24 text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-all min-h-[48px]"
-            @keydown.enter="handleSubmit"
+            placeholder="Ketik tugas/ide, &gt; untuk aksi cepat, atau ? untuk tanya AI..."
+            class="w-full rounded-2xl border border-slate-300 bg-slate-50/80 px-4 py-3.5 pr-24 text-sm sm:text-base text-slate-900 placeholder-slate-400 focus:bg-white focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all min-h-[48px]"
+            @keydown="handleInputKeydown"
           />
 
           <div class="absolute right-2.5 flex items-center gap-1.5">
@@ -416,7 +570,7 @@ function setQuickTemplate(templateText: string) {
               type="button"
               @click="toggleVoice"
               class="flex h-8 w-8 items-center justify-center rounded-xl transition-all cursor-pointer"
-              :class="isListening ? 'bg-rose-600 text-white animate-pulse' : 'bg-gray-200/80 hover:bg-gray-300 text-gray-700'"
+              :class="isListening ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'"
               title="Dikte Suara (Bicara)"
             >
               <span class="text-xs">🎤</span>
@@ -427,9 +581,9 @@ function setQuickTemplate(templateText: string) {
               type="button"
               @click="handleSubmit"
               :disabled="!rawInput.trim() || isSubmitting"
-              class="rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-black disabled:opacity-40 transition-colors cursor-pointer shadow-xs min-h-[32px]"
+              class="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-black disabled:opacity-40 transition-colors cursor-pointer shadow-xs min-h-[32px]"
             >
-              {{ isSubmitting ? '...' : 'Simpan' }}
+              {{ isSubmitting ? '...' : (isAiSearchMode ? 'Tanya' : (isCommandMode ? 'Pilih' : 'Simpan')) }}
             </button>
           </div>
         </div>
@@ -443,8 +597,57 @@ function setQuickTemplate(templateText: string) {
           <span class="font-medium">Mendengarkan ucapanmu dalam Bahasa Indonesia... Silakan bicara.</span>
         </div>
 
-        <!-- Smart Intent Preview Pill -->
-        <div v-if="rawInput.trim()" class="rounded-xl bg-gray-50 p-3 border border-gray-100 flex items-center justify-between text-xs">
+        <!-- MODE 1: Semantic AI Search Mode (starts with ?) -->
+        <div
+          v-if="isAiSearchMode"
+          @click="() => { emit('open-rag', rawInput.replace(/^\?\s*/, '').trim()); closeModal(); }"
+          class="rounded-xl border border-purple-200 bg-purple-50/70 p-3 flex items-center justify-between cursor-pointer hover:bg-purple-100 transition-colors shadow-2xs"
+        >
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">🧠</span>
+            <div>
+              <span class="text-xs font-bold text-purple-950 block">Tanya AI (pgvector RAG):</span>
+              <span class="text-xs text-purple-800">
+                "{{ rawInput.replace(/^\?\s*/, '').trim() || 'Ketik pertanyaan apa saja dari catatanmu...' }}"
+              </span>
+            </div>
+          </div>
+          <span class="rounded bg-purple-200 text-purple-900 px-2 py-0.5 text-[10px] font-mono font-bold">
+            Enter ↵
+          </span>
+        </div>
+
+        <!-- MODE 2: Command Actions List (starts with > or input matches command) -->
+        <div v-else-if="isCommandMode || (matchingCommands.length > 0 && (rawInput.trim().length <= 3 || matchingCommands.length < commands.length))" class="space-y-1 max-h-56 overflow-y-auto no-scrollbar">
+          <div
+            v-for="(cmd, idx) in matchingCommands"
+            :key="cmd.id"
+            @click="cmd.execute()"
+            class="flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all text-xs"
+            :class="idx === selectedIndex ? 'bg-slate-900 text-white shadow-xs' : 'hover:bg-slate-50 text-slate-700'"
+          >
+            <div class="flex items-center gap-2.5 truncate pr-2">
+              <span class="text-base shrink-0">{{ cmd.icon }}</span>
+              <div class="truncate">
+                <div class="font-bold flex items-center gap-1.5" :class="idx === selectedIndex ? 'text-white' : 'text-slate-900'">
+                  <span class="truncate">{{ cmd.title }}</span>
+                  <span v-if="cmd.badge" class="px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0" :class="idx === selectedIndex ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'">
+                    {{ cmd.badge }}
+                  </span>
+                </div>
+                <p class="text-[11px] truncate" :class="idx === selectedIndex ? 'text-slate-300' : 'text-slate-500'">
+                  {{ cmd.subtitle }}
+                </p>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono shrink-0" :class="idx === selectedIndex ? 'text-slate-300' : 'text-slate-400'">
+              ↵ Jalankan
+            </span>
+          </div>
+        </div>
+
+        <!-- MODE 3: Smart Client-Side Intent Parser Preview (Natural Text) -->
+        <div v-else-if="rawInput.trim()" class="rounded-xl bg-slate-50 p-3 border border-slate-200 flex items-center justify-between text-xs">
           <div class="flex items-center gap-2 truncate">
             <span class="text-sm">
               {{
@@ -459,10 +662,10 @@ function setQuickTemplate(templateText: string) {
                   : '💡'
               }}
             </span>
-            <span class="font-bold text-gray-800 capitalize">
+            <span class="font-bold text-slate-800 capitalize">
               {{ parsedIntent.type }}:
             </span>
-            <span class="text-gray-600 truncate">
+            <span class="text-slate-600 truncate">
               {{ parsedIntent.title }}
             </span>
           </div>
@@ -479,32 +682,32 @@ function setQuickTemplate(templateText: string) {
 
         <!-- Quick Template Chips -->
         <div class="pt-1 space-y-1.5">
-          <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Template Cepat:</p>
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Aksi Kilat &amp; Template:</p>
           <div class="flex flex-wrap gap-1.5 text-xs">
             <button
               type="button"
+              @click="setQuickTemplate('> ')"
+              class="rounded-lg bg-slate-900 text-white px-2.5 py-1 font-bold hover:bg-black cursor-pointer shadow-2xs"
+            >
+              &gt; Aksi Sistem
+            </button>
+            <button
+              type="button"
+              @click="setQuickTemplate('? ')"
+              class="rounded-lg bg-purple-50 text-purple-800 px-2.5 py-1 hover:bg-purple-100 cursor-pointer border border-purple-200 font-semibold"
+            >
+              🧠 ? Tanya AI
+            </button>
+            <button
+              type="button"
               @click="setQuickTemplate('tugas Kuliah: ')"
-              class="rounded-lg bg-gray-100 px-2.5 py-1 text-gray-700 hover:bg-gray-200 cursor-pointer"
+              class="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700 hover:bg-slate-200 cursor-pointer"
             >
               🎓 + Tugas Kuliah
             </button>
             <button
               type="button"
-              @click="setQuickTemplate('minum 250ml')"
-              class="rounded-lg bg-cyan-50 text-cyan-800 px-2.5 py-1 hover:bg-cyan-100 cursor-pointer border border-cyan-100"
-            >
-              💧 + Minum 250ml
-            </button>
-            <button
-              type="button"
-              @click="setQuickTemplate('tidur 7.5 jam')"
-              class="rounded-lg bg-purple-50 text-purple-800 px-2.5 py-1 hover:bg-purple-100 cursor-pointer border border-purple-100"
-            >
-              😴 + Tidur 7.5 Jam
-            </button>
-            <button
-              type="button"
-              @click="setQuickTemplate('fokus: Belajar Mandiri')"
+              @click="setQuickTemplate('fokus: Riset Skripsi IDCS')"
               class="rounded-lg bg-emerald-50 text-emerald-800 px-2.5 py-1 hover:bg-emerald-100 cursor-pointer border border-emerald-100"
             >
               ⏱️ + Mulai Timer
@@ -520,8 +723,14 @@ function setQuickTemplate(templateText: string) {
         </div>
 
         <!-- Keyboard Hint -->
-        <div class="text-[11px] text-gray-400 text-center pt-1 border-t border-gray-100">
-          Tekan <kbd class="font-mono font-bold text-gray-600">Enter</kbd> untuk menyimpan seketika.
+        <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <span><kbd class="font-mono bg-slate-100 px-1 py-0.2 rounded border text-slate-600 text-[10px]">↑↓</kbd> Navigasi</span>
+            <span><kbd class="font-mono bg-slate-100 px-1 py-0.2 rounded border text-slate-600 text-[10px]">Enter</kbd> Pilih/Simpan</span>
+            <span><kbd class="font-mono bg-slate-100 px-1 py-0.2 rounded border text-slate-600 text-[10px]">?</kbd> Tanya AI</span>
+            <span><kbd class="font-mono bg-slate-100 px-1 py-0.2 rounded border text-slate-600 text-[10px]">&gt;</kbd> Aksi</span>
+          </div>
+          <span class="hidden sm:inline font-mono text-[10px] text-slate-400">Raycast Omnibar</span>
         </div>
       </div>
     </div>

@@ -28,8 +28,13 @@ const searchResults = ref<
   }>
 >([])
 
-function openModal() {
+function openModal(initialQuery?: string) {
   isOpen.value = true
+  if (initialQuery && initialQuery.trim()) {
+    searchQuery.value = initialQuery.trim()
+    activeMode.value = 'ask'
+    handleExecuteQuery()
+  }
 }
 
 function closeModal() {

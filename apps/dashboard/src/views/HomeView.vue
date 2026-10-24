@@ -14,22 +14,27 @@ import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
 import BrainRagModal from '../components/BrainRagModal.vue'
 import TechSpecsModal from '../components/TechSpecsModal.vue'
+import RecruiterTourModal from '../components/RecruiterTourModal.vue'
 
 const router = useRouter()
-const SHOW_TELEGRAM_INTEGRATION = ref(false)
-
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
 const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
 const brainRagModalRef = ref<InstanceType<typeof BrainRagModal> | null>(null)
 const techSpecsModalRef = ref<InstanceType<typeof TechSpecsModal> | null>(null)
+const recruiterTourRef = ref<InstanceType<typeof RecruiterTourModal> | null>(null)
 const isDemoMode = ref(false)
+
+function handleOpenRecruiterTour() {
+  recruiterTourRef.value?.openTour()
+}
 
 function handleOpenTechSpecs() {
   techSpecsModalRef.value?.openModal()
 }
 
-function handleOpenBrainRag() {
-  brainRagModalRef.value?.openModal()
+function handleOpenBrainRag(query?: any) {
+  const q = typeof query === 'string' ? query : undefined
+  brainRagModalRef.value?.openModal(q)
 }
 
 function handleOpenQuickCapture() {
@@ -141,64 +146,13 @@ const timeLogs = ref<TimeLogItem[]>([])
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 const loggingOut = ref(false)
-const taskFilter = ref<'all' | 'pending' | 'completed'>('pending')
+const taskFilter = ref<'all' | 'pending' | 'completed' | 'urgent'>('pending')
 const notesTab = ref<'list' | 'graph'>('list')
 const graphCanvas = ref<HTMLCanvasElement | null>(null)
 const graphNodes = ref<GraphNode[]>([])
 const graphEdges = ref<GraphEdge[]>([])
 const selectedNode = ref<GraphNode | null>(null)
 const hoveredNode = ref<GraphNode | null>(null)
-
-// State penautan Telegram Chat ID
-const inputChatId = ref('')
-const linkingChatId = ref(false)
-const showEditTelegram = ref(false)
-const linkSuccessMsg = ref('')
-const linkErrorMsg = ref('')
-
-async function handleLinkTelegram() {
-  if (!inputChatId.value.trim()) return
-  const rawId = inputChatId.value.trim()
-  if (!/^\d+$/.test(rawId)) {
-    linkErrorMsg.value = 'Chat ID harus berupa angka positif (contoh: 123456789).'
-    return
-  }
-
-  linkingChatId.value = true
-  linkSuccessMsg.value = ''
-  linkErrorMsg.value = ''
-
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) return
-
-    const { error } = await supabase.from('profiles').upsert({
-      id: session.user.id,
-      email: session.user.email ?? userEmail.value,
-      full_name:
-        profile.value?.full_name ||
-        session.user.user_metadata?.full_name ||
-        userEmail.value?.split('@')[0] ||
-        'Pengguna',
-      telegram_chat_id: parseInt(rawId, 10),
-    })
-
-    if (error) {
-      linkErrorMsg.value = error.message
-    } else {
-      linkSuccessMsg.value = 'Akun Telegram berhasil ditautkan! Buka bot Telegram dan kirim /start.'
-      inputChatId.value = ''
-      showEditTelegram.value = false
-      await fetchData()
-    }
-  } catch (err: any) {
-    linkErrorMsg.value = 'Gagal menautkan Telegram Chat ID.'
-  } finally {
-    linkingChatId.value = false
-  }
-}
 
 const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
@@ -378,6 +332,7 @@ const urgentCount = computed(() => {
 const filteredTasks = computed(() => {
   if (taskFilter.value === 'pending') return pendingTasks.value
   if (taskFilter.value === 'completed') return completedTasks.value
+  if (taskFilter.value === 'urgent') return pendingTasks.value.filter((t) => t.is_urgent)
   return tasks.value
 })
 
@@ -937,11 +892,17 @@ onMounted(() => {
               <span class="rounded-full bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 whitespace-nowrap">
                 AI Agent
               </span>
-              <span v-if="isDemoMode" class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap flex items-center gap-1">
-                <span>✨ Demo</span>
-              </span>
+              <button
+                v-if="isDemoMode"
+                type="button"
+                @click="handleOpenRecruiterTour"
+                class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap flex items-center gap-1 hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
+                title="Buka Tour Interaktif 60 Detik untuk Recruiter & Tech Lead"
+              >
+                <span>✨ Demo (Tour 60s)</span>
+              </button>
             </div>
-            <p class="text-[11px] text-slate-500 flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-md mt-0.5">
+            <p class="text-[11px] text-slate-500 flex items-center gap-1.5 truncate max-w-[170px] sm:max-w-xs mt-0.5">
               <span class="font-medium text-slate-700 truncate">{{ profile?.full_name?.replace(' (Demo Mode)', '') || 'Mahasiswa' }}</span>
               <span class="text-slate-300">•</span>
               <span class="truncate text-slate-400">{{ userEmail }}</span>
@@ -949,10 +910,22 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- Center Omnibar Pill (Raycast / Linear style) -->
+        <button
+          type="button"
+          @click="handleOpenQuickCapture"
+          class="hidden md:flex items-center gap-2 h-8.5 px-3 rounded-lg border border-slate-200/90 bg-slate-50/80 hover:bg-slate-100 hover:border-slate-300 text-slate-400 hover:text-slate-600 transition-all text-xs cursor-pointer shadow-2xs group"
+          title="Buka Command Palette & Quick Capture (Ctrl+K)"
+        >
+          <span class="text-slate-400 group-hover:text-indigo-600 transition-colors">🔍</span>
+          <span class="text-slate-600 font-medium">Quick Command & RAG...</span>
+          <kbd class="ml-1 rounded bg-white px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-500 border border-slate-200 shadow-2xs">Ctrl+K</kbd>
+        </button>
+
         <!-- Right Controls: Aligned & Clean Grouping -->
         <div class="flex items-center gap-2">
           <!-- Schedule Pill (Compact & Clean) -->
-          <div v-if="profile" class="hidden md:flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 h-8.5 whitespace-nowrap">
+          <div v-if="profile" class="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 h-8.5 whitespace-nowrap">
             <span>☀️ {{ profile.brief_time?.slice(0, 5) || '07:00' }}</span>
             <span class="text-slate-300">|</span>
             <span>🌙 {{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</span>
@@ -1113,251 +1086,153 @@ onMounted(() => {
         @open-privacy="handleOpenPrivacy"
       />
 
-      <!-- Tab Overview (Default) -->
-      <div v-else-if="activeTab === 'overview'" class="space-y-6">
-        <!-- Daily In-App Brief & Evening Review Widget -->
-        <DailyBriefCard
-          v-if="profileLoaded"
-          :full-name="profile?.full_name"
-          :email="userEmail"
-          :brief-time="profile?.brief_time"
-          :night-cutoff-time="profile?.night_cutoff_time"
-          :tasks="tasks"
-          :time-logs="timeLogs"
-          :habits="habits"
-          :habit-logs="habitLogs"
-          @navigate-tab="(tab) => activeTab = tab"
-          @toggle-task="handleToggleTask"
-        />
-
-        <!-- Card Status & Penautan Telegram (Hidden by default, fokus dashboard mandiri) -->
-        <div
-          v-if="SHOW_TELEGRAM_INTEGRATION && profileLoaded"
-          class="rounded-2xl border transition-all shadow-xs"
-        :class="profile?.telegram_chat_id ? 'border-emerald-200 bg-emerald-50/70 p-4 sm:p-5' : 'border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-5 sm:p-6 text-indigo-950'"
-      >
-        <!-- KONDISI 1: SUDAH TERHUBUNG -->
-        <div v-if="profile?.telegram_chat_id" class="space-y-3">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <div class="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl font-bold shrink-0 shadow-xs">
-                ✈️
-              </div>
-              <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-xs font-bold uppercase tracking-wider text-emerald-900">Telegram Terhubung</span>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-200 text-emerald-900">Chat ID: {{ profile.telegram_chat_id }}</span>
-                </div>
-                <p class="text-xs text-emerald-800 mt-0.5">
-                  Bot resmi: <a href="https://t.me/secondbraindev_bot" target="_blank" class="font-bold underline text-emerald-950">@secondbraindev_bot</a> • Siap kirim tugas & voice note.
-                </p>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <a
-                href="https://t.me/secondbraindev_bot"
-                target="_blank"
-                class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 min-h-[40px] cursor-pointer"
-              >
-                <span>Buka Bot Telegram</span>
-                <span>↗</span>
-              </a>
-              <button
-                type="button"
-                @click="showEditTelegram = !showEditTelegram"
-                class="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 min-h-[40px] cursor-pointer"
-              >
-                {{ showEditTelegram ? 'Tutup Form' : 'Ubah Chat ID' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Form Edit ID jika toggle showEditTelegram aktif -->
-          <div v-if="showEditTelegram" class="pt-3 border-t border-emerald-200/80">
-            <label for="tg-chat-id-edit" class="block text-xs font-semibold text-gray-800 mb-1">
-              Ganti Chat ID Telegram:
-            </label>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-md">
-              <input
-                id="tg-chat-id-edit"
-                v-model="inputChatId"
-                type="text"
-                placeholder="Contoh: 8277307447"
-                class="block w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 min-h-[42px]"
-              />
-              <button
-                type="button"
-                @click="handleLinkTelegram"
-                :disabled="linkingChatId || !inputChatId"
-                class="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition-colors shrink-0 shadow-xs min-h-[42px] cursor-pointer"
-              >
-                {{ linkingChatId ? 'Menyimpan...' : 'Perbarui ID' }}
-              </button>
-            </div>
-            <div v-if="linkSuccessMsg" class="mt-2 rounded-lg bg-emerald-100 p-2 text-xs text-emerald-900">
-              {{ linkSuccessMsg }}
-            </div>
-            <div v-if="linkErrorMsg" class="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">
-              {{ linkErrorMsg }}
-            </div>
-          </div>
+      <!-- Shimmer Skeleton Loading State -->
+      <div v-if="loading" class="space-y-6 animate-pulse">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div class="lg:col-span-8 h-44 rounded-3xl bg-slate-200/80"></div>
+          <div class="lg:col-span-4 h-44 rounded-3xl bg-slate-200/80"></div>
         </div>
-
-        <!-- KONDISI 2: BELUM TERHUBUNG -->
-        <div v-else class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-2.5 max-w-xl">
-            <div class="flex items-center gap-2.5">
-              <span class="text-2xl">✈️</span>
-              <div>
-                <h2 class="text-base font-bold text-indigo-950">Tautkan Akun ke Bot Telegram</h2>
-                <p class="text-xs text-indigo-700">Hubungkan bot agar kamu bisa mencatat tugas, ide via suara, dan menerima brief pagi.</p>
-              </div>
-            </div>
-            <div class="pt-1 text-xs text-indigo-900 space-y-2">
-              <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100">
-                <span class="font-bold block text-indigo-950 mb-1">Cara Cepat (1-Tap):</span>
-                <a
-                  href="https://t.me/secondbraindev_bot"
-                  target="_blank"
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs"
-                >
-                  <span>1. Klik untuk Buka Bot @secondbraindev_bot</span>
-                  <span>↗</span>
-                </a>
-                <p class="text-[11px] text-indigo-800 mt-1.5">
-                  2. Lalu kirim pesan: <code class="rounded bg-indigo-50 px-1.5 py-0.5 font-mono font-bold text-indigo-950 border border-indigo-200">/connect {{ userEmail }}</code>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Form Input Chat ID Langsung di HP & Web -->
-          <div class="w-full lg:w-80 rounded-2xl bg-white p-4 border border-indigo-100 shadow-xs space-y-2 shrink-0">
-            <label for="tg-chat-id" class="block text-xs font-semibold text-gray-800">
-              Atau Input Chat ID Telegram Manual
-            </label>
-            <p class="text-[11px] text-gray-500">
-              Kirim <code class="bg-gray-100 px-1 rounded text-gray-700">/start</code> di bot untuk melihat ID angkamu:
-            </p>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input
-                id="tg-chat-id"
-                v-model="inputChatId"
-                type="text"
-                placeholder="Contoh: 123456789"
-                class="block w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 min-h-[42px]"
-              />
-              <button
-                type="button"
-                @click="handleLinkTelegram"
-                :disabled="linkingChatId || !inputChatId"
-                class="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 shadow-xs min-h-[42px] cursor-pointer"
-              >
-                {{ linkingChatId ? 'Menyimpan...' : 'Hubungkan' }}
-              </button>
-            </div>
-
-            <div v-if="linkSuccessMsg" class="rounded-lg bg-emerald-50 p-2 text-[11px] text-emerald-800 border border-emerald-200">
-              {{ linkSuccessMsg }}
-            </div>
-            <div v-if="linkErrorMsg" class="rounded-lg bg-rose-50 p-2 text-[11px] text-rose-800 border border-rose-200">
-              {{ linkErrorMsg }}
-            </div>
-          </div>
+        <div class="h-16 rounded-2xl bg-slate-200/60"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-7 h-96 rounded-2xl bg-slate-200/70"></div>
+          <div class="lg:col-span-5 h-96 rounded-2xl bg-slate-200/70"></div>
         </div>
       </div>
 
-      <!-- Banner Active Timer Berjalan -->
-      <div
-        v-if="activeTimer"
-        class="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 sm:p-5 shadow-sm transition-all"
-      >
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-start sm:items-center gap-3">
-            <span class="relative flex h-3.5 w-3.5 mt-1 sm:mt-0">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-600"></span>
-            </span>
+      <!-- Tab Overview (Default): Bento Grid 2.0 -->
+      <div v-else-if="activeTab === 'overview'" class="space-y-6">
+        <!-- Bento Top Row: Hero Daily Brief (8 cols) + Polyglot Telemetry Cluster (4 cols) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Hero Brief (8 Cols) -->
+          <div class="lg:col-span-8 flex flex-col justify-between">
+            <DailyBriefCard
+              v-if="profileLoaded"
+              :full-name="profile?.full_name?.replace(' (Demo Mode)', '')"
+              :email="userEmail"
+              :brief-time="profile?.brief_time"
+              :night-cutoff-time="profile?.night_cutoff_time"
+              :tasks="tasks"
+              :time-logs="timeLogs"
+              :habits="habits"
+              :habit-logs="habitLogs"
+              @navigate-tab="(tab) => activeTab = tab"
+              @toggle-task="handleToggleTask"
+            />
+          </div>
+
+          <!-- Polyglot Telemetry Cluster Card (4 Cols) -->
+          <div class="lg:col-span-4 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">⚡</span>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">System Telemetry</h3>
+                </div>
+                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Cluster Active</span>
+                </span>
+              </div>
+
+              <!-- Cluster Nodes -->
+              <div class="mt-3 space-y-2 text-xs">
+                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div class="flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-cyan-500"></span>
+                    <span class="font-bold text-slate-800">Go Worker (:8085)</span>
+                  </div>
+                  <span class="rounded bg-cyan-100/70 text-cyan-900 px-1.5 py-0.2 text-[10px] font-bold">Goroutines Pool</span>
+                </div>
+
+                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div class="flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+                    <span class="font-bold text-slate-800">FastAPI &amp; Gemini (:8000)</span>
+                  </div>
+                  <span class="rounded bg-purple-100/70 text-purple-900 px-1.5 py-0.2 text-[10px] font-bold">RAG Engine</span>
+                </div>
+
+                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div class="flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    <span class="font-bold text-slate-800">PostgreSQL pgvector</span>
+                  </div>
+                  <span class="rounded bg-emerald-100/70 text-emerald-900 px-1.5 py-0.2 text-[10px] font-bold">768-D HNSW</span>
+                </div>
+              </div>
+
+              <!-- Academic Git Sync Quick Pills -->
+              <div class="mt-2.5 pt-2.5 border-t border-slate-100">
+                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Academic Git Pipeline:</span>
+                <div class="flex flex-wrap gap-1">
+                  <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">📦 materi-kuliah</span>
+                  <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">📝 manuscripts</span>
+                  <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">🧪 experiments</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              @click="activeTab = 'agentops'"
+              class="mt-3.5 w-full rounded-xl bg-slate-900 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors text-center cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+            >
+              <span>⚡</span>
+              <span>Buka Agent Ops &amp; Audit Logs</span>
+              <span>➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Focus Session Bar: Seamless Deep Work Controller -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-base" :class="activeTimer ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'">
+              {{ activeTimer ? '⚡' : '⏱️' }}
+            </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Sesi Fokus Aktif</span>
-                <span class="text-xs text-emerald-700">Dimulai {{ formatDateTime(activeTimer.started_at) }}</span>
+                <h4 class="text-xs font-bold text-slate-900">
+                  {{ activeTimer ? `Fokus Aktif: ${activeTimer.project_name}` : 'Mulai Sesi Deep Work' }}
+                </h4>
+                <span v-if="activeTimer" class="rounded-full bg-emerald-100 px-2 py-0.2 text-[10px] font-bold text-emerald-800 animate-pulse">
+                  Berjalan
+                </span>
               </div>
-              <h2 class="text-lg sm:text-xl font-bold text-emerald-950 mt-0.5">
-                {{ activeTimer.project_name }}
-              </h2>
+              <p class="text-[11px] text-slate-500 mt-0.5">
+                {{ activeTimer ? `Dimulai ${formatDateTime(activeTimer.started_at)} • Auto habit streak aktif` : `Total fokus hari ini: ${totalFocusMinutesToday} menit • Catatan tersimpan: ${notes.length} ide` }}
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            @click="handleStopTimer(activeTimer.id)"
-            :disabled="stoppingTimer"
-            class="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
-          >
-            {{ stoppingTimer ? 'Menyimpan...' : '⏹️ Selesai Sesi Fokus' }}
-          </button>
-        </div>
-      </div>
 
-      <!-- Ringkasan Statistik Utama (4 Card Metrics) -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-        <!-- Metric 1: Waktu Fokus Hari Ini -->
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-500">Fokus Hari Ini</span>
-            <span class="text-base">⏱️</span>
+          <div v-if="activeTimer">
+            <button
+              type="button"
+              @click="handleStopTimer(activeTimer.id)"
+              :disabled="stoppingTimer"
+              class="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
+            >
+              {{ stoppingTimer ? 'Menyimpan...' : '⏹️ Selesai Sesi Fokus' }}
+            </button>
           </div>
-          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
-            <span v-if="totalFocusMinutesToday >= 60">
-              {{ Math.floor(totalFocusMinutesToday / 60) }}j {{ totalFocusMinutesToday % 60 }}m
-            </span>
-            <span v-else>
-              {{ totalFocusMinutesToday }} menit
-            </span>
-          </p>
-          <span class="text-[11px] text-gray-400 mt-0.5 block">Dari sesi deep work</span>
+          <div v-else class="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              v-model="newTimerProject"
+              type="text"
+              placeholder="Contoh: Riset IDCS / Tugas Matkul..."
+              class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:border-slate-800 focus:outline-none w-full sm:w-64"
+              @keyup.enter="handleStartTimer"
+            />
+            <button
+              type="button"
+              @click="handleStartTimer"
+              :disabled="startingTimer || !newTimerProject.trim()"
+              class="rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors shrink-0 shadow-2xs cursor-pointer"
+            >
+              {{ startingTimer ? '...' : '▶️ Mulai' }}
+            </button>
+          </div>
         </div>
-
-        <!-- Metric 2: Tugas Pending & Mendesak -->
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-500">Tugas Pending</span>
-            <span class="text-base">🎯</span>
-          </div>
-          <div class="flex items-baseline gap-2 mt-1">
-            <p class="text-xl sm:text-2xl font-extrabold text-gray-900">{{ pendingTasks.length }}</p>
-            <span v-if="urgentCount > 0" class="rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-bold text-rose-700">
-              {{ urgentCount }} mendesak
-            </span>
-          </div>
-          <span class="text-[11px] text-gray-400 mt-0.5 block">{{ completedTasks.length }} tugas selesai</span>
-        </div>
-
-        <!-- Metric 3: Habit Hari Ini -->
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-500">Habit Hari Ini</span>
-            <span class="text-base">🔥</span>
-          </div>
-          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
-            {{ completedHabitsTodayCount }}/{{ habits.length }}
-          </p>
-          <span class="text-[11px] text-gray-400 mt-0.5 block">Centang via /check di Telegram</span>
-        </div>
-
-        <!-- Metric 4: Catatan & Ide -->
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-500">Catatan & Ide</span>
-            <span class="text-base">📝</span>
-          </div>
-          <p class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">
-            {{ notes.length }}
-          </p>
-          <span class="text-[11px] text-gray-400 mt-0.5 block">Tersimpan dari chat</span>
-        </div>
-      </div>
 
       <!-- Konten Utama 2 Kolom -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1390,6 +1265,15 @@ onMounted(() => {
                   ]"
                 >
                   Selesai ({{ completedTasks.length }})
+                </button>
+                <button
+                  @click="taskFilter = 'urgent'"
+                  :class="[
+                    'px-2.5 py-1 rounded-md transition-all',
+                    taskFilter === 'urgent' ? 'bg-rose-100 text-rose-800 font-bold shadow-xs' : 'text-rose-600 hover:text-rose-800'
+                  ]"
+                >
+                  🔥 Mendesak ({{ urgentCount }})
                 </button>
                 <button
                   @click="taskFilter = 'all'"
@@ -1749,13 +1633,17 @@ onMounted(() => {
       </div>
     </main>
 
-    <!-- Universal Quick Capture Modal & Floating FAB Button (Ctrl+K) -->
+    <!-- Raycast-Style Command Palette & Quick Capture (Ctrl+K) -->
     <QuickCaptureModal
       ref="quickCaptureRef"
       v-if="currentUserId"
       :user-id="currentUserId"
       :areas="areas"
       @created="handleQuickCreated"
+      @navigate-tab="(tab) => activeTab = tab"
+      @open-rag="(q) => handleOpenBrainRag(q)"
+      @open-tech-specs="handleOpenTechSpecs"
+      @open-privacy="() => handleOpenPrivacy('policy')"
     />
 
     <!-- In-App Student Feedback / Request Fitur Button & Modal -->
@@ -1782,6 +1670,14 @@ onMounted(() => {
       :user-id="currentUserId"
       :user-email="userEmail"
       :notes="notes"
+    />
+
+    <!-- Interactive Recruiter & Tech Lead Tour Modal -->
+    <RecruiterTourModal
+      ref="recruiterTourRef"
+      @navigate-tab="(tab) => activeTab = tab"
+      @open-rag="(q) => handleOpenBrainRag(q)"
+      @open-tech-specs="handleOpenTechSpecs"
     />
   </div>
 </template>
