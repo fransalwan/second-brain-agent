@@ -184,8 +184,9 @@ async def get_supervision_summary(
         last_dt = logs[0].created_at
         if last_dt.tzinfo is None:
             last_dt = last_dt.replace(tzinfo=timezone.utc)
-        now_dt = utcnow()
-        days_since_last = (now_dt.date() - last_dt.astimezone(LOCAL_TZ).date()).days
+        now_local = datetime.now(LOCAL_TZ)
+        last_local = last_dt.astimezone(LOCAL_TZ)
+        days_since_last = max(0, (now_local.date() - last_local.date()).days)
 
     return logs, days_since_last
 

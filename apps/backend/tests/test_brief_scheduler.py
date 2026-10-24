@@ -95,7 +95,7 @@ async def test_scheduler_catch_up_and_deduplication():
             id=u1_id,
             full_name="User 1",
             telegram_chat_id=111111,
-            brief_time=time(7, 0),
+            brief_time=time(0, 0),
             last_brief_date=None,
         )
         # User 2: Sudah dikirim hari ini (last_brief_date = today)
@@ -103,7 +103,7 @@ async def test_scheduler_catch_up_and_deduplication():
             id=u2_id,
             full_name="User 2",
             telegram_chat_id=222222,
-            brief_time=time(7, 0),
+            brief_time=time(0, 0),
             last_brief_date=today,
         )
         # User 3: Belum waktunya (brief_time 23:59 malam)
@@ -119,7 +119,7 @@ async def test_scheduler_catch_up_and_deduplication():
             id=u4_id,
             full_name="User 4",
             telegram_chat_id=None,
-            brief_time=time(7, 0),
+            brief_time=time(0, 0),
             last_brief_date=None,
         )
 
@@ -187,14 +187,14 @@ async def test_scheduler_error_isolation():
             id=u_fail_id,
             full_name="User Blocked",
             telegram_chat_id=999999,
-            brief_time=time(7, 0),
+            brief_time=time(0, 0),
             last_brief_date=None,
         )
         p_ok = Profile(
             id=u_ok_id,
             full_name="User Normal",
             telegram_chat_id=888888,
-            brief_time=time(7, 0),
+            brief_time=time(0, 0),
             last_brief_date=None,
         )
         session.add_all([p_fail, p_ok])

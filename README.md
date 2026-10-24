@@ -13,12 +13,15 @@
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Zero%20Tracking-10B981.svg)](apps/dashboard)
 [![Mobile First](https://img.shields.io/badge/Design-Mobile--First%20PWA-indigo.svg)](apps/dashboard)
 [![Zero Cost](https://img.shields.io/badge/Deploy-100%25%20Free%20Tier-success.svg)](netlify.toml)
+[![AI Architecture](https://img.shields.io/badge/AI%20Engine-Gemini%20ADK%20%2B%20pgvector%20RAG-7928CA.svg)](apps/backend)
+[![Go Telemetry](https://img.shields.io/badge/Concurrency-Golang%20Worker%20Engine-00ADD8.svg)](apps/telemetry-worker-go)
+[![AI Evaluation](https://img.shields.io/badge/Evaluation-Quality%20Flywheel%20%E2%89%A590%25-10B981.svg)](apps/backend/tests)
 
 > **"Lulus Skripsi & Kuliah Sukses, Tetap Sehat, dan Me-Time Tanpa Rasa Bersalah."**
 
 **Second Brain (Student Edition)** adalah platform manajemen hidup dan produktivitas mandiri (*Autonomous Life & Study Balance Hub*) berbasis web **Mobile-First** yang dirancang khusus untuk memecahkan beban mental mahasiswa: tugas menumpuk, skripsi macet, pola tidur rusak, dan *burnout*. 
 
-Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Simulator Target Nilai & IPK Semester**, **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
+Kini hadir sepenuhnya **End-to-End Standalone di Web Dashboard**, lengkap dengan **Tanya AI & Semantic Search (pgvector + RAG)**, **Concurrent Go Telemetry Engine**, **Simulator Target Nilai & IPK Semester**, **Tab Panduan Penggunaan Interaktif**, **Universal Quick Capture Bar (`Ctrl + K` / Suara)**, **Pusat Notifikasi Cerdas (In-App Notification Center)**, dan **Browser Web Push Notification** tanpa memerlukan bot pihak ketiga.
 
 🌐 **Akses Aplikasi (Gratis):**  
 👉 **[https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)**
@@ -272,6 +275,38 @@ ResNet-18 Benchmark & Batch: 64 & Akurasi: 88.2\% \\
 \end{tabular}
 \end{table}
 ```
+
+---
+
+## 🧠 Arsitektur AI & RAG Knowledge Hub (pgvector + Reciprocal Rank Fusion)
+
+Untuk mendukung riset dan pencarian cerdas catatan akademik mahasiswa tingkat magister, Second Brain dilengkapi sistem **Retrieval-Augmented Generation (RAG)** hibrida:
+
+* **PostgreSQL + pgvector (768-D Embeddings):** Menggunakan representasi vektor `text-embedding-004` dengan indeks **HNSW (Hierarchical Navigable Small World)** untuk pencarian kosinus berkecepatan sub-milidetik.
+* **Hybrid Search (Reciprocal Rank Fusion - RRF):** Menggabungkan keunggulan pencarian kata kunci eksak (*Full-Text Keyword Search*) dan kedekatan makna (*Vector Cosine Similarity*) dengan formula:
+  $$\text{RRF}(d) = \frac{w_{\text{kw}}}{60 + \text{rank}_{\text{kw}}(d)} + \frac{w_{\text{vec}}}{60 + \text{rank}_{\text{vec}}(d)}$$
+* **Grounded Academic Q&A:** Fitur **Tanya AI (RAG)** di dashboard menyajikan jawaban berbasis sitasi catatan nyata mahasiswa tanpa risiko halusinasi.
+
+---
+
+## ⚡ High-Concurrency Background Telemetry Worker (Golang Engine)
+
+Memadukan kekuatan ekosistem **Python (AI Agent)** dan **Golang (Sistem Konkurensi Tinggi)**:
+
+* **Arsitektur Polyglot:** Layanan background worker mandiri di [`apps/telemetry-worker-go`](apps/telemetry-worker-go) dibangun dengan **Go 1.22+**.
+* **Worker Pool & Goroutines:** Memproses evaluasi telemetri mahasiswa (peringatan jam malam, deteksi sleep debt 7 hari, peringatan tugas <24 jam, dan *anti-ghosting dospem*) secara non-blocking melalui antrean channel.
+* **Exponential Backoff Resilience:** Mengirim notifikasi dengan mekanisme retry eksponensial otomatis untuk kehandalan pengiriman alert.
+* **Observabilitas & Metrik:** Menyediakan endpoint `/health` dan `/metrics` untuk pemantauan throughput evaluasi dan penggunaan memori.
+
+---
+
+## 🧪 Quality Flywheel: Automated LLM Evaluation Suite
+
+Memastikan reliabilitas agen sesuai standar industri dan metodologi *Quality Flywheel*:
+
+* **Intent Classification Accuracy ($\ge 90\%$):** Dataset evaluasi 12 skenario menguji ketepatan triase kebutuhan mahasiswa (Akademik, Riset, Kesehatan, Recharge).
+* **Latency Benchmark Sub-50ms (P95):** Menjamin waktu inferensi embedding dan parsing lokal berada di bawah ambang batas responsivitas cepat.
+* **Semantic Separation Verification:** Memvalidasi kemampuan ruang embedding dalam memisahkan topik lintas domain secara matematis ($\text{sim}_{\text{domain}} > \text{sim}_{\text{cross}}$).
 
 ---
 

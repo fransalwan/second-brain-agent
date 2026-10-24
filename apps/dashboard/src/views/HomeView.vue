@@ -11,11 +11,17 @@ import QuickCaptureModal from '../components/QuickCaptureModal.vue'
 import FeedbackModal from '../components/FeedbackModal.vue'
 import GuideTab from '../components/GuideTab.vue'
 import PrivacyModal from '../components/PrivacyModal.vue'
+import BrainRagModal from '../components/BrainRagModal.vue'
 
 const SHOW_TELEGRAM_INTEGRATION = ref(false)
 
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
 const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
+const brainRagModalRef = ref<InstanceType<typeof BrainRagModal> | null>(null)
+
+function handleOpenBrainRag() {
+  brainRagModalRef.value?.openModal()
+}
 
 function handleOpenQuickCapture() {
   quickCaptureRef.value?.openModal()
@@ -830,6 +836,17 @@ onMounted(() => {
             <span>🌙 Malam: <strong class="text-gray-800">{{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</strong></span>
           </div>
 
+          <!-- Tanya AI (pgvector RAG) Button -->
+          <button
+            type="button"
+            @click="handleOpenBrainRag"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors shadow-2xs cursor-pointer"
+            title="Tanya AI & Semantic Search (pgvector)"
+          >
+            <span>🧠</span>
+            <span class="hidden sm:inline">Tanya AI (RAG)</span>
+          </button>
+
           <!-- Privacy & Data Sovereignty Center Button -->
           <button
             type="button"
@@ -1606,6 +1623,15 @@ onMounted(() => {
       ref="privacyModalRef"
       :user-id="currentUserId"
       :user-email="userEmail"
+    />
+
+    <!-- Brain RAG & Semantic Search Modal -->
+    <BrainRagModal
+      ref="brainRagModalRef"
+      v-if="currentUserId"
+      :user-id="currentUserId"
+      :user-email="userEmail"
+      :notes="notes"
     />
   </div>
 </template>

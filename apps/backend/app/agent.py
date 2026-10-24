@@ -57,6 +57,11 @@ async def save_note(content: str, tags: list[str], tool_context: ToolContext) ->
         session.add(note)
         await session.commit()
         await session.refresh(note)
+        try:
+            from .rag import index_note_embedding
+            await index_note_embedding(session, note.id, note.user_id, note.content)
+        except Exception as e:
+            print(f"[WARN] Failed to index note embedding: {e}")
     return {"status": "success", "note_id": str(note.id), "tags": note.tags}
 
 
@@ -780,6 +785,27 @@ async def get_recharge_suggestion(
 INDO_DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 
 
+
+
+async def semantic_search_notes(query: str, tool_context: ToolContext) -> dict:
+    """Melakukan pencarian semantik hibrida (vector embeddings + keyword BM25) pada catatan Second Brain."""
+    from .rag import hybrid_search_notes
+    async with SessionLocal() as session:
+        results = await hybrid_search_notes(session, _user_id(tool_context), query, top_k=5)
+    return {
+        "status": "success",
+        "count": len(results),
+        "results": results,
+    }
+
+
+async def ask_second_brain_rag(question: str, tool_context: ToolContext) -> dict:
+    """Menjawab pertanyaan berbasis RAG (Retrieval-Augmented Generation) berdasar catatan pengguna."""
+    from .rag import answer_with_second_brain
+    async with SessionLocal() as session:
+        return await answer_with_second_brain(session, _user_id(tool_context), question)
+
+
 def get_instruction(ctx: object = None) -> str:
     """Instruksi yang dihitung ulang dinamis di setiap request berdasarkan APP_TIMEZONE."""
     now_local = datetime.now(LOCAL_TZ)
@@ -862,6 +888,8 @@ root_agent = Agent(
         check_habit,
         delete_habit,
         get_recharge_suggestion,
+        semantic_search_notes,
+        ask_second_brain_rag,
     ],
 )
 

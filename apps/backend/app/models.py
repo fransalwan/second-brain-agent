@@ -375,3 +375,17 @@ class UpworkMilestone(SQLModel, table=True):
     )
 
 
+
+
+class NoteEmbedding(SQLModel, table=True):
+    __tablename__ = "note_embeddings"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    note_id: int = Field(foreign_key="notes.id", index=True)
+    user_id: UUID = Field(foreign_key="profiles.id", index=True)
+    content_chunk: str
+    embedding: Optional[List[float]] = Field(default=None, sa_column=Column(JSON))
+    model_name: str = Field(default="text-embedding-004")
+    created_at: datetime = Field(
+        default_factory=utcnow, sa_type=DateTime(timezone=True)
+    )

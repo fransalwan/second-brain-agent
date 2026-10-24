@@ -316,3 +316,81 @@ async def api_thesis_sync(
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
 
+
+# ==========================================
+# RAG & SEMANTIC SEARCH ENDPOINTS (AI ENGINE)
+# ==========================================
+class RagSearchRequest(BaseModel):
+    email: str
+    query: str
+    top_k: int = 5
+
+
+class RagAskRequest(BaseModel):
+    email: str
+    question: str
+
+
+class RagIndexRequest(BaseModel):
+    email: str
+    note_id: int | None = None
+
+
+@app.post("/api/v1/rag/search")
+async def api_rag_search(
+    payload: RagSearchRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Pencarian Hibrida Semantik (BM25 + pgvector RRF) atas catatan Second Brain."""
+    from .models import Profile
+    from .rag import hybrid_search_notes
+    prof_res = await session.execute(select(Profile).where(Profile.email == payload.email))
+    profile = prof_res.scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"User dengan email {payload.email} tidak ditemukan")
+
+    results = await hybrid_search_notes(session, profile.id, payload.query, top_k=payload.top_k)
+    return {"status": "success", "count": len(results), "query": payload.query, "results": results}
+
+
+@app.post("/api/v1/rag/ask")
+async def api_rag_ask(
+    payload: RagAskRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Menjawab pertanyaan berbasis RAG (Retrieval-Augmented Generation) berdasar konteks catatan pribadi."""
+    from .models import Profile
+    from .rag import answer_with_second_brain
+    prof_res = await session.execute(select(Profile).where(Profile.email == payload.email))
+    profile = prof_res.scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"User dengan email {payload.email} tidak ditemukan")
+
+    return await answer_with_second_brain(session, profile.id, payload.question)
+
+
+@app.post("/api/v1/rag/index")
+async def api_rag_index(
+    payload: RagIndexRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Melakukan kalkulasi dan penyimpanan embedding vektor catatan ke dalam database."""
+    from .models import Profile, Note
+    from .rag import index_note_embedding
+    prof_res = await session.execute(select(Profile).where(Profile.email == payload.email))
+    profile = prof_res.scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"User dengan email {payload.email} tidak ditemukan")
+
+    if payload.note_id:
+        note = await session.get(Note, payload.note_id)
+        if not note or note.user_id != profile.id:
+            raise HTTPException(status_code=404, detail="Catatan tidak ditemukan")
+        emb = await index_note_embedding(session, note.id, profile.id, note.content)
+        return {"status": "success", "indexed_count": 1, "note_id": note.id}
+    else:
+        notes_res = await session.execute(select(Note).where(Note.user_id == profile.id))
+        all_notes = notes_res.scalars().all()
+        for n in all_notes:
+            await index_note_embedding(session, n.id, profile.id, n.content)
+        return {"status": "success", "indexed_count": len(all_notes)}
