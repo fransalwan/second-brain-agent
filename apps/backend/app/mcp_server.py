@@ -348,6 +348,27 @@ async def get_raptor_knowledge_tree(user_id: str | None = None) -> dict[str, Any
         }
 
 
+@mcp_server.tool()
+async def analyze_visual_artifact(filename_or_query: str, user_id: str | None = None) -> dict[str, Any]:
+    """Menganalisis atau mengambil wawasan dari artefak dokumen visual (catatan tangan, grafik riset CatBoost, kurva evaluasi) melalui VLM & RAG.
+
+    Args:
+        filename_or_query: Nama berkas atau topik visual (misal: 'kurva loss CatBoost', 'catatan kuliah').
+        user_id: UUID pengguna (opsional).
+    """
+    try:
+        async with SessionLocal() as session:
+            uid = await _resolve_user_id(session, user_id)
+            from .rag import advanced_crag_search
+            return await advanced_crag_search(session, uid, f"visual multimodal {filename_or_query}", top_k=3)
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "documents": [],
+        }
+
+
 def create_mcp_sse_app():
     """Mengembalikan Starlette app untuk transport SSE berstandar MCP."""
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)

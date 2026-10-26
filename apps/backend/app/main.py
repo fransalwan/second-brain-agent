@@ -4,7 +4,7 @@ from .config import settings
 from contextlib import asynccontextmanager
 
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -482,3 +482,55 @@ async def api_rag_index(
         for n in all_notes:
             await index_note_embedding(session, n.id, profile.id, n.content)
         return {"status": "success", "indexed_count": len(all_notes)}
+
+
+@app.post("/api/v1/notes/upload-visual")
+async def api_upload_visual_note(
+    file: UploadFile = File(...),
+    email: str | None = Form(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    """Menerima berkas gambar (PNG, JPEG, WebP, PDF) untuk dianalisis oleh Gemini VLM (Vision Language Model).
+    Melakukan OCR cerdas terhadap tulisan tangan / slide, mengekstrak insight grafik riset (CatBoost/loss/F1),
+    dan otomatis mengindeksnya ke RAG pgvector + RAPTOR.
+    """
+    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/jpg", "application/pdf"]
+    content_type = file.content_type or "image/png"
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Format file '{content_type}' tidak didukung. Harap upload format gambar (PNG, JPEG, WebP) atau PDF.",
+        )
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="File kosong tidak dapat diproses.")
+
+    from .models import Profile
+    from .multimodal import process_and_save_visual_document
+    from uuid import uuid4
+
+    profile = None
+    if email:
+        prof_res = await session.execute(select(Profile).where(Profile.email == email))
+        profile = prof_res.scalars().first()
+
+    if not profile:
+        prof_res = await session.execute(select(Profile).limit(1))
+        profile = prof_res.scalars().first()
+
+    if not profile:
+        profile = Profile(id=uuid4(), email="student@ugm.ac.id", full_name="Student UGM")
+        session.add(profile)
+        await session.commit()
+        await session.refresh(profile)
+
+    result = await process_and_save_visual_document(
+        session=session,
+        user_id=profile.id,
+        file_bytes=file_bytes,
+        filename=file.filename or "visual_document.png",
+        mime_type=content_type,
+    )
+    return {"status": "success", "data": result}
+

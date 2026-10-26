@@ -34,6 +34,7 @@ async def test_mcp_tools_list():
         "add_task",
         "get_system_telemetry",
         "get_raptor_knowledge_tree",
+        "analyze_visual_artifact",
     ]
 
     for expected in expected_tools:
@@ -92,6 +93,16 @@ async def test_mcp_call_raptor_knowledge_tree():
     data = result.structured_content
     assert data is not None
     assert "clusters" in data
+
+
+@pytest.mark.asyncio
+async def test_mcp_call_analyze_visual_artifact():
+    """Validasi pemanggilan tools/call untuk 'analyze_visual_artifact'."""
+    result = await mcp_server.call_tool("analyze_visual_artifact", {"filename_or_query": "kurva loss catboost"})
+    assert not result.is_error
+    data = result.structured_content
+    assert data is not None
+    assert "documents" in data or "action" in data
 
 
 def test_mcp_sse_endpoint_exists():
