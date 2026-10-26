@@ -827,6 +827,7 @@ def adapt_mcp_tool(mcp_tool_name: str):
 get_thesis_progress_mcp = adapt_mcp_tool("get_thesis_progress")
 get_system_telemetry_mcp = adapt_mcp_tool("get_system_telemetry")
 analyze_visual_artifact_mcp = adapt_mcp_tool("analyze_visual_artifact")
+evaluate_burnout_radar_mcp = adapt_mcp_tool("evaluate_burnout_radar")
 
 
 def get_instruction(ctx: object = None) -> str:
@@ -916,6 +917,7 @@ root_agent = Agent(
         get_thesis_progress_mcp,
         get_system_telemetry_mcp,
         analyze_visual_artifact_mcp,
+        evaluate_burnout_radar_mcp,
     ],
 )
 

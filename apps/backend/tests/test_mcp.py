@@ -35,6 +35,7 @@ async def test_mcp_tools_list():
         "get_system_telemetry",
         "get_raptor_knowledge_tree",
         "analyze_visual_artifact",
+        "evaluate_burnout_radar",
     ]
 
     for expected in expected_tools:
@@ -103,6 +104,17 @@ async def test_mcp_call_analyze_visual_artifact():
     data = result.structured_content
     assert data is not None
     assert "documents" in data or "action" in data
+
+
+@pytest.mark.asyncio
+async def test_mcp_call_evaluate_burnout_radar():
+    """Validasi pemanggilan tools/call untuk 'evaluate_burnout_radar'."""
+    result = await mcp_server.call_tool("evaluate_burnout_radar", {})
+    assert not result.is_error
+    data = result.structured_content
+    assert data is not None
+    assert "burnout_alert" in data
+    assert "anomaly_score" in data
 
 
 def test_mcp_sse_endpoint_exists():

@@ -534,3 +534,34 @@ async def api_upload_visual_note(
     )
     return {"status": "success", "data": result}
 
+
+@app.get("/api/v1/ml/burnout-radar")
+async def api_burnout_radar(
+    email: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    """Mengevaluasi risiko burnout mahasiswa secara deterministik menggunakan Classical ML (Isolation Forest).
+    Jika anomali terdeteksi (score < -0.15), menghasilkan intervensi pemulihan energi otonom dari LLM.
+    """
+    from .models import Profile
+    from .ml_radar import evaluate_user_burnout_radar
+    from uuid import uuid4
+
+    profile = None
+    if email:
+        prof_res = await session.execute(select(Profile).where(Profile.email == email))
+        profile = prof_res.scalars().first()
+
+    if not profile:
+        prof_res = await session.execute(select(Profile).limit(1))
+        profile = prof_res.scalars().first()
+
+    if not profile:
+        profile = Profile(id=uuid4(), email="student@ugm.ac.id", full_name="Student UGM")
+        session.add(profile)
+        await session.commit()
+        await session.refresh(profile)
+
+    return await evaluate_user_burnout_radar(session, profile.id)
+
+

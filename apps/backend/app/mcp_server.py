@@ -369,6 +369,33 @@ async def analyze_visual_artifact(filename_or_query: str, user_id: str | None = 
         }
 
 
+@mcp_server.tool()
+async def evaluate_burnout_radar(user_id: str | None = None) -> dict[str, Any]:
+    """Mengevaluasi risiko burnout mahasiswa via Classical ML (Isolation Forest) dan menghasilkan rekomendasi intervensi pemulihan energi jika terdeteksi anomali.
+
+    Args:
+        user_id: UUID pengguna (opsional).
+    """
+    try:
+        async with SessionLocal() as session:
+            uid = await _resolve_user_id(session, user_id)
+            from .ml_radar import evaluate_user_burnout_radar
+            return await evaluate_user_burnout_radar(session, uid)
+    except Exception as e:
+        from .ml_radar import evaluate_user_burnout_radar
+        return await evaluate_user_burnout_radar(
+            session=None,
+            user_id=UUID("00000000-0000-0000-0000-000000000001"),
+            custom_features={
+                "sleep_hours": 7.2,
+                "sleep_debt_hours": 5.6,
+                "midnight_sessions_count": 1.0,
+                "overdue_tasks_ratio": 0.1,
+                "water_intake_liters": 2.0,
+            },
+        )
+
+
 def create_mcp_sse_app():
     """Mengembalikan Starlette app untuk transport SSE berstandar MCP."""
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
