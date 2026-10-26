@@ -24,6 +24,7 @@ from .ambient import (
     start_ambient_timer,
     stop_ambient_timer,
 )
+from .mcp_server import create_mcp_sse_app
 
 
 @asynccontextmanager
@@ -52,6 +53,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Standard Anthropic MCP Server (SSE Transport at /mcp/sse and /mcp/messages/)
+app.mount("/mcp", create_mcp_sse_app())
 
 
 @app.get("/")

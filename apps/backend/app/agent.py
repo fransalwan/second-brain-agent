@@ -806,6 +806,28 @@ async def ask_second_brain_rag(question: str, tool_context: ToolContext) -> dict
         return await answer_with_second_brain(session, _user_id(tool_context), question)
 
 
+def adapt_mcp_tool(mcp_tool_name: str):
+    """Adapter to wrap an internal MCP Server tool into a callable compatible with Google ADK."""
+    from .mcp_server import mcp_server
+
+    async def _adk_tool(*args, **kwargs) -> dict:
+        tool_ctx = kwargs.pop("tool_context", None)
+        if tool_ctx and hasattr(tool_ctx, "user_id") and "user_id" not in kwargs:
+            kwargs["user_id"] = str(tool_ctx.user_id)
+        res = await mcp_server.call_tool(mcp_tool_name, kwargs)
+        if res.is_error:
+            return {"status": "error", "message": str(res.content)}
+        return res.structured_content or {"status": "success", "result": str(res.content)}
+
+    _adk_tool.__name__ = mcp_tool_name
+    _adk_tool.__doc__ = f"ADK Adapter for MCP tool: {mcp_tool_name}"
+    return _adk_tool
+
+
+get_thesis_progress_mcp = adapt_mcp_tool("get_thesis_progress")
+get_system_telemetry_mcp = adapt_mcp_tool("get_system_telemetry")
+
+
 def get_instruction(ctx: object = None) -> str:
     """Instruksi yang dihitung ulang dinamis di setiap request berdasarkan APP_TIMEZONE."""
     now_local = datetime.now(LOCAL_TZ)
@@ -890,6 +912,8 @@ root_agent = Agent(
         get_recharge_suggestion,
         semantic_search_notes,
         ask_second_brain_rag,
+        get_thesis_progress_mcp,
+        get_system_telemetry_mcp,
     ],
 )
 

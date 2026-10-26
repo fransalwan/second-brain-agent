@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "second-brain-sse": {
+      "url": "http://127.0.0.1:8000/mcp/sse",
+      "transport": "sse",
+      "description": "Second Brain Autonomous Productivity & Thesis Research Agent (SSE Transport)"
+    },
+    "second-brain-stdio": {
+      "command": "python",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "${workspaceFolder}/apps/backend",
+      "env": {
+        "PYTHONPATH": "."
+      },
+      "description": "Second Brain Autonomous Productivity & Thesis Research Agent (stdio Transport for local desktop CLI)"
+    }
+  }
+}
