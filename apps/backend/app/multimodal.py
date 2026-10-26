@@ -206,3 +206,4 @@ async def process_and_save_visual_document(
         "tags": all_tags,
         "created_at": note.created_at.isoformat() if note.created_at else None,
     }
+

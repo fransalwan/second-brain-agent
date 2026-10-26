@@ -17,24 +17,49 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
     },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
+    },
   ],
 })
 
+// Safe session resolver with a strict 800ms timeout to prevent blank screen hangs on slow/offline networks
+async function getSafeSession(): Promise<any> {
+  try {
+    const sessionPromise = supabase.auth.getSession().then((res) => res?.data?.session || null)
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 800))
+    return await Promise.race([sessionPromise, timeoutPromise])
+  } catch (err) {
+    console.warn('Supabase getSession error (proceeding in fallback mode):', err)
+    return null
+  }
+}
+
 let isInitialAuthResolved = false
-const initialAuthPromise = supabase.auth.getSession().then(() => {
+let initialSession: any = null
+
+const initialAuthPromise = (async () => {
+  initialSession = await getSafeSession()
   isInitialAuthResolved = true
-})
+})()
 
 router.beforeEach(async (to) => {
   if (!isInitialAuthResolved) {
     await initialAuthPromise
   }
 
-  const isDemo = localStorage.getItem('secondbrain_demo_mode') === 'true'
+  let isDemo = false
+  try {
+    isDemo = localStorage.getItem('secondbrain_demo_mode') === 'true'
+  } catch {
+    isDemo = false
+  }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  let session = initialSession
+  if (isInitialAuthResolved && session === null && !isDemo) {
+    session = await getSafeSession()
+  }
 
   // Akses rute yang membutuhkan auth: izinkan jika ada session aktif ATAU sedang dalam mode demo
   if (to.meta.requiresAuth && !session && !isDemo) {
@@ -48,4 +73,3 @@ router.beforeEach(async (to) => {
 })
 
 export default router
-

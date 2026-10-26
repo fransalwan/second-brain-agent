@@ -193,3 +193,4 @@ async def test_api_burnout_radar_endpoint(async_session: AsyncSession):
             assert "sleep_hours" in data["features"]
     finally:
         app.dependency_overrides.clear()
+
