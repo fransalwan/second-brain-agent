@@ -99,24 +99,29 @@ async def search_notes(query: str, limit: int = 5, user_id: str | None = None) -
     async with SessionLocal() as session:
         uid = await _resolve_user_id(session, user_id)
 
-        # Coba hybrid RAG terlebih dahulu
+        # Coba Corrective RAG (CRAG) + RAPTOR + Reranker terlebih dahulu
         try:
-            from .rag import hybrid_search_notes
-            rag_results = await hybrid_search_notes(session, uid, query, top_k=limit)
-            if rag_results:
+            from .rag import advanced_crag_search
+            crag_res = await advanced_crag_search(session, uid, query, top_k=limit)
+            if crag_res.get("documents"):
                 return {
                     "query": query,
-                    "engine": "hybrid_rag_pgvector",
-                    "total_found": len(rag_results),
+                    "engine": "corrective_rag_raptor",
+                    "crag_action": crag_res["action"],
+                    "confidence": crag_res["confidence"],
+                    "total_found": len(crag_res["documents"]),
                     "notes": [
                         {
                             "id": r["note_id"],
                             "content": r["content"],
-                            "tags": r["tags"],
-                            "rrf_score": round(r["rrf_score"], 4),
+                            "tags": r.get("tags", []),
+                            "similarity": r.get("similarity", 0.0),
+                            "rerank_score": r.get("rerank_score", 0.0),
+                            "cluster_label": r.get("cluster_label", "General"),
                         }
-                        for r in rag_results
+                        for r in crag_res["documents"]
                     ],
+                    "raptor_clusters": crag_res.get("raptor_clusters", []),
                 }
         except Exception:
             pass
@@ -319,6 +324,28 @@ async def get_system_telemetry() -> dict[str, Any]:
             "status": "synced",
         },
     }
+
+
+@mcp_server.tool()
+async def get_raptor_knowledge_tree(user_id: str | None = None) -> dict[str, Any]:
+    """Mengambil representasi pohon klaster pengetahuan hierarkis (RAPTOR) dari seluruh catatan riset dan kuliah.
+
+    Args:
+        user_id: UUID pengguna (opsional).
+    """
+    from .rag import cluster_notes_raptor
+
+    try:
+        async with SessionLocal() as session:
+            uid = await _resolve_user_id(session, user_id)
+            return await cluster_notes_raptor(session, uid)
+    except Exception as e:
+        return {
+            "total_notes": 0,
+            "clusters": [],
+            "tree_depth": 0,
+            "error": str(e),
+        }
 
 
 def create_mcp_sse_app():

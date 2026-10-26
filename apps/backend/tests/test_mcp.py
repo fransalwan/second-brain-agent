@@ -1,7 +1,17 @@
 """
 Unit tests for Second Brain Model Context Protocol (MCP) Server.
-Validates tools/list, tools/call, ADK adapter, and SSE endpoint integration.
+Tests tools/list, tools/call, ADK adapter, and SSE transport integration.
 """
+
+import os
+import sys
+from pathlib import Path
+
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test_token")
+os.environ.setdefault("GOOGLE_API_KEY", "test_key")
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 from app.mcp_server import mcp_server, create_mcp_sse_app
@@ -23,6 +33,7 @@ async def test_mcp_tools_list():
         "log_habit",
         "add_task",
         "get_system_telemetry",
+        "get_raptor_knowledge_tree",
     ]
 
     for expected in expected_tools:
@@ -73,6 +84,16 @@ async def test_adk_mcp_tool_adapter():
     assert output["cluster_health"] == "healthy"
 
 
+@pytest.mark.asyncio
+async def test_mcp_call_raptor_knowledge_tree():
+    """Validasi pemanggilan tools/call untuk 'get_raptor_knowledge_tree'."""
+    result = await mcp_server.call_tool("get_raptor_knowledge_tree", {})
+    assert not result.is_error
+    data = result.structured_content
+    assert data is not None
+    assert "clusters" in data
+
+
 def test_mcp_sse_endpoint_exists():
     """Validasi bahwa endpoint /mcp ter-mount di FastAPI dan siap melayani transport SSE."""
     routes = [r.path for r in app.routes]
@@ -84,3 +105,4 @@ def test_mcp_sse_endpoint_exists():
     sub_routes = [r.path for r in sse_app.routes]
     assert "/sse" in sub_routes
     assert "/messages" in sub_routes or "/messages/" in sub_routes
+
