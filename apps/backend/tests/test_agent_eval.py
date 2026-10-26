@@ -137,3 +137,17 @@ async def test_rag_context_relevance_semantic_separation():
         f"Domain match ({sim_domain_match:.3f}) harus lebih tinggi dari cross domain ({sim_cross_domain:.3f})"
     )
 
+
+@pytest.mark.asyncio
+async def test_full_ai_evaluation_suite_run():
+    """Validasi eksekusi penuh LLM-as-a-judge Quality Flywheel terhadap golden dataset."""
+    from evals.eval_runner import run_evaluation_suite
+
+    summary = await run_evaluation_suite()
+    assert summary["total_test_cases"] >= 15
+    m = summary["metrics_summary"]
+    assert m["faithfulness"] >= 0.70
+    assert m["ood_refusal_rate"] >= 0.90
+    assert summary["composite_quality_index"] > 60.0
+
+

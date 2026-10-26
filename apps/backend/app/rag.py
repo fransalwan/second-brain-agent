@@ -581,6 +581,7 @@ async def answer_with_second_brain(
     citations = [
         {
             "note_id": item["note_id"],
+            "content": item.get("content", ""),
             "similarity": item.get("similarity", 0.0),
             "rerank_score": item.get("rerank_score", 0.0),
             "cluster_label": item.get("cluster_label", "General"),

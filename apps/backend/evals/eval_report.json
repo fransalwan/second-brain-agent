@@ -1,0 +1,354 @@
+{
+  "timestamp": "2026-10-26T13:17:31.253060+00:00",
+  "total_test_cases": 20,
+  "in_distribution_cases": 17,
+  "out_of_distribution_cases": 3,
+  "duration_seconds": 0.7,
+  "composite_quality_index": 81.8,
+  "metrics_summary": {
+    "faithfulness": 0.85,
+    "answer_relevancy": 0.785,
+    "context_recall": 0.86,
+    "context_precision": 0.782,
+    "ood_refusal_rate": 1.0
+  },
+  "domain_breakdown": {
+    "ai_research": {
+      "avg_faithfulness": 0.88,
+      "avg_relevancy": 0.795,
+      "case_count": 5
+    },
+    "thesis_manuscript": {
+      "avg_faithfulness": 0.775,
+      "avg_relevancy": 0.737,
+      "case_count": 4
+    },
+    "circadian_health": {
+      "avg_faithfulness": 0.8,
+      "avg_relevancy": 0.767,
+      "case_count": 3
+    },
+    "coursework": {
+      "avg_faithfulness": 1.0,
+      "avg_relevancy": 0.7,
+      "case_count": 2
+    },
+    "architecture": {
+      "avg_faithfulness": 0.7,
+      "avg_relevancy": 0.675,
+      "case_count": 2
+    },
+    "out_of_distribution": {
+      "avg_faithfulness": 1.0,
+      "avg_relevancy": 1.0,
+      "case_count": 3
+    },
+    "rag_pipeline": {
+      "avg_faithfulness": 0.7,
+      "avg_relevancy": 0.733,
+      "case_count": 1
+    }
+  },
+  "detailed_results": [
+    {
+      "id": "eval-001",
+      "domain": "ai_research",
+      "question": "Berapa nilai macro F1-score model CatBoost pada validasi akhir dan bagaimana konvergensi loss-nya?",
+      "is_ood": false,
+      "crag_action": "CORRECT",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [CORRECT] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.956,
+        "context_recall": 1.0,
+        "context_precision": 0.833
+      },
+      "latency_ms": 80.44
+    },
+    {
+      "id": "eval-002",
+      "domain": "ai_research",
+      "question": "Apa parameter terbaik yang digunakan untuk tuning hyperparameter model gradient boosting CatBoost?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hyperparameter tuning CatBoost menetapkan learning_rate=0.03, depth=6, l2_leaf_reg=3.0, dan iterations=500 dengan early stopping pada iterasi 350.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 33.64
+    },
+    {
+      "id": "eval-003",
+      "domain": "ai_research",
+      "question": "Bagaimana perbandingan metrik recall dan precision CatBoost terhadap baseline?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Dibandingkan baseline Random Forest (F1: 0.814), CatBoost unggul dengan precision 0.901 dan recall 0.884 pada deteksi kelas minoritas.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.971,
+        "context_recall": 1.0,
+        "context_precision": 0.833
+      },
+      "latency_ms": 30.01
+    },
+    {
+      "id": "eval-004",
+      "domain": "ai_research",
+      "question": "Tabel mana yang digunakan untuk melaporkan perbandingan hasil eksperimen di naskah skripsi?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 1.0,
+        "context_precision": 0.917
+      },
+      "latency_ms": 27.58
+    },
+    {
+      "id": "eval-005",
+      "domain": "thesis_manuscript",
+      "question": "Apa saja revisi yang diminta oleh dosen pembimbing pada Bab 3 metodologi?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 22.95
+    },
+    {
+      "id": "eval-006",
+      "domain": "thesis_manuscript",
+      "question": "Berapa progres penulisan Bab 4 hasil dan pembahasan skripsi saat ini?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'Research Cluster #1':\n\n📌 Temuan Relevan (Rerank Top-1): Status Bab 4: Hasil dan Pembahasan berada pada progres 40% dengan status revisi penyempurnaan grafik konvergensi dan tabel perbandingan.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 31.99
+    },
+    {
+      "id": "eval-007",
+      "domain": "thesis_manuscript",
+      "question": "Apakah Bab 1 pendahuluan sudah mendapatkan persetujuan (ACC) dari dosen pembimbing?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 21.13
+    },
+    {
+      "id": "eval-008",
+      "domain": "thesis_manuscript",
+      "question": "Kapan target jadwal ujian seminar hasil tesis direncanakan?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.65
+      },
+      "latency_ms": 28.21
+    },
+    {
+      "id": "eval-009",
+      "domain": "circadian_health",
+      "question": "Bagaimana aturan Bedtime Guardian untuk membatasi aktivitas begadang mahasiswa?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 19.98
+    },
+    {
+      "id": "eval-010",
+      "domain": "circadian_health",
+      "question": "Berapa target konsumsi air harian yang dipantau oleh Second Brain?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'Circadian Vitality & Health':\n\n📌 Temuan Relevan (Rerank Top-1): Target hidrasi harian adalah 8 gelas (setara dengan 2000 ml atau 2.0 liter) air putih untuk menjaga performa kognitif otak.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 29.36
+    },
+    {
+      "id": "eval-011",
+      "domain": "circadian_health",
+      "question": "Bagaimana cara kerja radar burnout ML dalam mendeteksi kelelahan ekstrem?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 22.14
+    },
+    {
+      "id": "eval-012",
+      "domain": "coursework",
+      "question": "Apa topik deliverable tugas besar Sistem Cerdas yang harus diselesaikan minggu ini?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'Research Cluster #4':\n\n📌 Temuan Relevan (Rerank Top-1): Milestone tubes Sistem Cerdas minggu ini: implementasi pipeline preprocessing fitur tabular dan pelaporan baseline Random Forest.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 28.79
+    },
+    {
+      "id": "eval-013",
+      "domain": "coursework",
+      "question": "Berapa bobot nilai ujian tengah semester (UTS) mata kuliah Teori Komputasi?",
+      "is_ood": false,
+      "crag_action": "CORRECT",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [CORRECT] pada klaster 'Research Cluster #4':\n\n📌 Temuan Relevan (Rerank Top-1): Komponen penilaian Teori Komputasi: UTS 30%, UAS 35%, Tugas & Kuis 20%, dan Kehadiran/Aktivitas 15%.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.7,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 20.58
+    },
+    {
+      "id": "eval-014",
+      "domain": "architecture",
+      "question": "Bagaimana pembagian arsitektur polyglot antara Go Worker dan FastAPI di Second Brain?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.65,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 22.24
+    },
+    {
+      "id": "eval-015",
+      "domain": "architecture",
+      "question": "Apa fungsi protokol Model Context Protocol (MCP) dalam Second Brain Agent?",
+      "is_ood": false,
+      "crag_action": "AMBIGUOUS",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [AMBIGUOUS (Query diperkaya via HyDE)] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.7,
+        "context_recall": 1.0,
+        "context_precision": 0.7
+      },
+      "latency_ms": 27.26
+    },
+    {
+      "id": "eval-016",
+      "domain": "out_of_distribution",
+      "question": "Bagaimana cara membuat sup jamur tiram khas Perancis dengan bumbu truffle?",
+      "is_ood": true,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 20.64
+    },
+    {
+      "id": "eval-017",
+      "domain": "out_of_distribution",
+      "question": "Berapa prediksi harga saham Tesla (TSLA) untuk penutupan bursa Wall Street besok sore?",
+      "is_ood": true,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 20.36
+    },
+    {
+      "id": "eval-018",
+      "domain": "out_of_distribution",
+      "question": "Jelaskan rumus gravitasi kuantum loop pada singularitas black hole bermuatan Kerr-Newman!",
+      "is_ood": true,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "context_recall": 1.0,
+        "context_precision": 1.0
+      },
+      "latency_ms": 20.65
+    },
+    {
+      "id": "eval-019",
+      "domain": "ai_research",
+      "question": "Mengapa CatBoost dipilih untuk dataset tabular tesis dibandingkan model Deep Learning murni?",
+      "is_ood": false,
+      "crag_action": "CORRECT",
+      "generated_answer": "Berdasarkan analisis Corrective RAG [CORRECT] pada klaster 'CatBoost & AI Evaluation Lab':\n\n📌 Temuan Relevan (Rerank Top-1): Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.\n\nTeridentifikasi 4 sumber rujukan terverifikasi dalam repositori Second Brain kamu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.7,
+        "context_recall": 1.0,
+        "context_precision": 0.7
+      },
+      "latency_ms": 21.61
+    },
+    {
+      "id": "eval-020",
+      "domain": "rag_pipeline",
+      "question": "Bagaimana algoritma RAPTOR mengorganisasi pengetahuan dalam Second Brain?",
+      "is_ood": false,
+      "crag_action": "INCORRECT",
+      "generated_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution). Untuk mencegah halusinasi, silakan tambahkan dokumen atau catatan terkait terlebih dahulu.",
+      "metrics": {
+        "faithfulness": 0.7,
+        "answer_relevancy": 0.733,
+        "context_recall": 0.6,
+        "context_precision": 0.5
+      },
+      "latency_ms": 20.78
+    }
+  ]
+}

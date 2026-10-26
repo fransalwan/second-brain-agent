@@ -1,0 +1,162 @@
+[
+  {
+    "id": "eval-001",
+    "domain": "ai_research",
+    "question": "Berapa nilai macro F1-score model CatBoost pada validasi akhir dan bagaimana konvergensi loss-nya?",
+    "ground_truth_context": "Hasil evaluasi model CatBoost menunjukkan konvergensi loss optimal pada iterasi 350 dengan train loss 0.041. Macro F1-score mencapai puncak 0.892 pada kedalaman pohon (depth) 6 dan learning rate 0.03.",
+    "expected_answer": "Model CatBoost mencapai macro F1-score sebesar 0.892 pada iterasi ke-350 dengan kedalaman pohon 6, dan training loss stabil di 0.041 tanpa gejala overfitting signifikan.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-002",
+    "domain": "ai_research",
+    "question": "Apa parameter terbaik yang digunakan untuk tuning hyperparameter model gradient boosting CatBoost?",
+    "ground_truth_context": "Hyperparameter tuning CatBoost menetapkan learning_rate=0.03, depth=6, l2_leaf_reg=3.0, dan iterations=500 dengan early stopping pada iterasi 350.",
+    "expected_answer": "Parameter terbaik mencakup learning rate 0.03, tree depth 6, L2 leaf regularization 3.0, dan batas iterasi 500 dengan early stopping.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-003",
+    "domain": "ai_research",
+    "question": "Bagaimana perbandingan metrik recall dan precision CatBoost terhadap baseline?",
+    "ground_truth_context": "Dibandingkan baseline Random Forest (F1: 0.814), CatBoost unggul dengan precision 0.901 dan recall 0.884 pada deteksi kelas minoritas.",
+    "expected_answer": "CatBoost mencatatkan precision 0.901 dan recall 0.884, mengungguli baseline Random Forest yang hanya mencapai F1-score 0.814.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-004",
+    "domain": "ai_research",
+    "question": "Tabel mana yang digunakan untuk melaporkan perbandingan hasil eksperimen di naskah skripsi?",
+    "ground_truth_context": "Komparasi metrik evaluasi model (F1, Precision, Recall, AUC-ROC) dicantumkan pada Tabel 4.3 format IEEE standar Bab 4.",
+    "expected_answer": "Hasil komparasi evaluasi dilaporkan pada Tabel 4.3 mengikuti panduan format publikasi IEEE standar pada Bab 4.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-005",
+    "domain": "thesis_manuscript",
+    "question": "Apa saja revisi yang diminta oleh dosen pembimbing pada Bab 3 metodologi?",
+    "ground_truth_context": "Catatan bimbingan dospem: perjelas alur diagram alir CRISP-DM, lengkapi formula normalisasi min-max, dan tambahkan skema 5-fold cross-validation.",
+    "expected_answer": "Dosen pembimbing meminta penambahan diagram alir metodologi CRISP-DM, penjelasan rumus min-max scaling, serta skema validasi 5-fold cross-validation.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-006",
+    "domain": "thesis_manuscript",
+    "question": "Berapa progres penulisan Bab 4 hasil dan pembahasan skripsi saat ini?",
+    "ground_truth_context": "Status Bab 4: Hasil dan Pembahasan berada pada progres 40% dengan status revisi penyempurnaan grafik konvergensi dan tabel perbandingan.",
+    "expected_answer": "Bab 4 saat ini berstatus revisi dengan progres sebesar 40%, sedang dalam tahap melengkapi visualisasi kurva loss dan tabel komparasi.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-007",
+    "domain": "thesis_manuscript",
+    "question": "Apakah Bab 1 pendahuluan sudah mendapatkan persetujuan (ACC) dari dosen pembimbing?",
+    "ground_truth_context": "Bab 1 Pendahuluan telah selesai 100% dan mendapatkan status ACC / Selesai pada sesi bimbingan tanggal 12 September 2026.",
+    "expected_answer": "Ya, Bab 1 Pendahuluan telah selesai 100% dan berstatus resmi ACC dari dosen pembimbing.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-008",
+    "domain": "thesis_manuscript",
+    "question": "Kapan target jadwal ujian seminar hasil tesis direncanakan?",
+    "ground_truth_context": "Target pengajuan draf seminar hasil dijadwalkan akhir November 2026 setelah seluruh bab 1 sampai 5 selesai direviu dospem.",
+    "expected_answer": "Target seminar hasil direncanakan pada akhir November 2026 setelah naskah lengkap lima bab disetujui.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-009",
+    "domain": "circadian_health",
+    "question": "Bagaimana aturan Bedtime Guardian untuk membatasi aktivitas begadang mahasiswa?",
+    "ground_truth_context": "Bedtime Guardian mengaktifkan cutoff warning pukul 23:00 WIB. Sesi timer yang dimulai lewat jam 23:00 otomatis memicu notifikasi peringatan istirahat.",
+    "expected_answer": "Bedtime Guardian menerapkan batas jam malam pukul 23:00 WIB dan mengirimkan peringatan kesehatan jika timer deep work dinyalakan melebihi waktu tersebut.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-010",
+    "domain": "circadian_health",
+    "question": "Berapa target konsumsi air harian yang dipantau oleh Second Brain?",
+    "ground_truth_context": "Target hidrasi harian adalah 8 gelas (setara dengan 2000 ml atau 2.0 liter) air putih untuk menjaga performa kognitif otak.",
+    "expected_answer": "Target hidrasi adalah 8 gelas atau sekitar 2.0 liter air per hari.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-011",
+    "domain": "circadian_health",
+    "question": "Bagaimana cara kerja radar burnout ML dalam mendeteksi kelelahan ekstrem?",
+    "ground_truth_context": "Model unsupervised Isolation Forest mengevaluasi jam tidur, sleep debt, sesi kerja lewat tengah malam, rasio tugas overdue, dan hidrasi. Jika skor < -0.15, agen memicu intervensi pemulihan otonom.",
+    "expected_answer": "Radar menggunakan algoritma Isolation Forest 5-dimensi. Jika skor anomali < -0.15, agen otomatis mengaktifkan intervensi empati untuk pemulihan energi.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-012",
+    "domain": "coursework",
+    "question": "Apa topik deliverable tugas besar Sistem Cerdas yang harus diselesaikan minggu ini?",
+    "ground_truth_context": "Milestone tubes Sistem Cerdas minggu ini: implementasi pipeline preprocessing fitur tabular dan pelaporan baseline Random Forest.",
+    "expected_answer": "Deliverable minggu ini berfokus pada pipeline preprocessing data tabular serta pengujian baseline model Random Forest.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-013",
+    "domain": "coursework",
+    "question": "Berapa bobot nilai ujian tengah semester (UTS) mata kuliah Teori Komputasi?",
+    "ground_truth_context": "Komponen penilaian Teori Komputasi: UTS 30%, UAS 35%, Tugas & Kuis 20%, dan Kehadiran/Aktivitas 15%.",
+    "expected_answer": "Bobot penilaian untuk UTS Teori Komputasi adalah sebesar 30%.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-014",
+    "domain": "architecture",
+    "question": "Bagaimana pembagian arsitektur polyglot antara Go Worker dan FastAPI di Second Brain?",
+    "ground_truth_context": "Go Worker (port 8085) menangani telemetri real-time, evaluasi sleep debt 14 hari, dan heartbeat. FastAPI (port 8000) menjalankan Google ADK agent, CRAG, pgvector, dan MCP server.",
+    "expected_answer": "Go Worker (:8085) bertugas mengelola telemetri real-time dan audit sirkadian, sementara FastAPI (:8000) mengorkestrasi kecerdasan ADK, RAG pgvector, dan MCP server.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-015",
+    "domain": "architecture",
+    "question": "Apa fungsi protokol Model Context Protocol (MCP) dalam Second Brain Agent?",
+    "ground_truth_context": "MCP Server mengekspos tools internal (catatan, progres tesis, habit, telemetri, VLM) melalui transport SSE agar klien eksternal seperti Claude Desktop atau Cursor dapat terhubung langsung.",
+    "expected_answer": "MCP mengekspos kapabilitas Second Brain sebagai server berbasis SSE standar Anthropic, sehingga tool dapat dikonsumsi oleh Claude Desktop, IDE Cursor, maupun model eksternal.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-016",
+    "domain": "out_of_distribution",
+    "question": "Bagaimana cara membuat sup jamur tiram khas Perancis dengan bumbu truffle?",
+    "ground_truth_context": "",
+    "expected_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution).",
+    "is_ood": true
+  },
+  {
+    "id": "eval-017",
+    "domain": "out_of_distribution",
+    "question": "Berapa prediksi harga saham Tesla (TSLA) untuk penutupan bursa Wall Street besok sore?",
+    "ground_truth_context": "",
+    "expected_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution).",
+    "is_ood": true
+  },
+  {
+    "id": "eval-018",
+    "domain": "out_of_distribution",
+    "question": "Jelaskan rumus gravitasi kuantum loop pada singularitas black hole bermuatan Kerr-Newman!",
+    "ground_truth_context": "",
+    "expected_answer": "Saya telah memeriksa catatan dan repositori riset Second Brain kamu, namun topik ini berada di luar data yang tersimpan (Out of Distribution).",
+    "is_ood": true
+  },
+  {
+    "id": "eval-019",
+    "domain": "ai_research",
+    "question": "Mengapa CatBoost dipilih untuk dataset tabular tesis dibandingkan model Deep Learning murni?",
+    "ground_truth_context": "CatBoost dipilih karena penanganan fitur kategorikal otomatis melalui Ordered Target Statistics, resistensi terhadap target leakage, dan kinerja superior pada data tabular skala menengah.",
+    "expected_answer": "CatBoost unggul pada data tabular karena Ordered Target Encoding otomatis tanpa risiko target leakage dan efisiensi komputasi yang lebih tinggi dibanding neural networks murni.",
+    "is_ood": false
+  },
+  {
+    "id": "eval-020",
+    "domain": "rag_pipeline",
+    "question": "Bagaimana algoritma RAPTOR mengorganisasi pengetahuan dalam Second Brain?",
+    "ground_truth_context": "RAPTOR melakukan hierarchical clustering menggunakan Gaussian Mixture Models (GMM) pada ruang vektor 768-D untuk membentuk representasi pohon berjenjang dan ringkasan tingkat tinggi per cluster.",
+    "expected_answer": "RAPTOR memanfaatkan GMM clustering pada vektor 768-D untuk mengelompokkan catatan secara semantik ke dalam struktur pohon bertingkat dan merangkum topik-topik riset utama.",
+    "is_ood": false
+  }
+]

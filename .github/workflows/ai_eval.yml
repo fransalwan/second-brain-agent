@@ -1,0 +1,60 @@
+name: AI Evaluation Suite & Quality Flywheel CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/ai_eval.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "apps/backend/**"
+
+jobs:
+  evaluate-rag-and-agent:
+    name: LLM-as-a-Judge Evaluation & System Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi sqlmodel uvicorn httpx python-dotenv pydantic-settings
+          pip install scikit-learn numpy mcp sse-starlette aiosqlite pytest pytest-asyncio
+          pip install google-genai google-adk python-telegram-bot[job-queue] tzdata
+
+      - name: Run Pytest Unit & Integration Test Suite
+        env:
+          PYTHONPATH: apps/backend
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+          TELEGRAM_BOT_TOKEN: ci_test_token
+          GOOGLE_API_KEY: mock_ci_key
+        run: |
+          python -m pytest apps/backend/tests -v
+
+      - name: Run Automated AI Quality Flywheel (Evals)
+        env:
+          PYTHONPATH: apps/backend
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+          TELEGRAM_BOT_TOKEN: ci_test_token
+          GOOGLE_API_KEY: mock_ci_key
+        run: |
+          python apps/backend/evals/eval_runner.py
+
+      - name: Upload AI Evaluation Benchmark Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-eval-benchmark-report
+          path: |
+            apps/backend/evals/eval_report.json
+            apps/backend/evals/EVAL_REPORT.md
