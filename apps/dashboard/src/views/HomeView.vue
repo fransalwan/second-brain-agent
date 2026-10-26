@@ -2,8 +2,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
-import HealthTab from '../components/HealthTab.vue'
-import CourseworkTab from '../components/CourseworkTab.vue'
+import RagExplorerTab from '../components/RagExplorerTab.vue'
+import MultimodalVlmTab from '../components/MultimodalVlmTab.vue'
+import MlRadarTab from '../components/MlRadarTab.vue'
+import AiEvalsTab from '../components/AiEvalsTab.vue'
 import ResearchTab from '../components/ResearchTab.vue'
 import AgentOpsTab from '../components/AgentOpsTab.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
@@ -132,7 +134,19 @@ const userEmail = ref<string | null>(null)
 const currentUserId = ref<string>('')
 const profile = ref<ProfileItem | null>(null)
 const profileLoaded = ref(false)
-const activeTab = ref<'overview' | 'health' | 'coursework' | 'research' | 'agentops'>('overview')
+const activeTab = ref<'overview' | 'rag' | 'vlm' | 'mlradar' | 'evals' | 'research' | 'agentops'>('overview')
+
+function handleTabNavigate(tab: string) {
+  if (tab === 'health') {
+    activeTab.value = 'mlradar'
+  } else if (tab === 'coursework') {
+    activeTab.value = 'research'
+  } else if (['overview', 'rag', 'vlm', 'mlradar', 'evals', 'research', 'agentops'].includes(tab)) {
+    activeTab.value = tab as any
+  } else {
+    activeTab.value = 'overview'
+  }
+}
 
 const areas = ref<AreaItem[]>([])
 const tasks = ref<TaskItem[]>([])
@@ -944,7 +958,7 @@ onMounted(() => {
             :habit-logs="habitLogs"
             :profile="profile"
             :active-timer="activeTimer"
-            @navigate-tab="(tab) => activeTab = tab"
+            @navigate-tab="handleTabNavigate"
           />
 
           <!-- Tech Specs Modal Button -->
@@ -993,79 +1007,113 @@ onMounted(() => {
 
       <!-- Navigation Tabs Bar -->
       <div class="border-t border-gray-100 bg-white">
-        <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 sm:px-6 overflow-x-auto no-scrollbar">
+        <div class="mx-auto flex max-w-6xl items-center gap-1.5 px-4 sm:px-6 overflow-x-auto no-scrollbar py-1">
           <button
             @click="activeTab = 'overview'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'overview' ? 'border-slate-900 text-slate-900 bg-slate-50/50 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🏠</span>
-            <span>Ringkasan</span>
+            <span>Ringkasan AI</span>
           </button>
 
           <button
-            @click="activeTab = 'health'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'health' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            @click="activeTab = 'rag'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'rag' ? 'border-purple-600 text-purple-700 bg-purple-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
-            <span>🩺</span>
-            <span>Vitalitas</span>
-            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">#1</span>
+            <span>🧠</span>
+            <span>Next-Gen RAG</span>
+            <span class="rounded-full bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">CRAG</span>
           </button>
 
           <button
-            @click="activeTab = 'coursework'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'coursework' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            @click="activeTab = 'vlm'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'vlm' ? 'border-blue-600 text-blue-700 bg-blue-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
-            <span>🎓</span>
-            <span>Kuliah</span>
-            <span class="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800">#2</span>
+            <span>📸</span>
+            <span>Multimodal VLM</span>
+            <span class="rounded-full bg-blue-100 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">Gemini 2.0</span>
+          </button>
+
+          <button
+            @click="activeTab = 'mlradar'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'mlradar' ? 'border-cyan-600 text-cyan-700 bg-cyan-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+          >
+            <span>📊</span>
+            <span>ML Radar</span>
+            <span class="rounded-full bg-cyan-100 px-1.5 py-0.2 text-[9px] font-bold text-cyan-800">&lt;2ms</span>
+          </button>
+
+          <button
+            @click="activeTab = 'evals'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'evals' ? 'border-emerald-600 text-emerald-700 bg-emerald-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+          >
+            <span>🏆</span>
+            <span>AI Quality Flywheel</span>
+            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800">81.8</span>
           </button>
 
           <button
             @click="activeTab = 'research'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'research' ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'research' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🔬</span>
-            <span>Riset</span>
-            <span class="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-semibold text-purple-800">#3</span>
+            <span>Riset &amp; Thesis</span>
+            <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">CatBoost</span>
           </button>
 
           <button
             @click="activeTab = 'agentops'"
-            class="flex items-center gap-1.5 border-b-2 py-2.5 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'agentops' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            :class="activeTab === 'agentops' ? 'border-slate-800 text-slate-900 bg-slate-100 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
-            <span>⚡</span>
-            <span>Agent Ops</span>
-            <span class="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-800">Telemetry</span>
+            <span>🔌</span>
+            <span>MCP &amp; Telemetry</span>
+            <span class="rounded-full bg-slate-200 px-1.5 py-0.2 text-[9px] font-bold text-slate-800">SSE</span>
           </button>
         </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
-      <!-- Tab 1: Vitalitas & Kesehatan -->
-      <HealthTab
-        v-if="activeTab === 'health' && currentUserId"
+      <!-- Tab 1: Next-Gen RAG & RAPTOR -->
+      <RagExplorerTab
+        v-if="activeTab === 'rag' && currentUserId"
         :user-id="currentUserId"
       />
 
-      <!-- Tab 2: Kuliah -->
-      <CourseworkTab
-        v-else-if="activeTab === 'coursework' && currentUserId"
+      <!-- Tab 2: Multimodal VLM -->
+      <MultimodalVlmTab
+        v-else-if="activeTab === 'vlm' && currentUserId"
+        :user-id="currentUserId"
+        :user-email="userEmail"
+      />
+
+      <!-- Tab 3: Classical ML Radar -->
+      <MlRadarTab
+        v-else-if="activeTab === 'mlradar' && currentUserId"
+        :user-id="currentUserId"
+        :user-email="userEmail"
+      />
+
+      <!-- Tab 4: AI Quality Flywheel -->
+      <AiEvalsTab
+        v-else-if="activeTab === 'evals' && currentUserId"
         :user-id="currentUserId"
       />
 
-      <!-- Tab 3: Riset -->
+      <!-- Tab 5: Riset & Eksperimen AI -->
       <ResearchTab
         v-else-if="activeTab === 'research' && currentUserId"
         :user-id="currentUserId"
       />
 
-      <!-- Tab 4: Agent Ops & Telemetry -->
+      <!-- Tab 6: MCP Server & Telemetry -->
       <AgentOpsTab
         v-else-if="activeTab === 'agentops' && currentUserId"
         :user-id="currentUserId"
@@ -1101,7 +1149,7 @@ onMounted(() => {
               :time-logs="timeLogs"
               :habits="habits"
               :habit-logs="habitLogs"
-              @navigate-tab="(tab) => activeTab = tab"
+              @navigate-tab="handleTabNavigate"
               @toggle-task="handleToggleTask"
             />
           </div>
@@ -1166,6 +1214,98 @@ onMounted(() => {
               <span>⚡</span>
               <span>Buka Agent Ops &amp; Audit Logs</span>
               <span>➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- AI Engineer Portfolio Showcase Grid (Fase 1 s.d. 5) -->
+        <div class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="text-base">🚀</span>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Core AI Engineering Showcase (Fase 1 s.d. 5)
+              </h3>
+            </div>
+            <span class="rounded-md bg-purple-50 border border-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5">
+              Production AI Stack
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
+            <!-- 1. MCP -->
+            <button
+              type="button"
+              @click="activeTab = 'agentops'"
+              class="text-left rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/60 to-white p-3.5 hover:border-indigo-300 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-base group-hover:scale-110 transition-transform">🔌</span>
+                <span class="rounded bg-indigo-100 text-indigo-900 text-[9px] font-bold px-1.5 py-0.2">FASE 1</span>
+              </div>
+              <h4 class="mt-2 text-xs font-bold text-slate-900">Model Context Protocol</h4>
+              <p class="mt-1 text-[11px] text-slate-500 line-clamp-2">Anthropic standard SSE /mcp/sse &amp; 8 tool schemas untuk Claude Desktop/Cursor.</p>
+              <span class="mt-2.5 inline-block text-[10px] font-bold text-indigo-600 group-hover:underline">Buka MCP Ops ➔</span>
+            </button>
+
+            <!-- 2. CRAG + RAPTOR -->
+            <button
+              type="button"
+              @click="activeTab = 'rag'"
+              class="text-left rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/60 to-white p-3.5 hover:border-purple-300 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-base group-hover:scale-110 transition-transform">🧠</span>
+                <span class="rounded bg-purple-100 text-purple-900 text-[9px] font-bold px-1.5 py-0.2">FASE 2</span>
+              </div>
+              <h4 class="mt-2 text-xs font-bold text-slate-900">Next-Gen CRAG &amp; RAPTOR</h4>
+              <p class="mt-1 text-[11px] text-slate-500 line-clamp-2">GMM Hierarchical Clustering, HyDE Query Expansion &amp; Cross-Encoder Reranker.</p>
+              <span class="mt-2.5 inline-block text-[10px] font-bold text-purple-600 group-hover:underline">Uji CRAG ➔</span>
+            </button>
+
+            <!-- 3. VLM -->
+            <button
+              type="button"
+              @click="activeTab = 'vlm'"
+              class="text-left rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/60 to-white p-3.5 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-base group-hover:scale-110 transition-transform">📸</span>
+                <span class="rounded bg-blue-100 text-blue-900 text-[9px] font-bold px-1.5 py-0.2">FASE 3</span>
+              </div>
+              <h4 class="mt-2 text-xs font-bold text-slate-900">Multimodal VLM Intelligence</h4>
+              <p class="mt-1 text-[11px] text-slate-500 line-clamp-2">Gemini 2.0 Flash VLM: Kurva konvergensi CatBoost &amp; OCR catatan tulisan tangan.</p>
+              <span class="mt-2.5 inline-block text-[10px] font-bold text-blue-600 group-hover:underline">Analisis Visual ➔</span>
+            </button>
+
+            <!-- 4. ML Radar -->
+            <button
+              type="button"
+              @click="activeTab = 'mlradar'"
+              class="text-left rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/60 to-white p-3.5 hover:border-cyan-300 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-base group-hover:scale-110 transition-transform">📊</span>
+                <span class="rounded bg-cyan-100 text-cyan-900 text-[9px] font-bold px-1.5 py-0.2">FASE 4</span>
+              </div>
+              <h4 class="mt-2 text-xs font-bold text-slate-900">Classical ML Anomaly Radar</h4>
+              <p class="mt-1 text-[11px] text-slate-500 line-clamp-2">Isolation Forest &lt; 2ms deterministik + intervensi empatik otonom LLM bersyarat.</p>
+              <span class="mt-2.5 inline-block text-[10px] font-bold text-cyan-700 group-hover:underline">Simulasi Radar ➔</span>
+            </button>
+
+            <!-- 5. Evals -->
+            <button
+              type="button"
+              @click="activeTab = 'evals'"
+              class="text-left rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white p-3.5 hover:border-emerald-300 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-base group-hover:scale-110 transition-transform">🏆</span>
+                <span class="rounded bg-emerald-100 text-emerald-900 text-[9px] font-bold px-1.5 py-0.2">FASE 5</span>
+              </div>
+              <h4 class="mt-2 text-xs font-bold text-slate-900">AI Quality Flywheel (Evals)</h4>
+              <p class="mt-1 text-[11px] text-slate-500 line-clamp-2">81.8/100 Composite Score, 20 Golden Dataset, dan CI/CD regression testing.</p>
+              <span class="mt-2.5 inline-block text-[10px] font-bold text-emerald-700 group-hover:underline">Inspeksi Evals ➔</span>
             </button>
           </div>
         </div>
@@ -1626,7 +1766,7 @@ onMounted(() => {
       :user-id="currentUserId"
       :areas="areas"
       @created="handleQuickCreated"
-      @navigate-tab="(tab) => activeTab = tab"
+      @navigate-tab="handleTabNavigate"
       @open-rag="(q) => handleOpenBrainRag(q)"
       @open-tech-specs="handleOpenTechSpecs"
       @open-privacy="() => handleOpenPrivacy('policy')"
@@ -1654,7 +1794,7 @@ onMounted(() => {
     <!-- Interactive Recruiter & Tech Lead Tour Modal -->
     <RecruiterTourModal
       ref="recruiterTourRef"
-      @navigate-tab="(tab) => activeTab = tab"
+      @navigate-tab="handleTabNavigate"
       @open-rag="(q) => handleOpenBrainRag(q)"
       @open-tech-specs="handleOpenTechSpecs"
     />

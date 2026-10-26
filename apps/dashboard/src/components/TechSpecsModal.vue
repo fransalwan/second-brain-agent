@@ -19,7 +19,7 @@ defineExpose({
 
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/70 backdrop-blur-xs">
-    <div class="w-full max-w-3xl bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 text-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="w-full max-w-4xl bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 text-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
       <!-- Header -->
       <div class="px-6 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -28,12 +28,12 @@ defineExpose({
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-sm sm:text-base font-bold text-white">Engineering Architecture &amp; Tech Specs</h2>
+              <h2 class="text-sm sm:text-base font-bold text-white">Engineering Architecture &amp; AI Tech Specs</h2>
               <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-300 border border-indigo-500/30">
-                Production-Ready
+                Production-Ready AI Agent
               </span>
             </div>
-            <p class="text-xs text-slate-400">Arsitektur Polyglot Berkinerja Tinggi: AI Agent + Concurrency Worker</p>
+            <p class="text-xs text-slate-400">Arsitektur Polyglot Berkinerja Tinggi: AI Engine + Classical ML + MCP Standard + Concurrency Worker</p>
           </div>
         </div>
         <button
@@ -46,80 +46,109 @@ defineExpose({
 
       <!-- Content Body -->
       <div class="p-6 space-y-6 overflow-y-auto">
-        <!-- 4 Core Pillars Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <!-- 1. AI & RAG -->
-          <div class="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2">
+        <!-- 6 Core Pillars Grid (Fase 1 - 5) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <!-- 1. MCP Standard -->
+          <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                <span>🧠</span> AI &amp; Agentic RAG
+              <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <span>🔌</span> Model Context Protocol (MCP)
               </span>
-              <span class="text-[10px] bg-purple-500/20 text-purple-200 px-2 py-0.5 rounded-full font-mono">Python 3.11</span>
+              <span class="text-[10px] bg-indigo-500/20 text-indigo-200 px-2 py-0.5 rounded-full font-mono">Anthropic Std</span>
             </div>
             <p class="text-xs text-slate-300 leading-relaxed">
-              Google ADK + Gemini 1.5 dengan multi-step tool-calling. Dilengkapi <strong class="text-white">Hybrid Semantic Search (pgvector)</strong> menggunakan formula <strong class="text-purple-300">Reciprocal Rank Fusion (RRF)</strong> untuk menggabungkan BM25 dan Cosine Distance.
+              FastAPI SSE transport (<code class="text-indigo-300">/mcp/sse</code>) mengekspos 8 tool schemas berstandar industri sehingga Claude Desktop dan IDE Cursor dapat memanggil Second Brain via JSON-RPC 2.0.
             </p>
           </div>
 
-          <!-- 2. Go Telemetry -->
+          <!-- 2. Next-Gen RAG & RAPTOR -->
+          <div class="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <span>🧠</span> Next-Gen RAG &amp; RAPTOR
+              </span>
+              <span class="text-[10px] bg-purple-500/20 text-purple-200 px-2 py-0.5 rounded-full font-mono">CRAG + GMM</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Gaussian Mixture Models (GMM) untuk hierarchical clustering dokumen. Dilengkapi Corrective RAG (CRAG), ekspansi kueri hipotesis (HyDE), dan Cross-Encoder reranking untuk presisi pengambilan tertinggi.
+            </p>
+          </div>
+
+          <!-- 3. Multimodal Document VLM -->
+          <div class="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-300 flex items-center gap-1.5">
+                <span>📸</span> Multimodal Document AI
+              </span>
+              <span class="text-[10px] bg-blue-500/20 text-blue-200 px-2 py-0.5 rounded-full font-mono">Gemini 2.0 VLM</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Mengekstrak kurva loss CatBoost, catatan kuliah tulisan tangan, dan diagram arsitektur menjadi structured JSON dan otomatis mengindeksnya ke vektor pgvector 768-D.
+            </p>
+          </div>
+
+          <!-- 4. Classical ML Hybrid -->
+          <div class="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                <span>📊</span> Classical ML Hybrid Radar
+              </span>
+              <span class="text-[10px] bg-cyan-500/20 text-cyan-200 px-2 py-0.5 rounded-full font-mono">&lt; 2ms Deterministic</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Isolation Forest (scikit-learn) mendeteksi anomali sirkadian secara deterministik dalam &lt; 2ms tanpa membakar token LLM, hanya memanggil agen intervensi empatik saat skor &lt; -0.15.
+            </p>
+          </div>
+
+          <!-- 5. AI Quality Flywheel -->
+          <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                <span>🏆</span> AI Quality Flywheel (Evals)
+              </span>
+              <span class="text-[10px] bg-emerald-500/20 text-emerald-200 px-2 py-0.5 rounded-full font-mono">81.8 / 100</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Evaluasi LLM-as-a-Judge otomatis terhadap 20 Golden Dataset uji akademik pada metrik RAG Triad: Context Recall (86.0%), Faithfulness (85.0%), dan OOD Refusal (100%) via GitHub Actions CI/CD.
+            </p>
+          </div>
+
+          <!-- 6. Go Telemetry Engine -->
           <div class="p-4 rounded-2xl bg-sky-950/30 border border-sky-500/30 space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-                <span>🐹</span> High-Concurrency Telemetry
+                <span>🐹</span> Go Concurrency Telemetry
               </span>
               <span class="text-[10px] bg-sky-500/20 text-sky-200 px-2 py-0.5 rounded-full font-mono">Golang 1.22+</span>
             </div>
             <p class="text-xs text-slate-300 leading-relaxed">
-              Daemon mandiri berbasis <strong class="text-white">Goroutines &amp; Channel Worker Pool</strong> dengan <strong class="text-sky-300">Exponential Backoff Retry</strong> untuk mengevaluasi jam malam, radar risiko burnout, dan bimbingan dospem secara non-blocking.
-            </p>
-          </div>
-
-          <!-- 3. Database & Security -->
-          <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                <span>🔒</span> Database &amp; Multi-Tenancy
-              </span>
-              <span class="text-[10px] bg-emerald-500/20 text-emerald-200 px-2 py-0.5 rounded-full font-mono">PostgreSQL + RLS</span>
-            </div>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Supabase PostgreSQL dengan <strong class="text-white">Row-Level Security (RLS)</strong> ketat per-user. Indeks <strong class="text-emerald-300">HNSW (Hierarchical Navigable Small World)</strong> pada vektor 768 dimensi untuk query sub-milidetik.
-            </p>
-          </div>
-
-          <!-- 4. Quality Flywheel -->
-          <div class="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                <span>🧪</span> Quality Flywheel (Eval Suite)
-              </span>
-              <span class="text-[10px] bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded-full font-mono">Automated CI</span>
-            </div>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Test suite otomatis menguji <strong class="text-white">Akurasi Intent Classification &ge; 90%</strong> pada 12 skenario, ketepatan parsing waktu/deadline, dan latensi inferensi <strong class="text-amber-300">P95 &lt; 50ms</strong>.
+              Daemon mandiri berbasis Goroutines &amp; Channel Worker Pool pada port :8085 dengan exponential backoff retry untuk evaluasi non-blocking terhadap batas waktu tidur dan SLA bimbingan.
             </p>
           </div>
         </div>
 
-        <!-- Architecture Flow Diagram (ASCII / Box Model) -->
+        <!-- Architecture Flow Diagram -->
         <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 font-mono text-[11px]">
-          <span class="text-slate-400 font-bold uppercase tracking-wider block">Flow Arsitektur Sistem:</span>
+          <span class="text-slate-400 font-bold uppercase tracking-wider block">Target System Architecture:</span>
           <div class="bg-slate-900/90 p-3 rounded-xl text-slate-300 leading-relaxed overflow-x-auto no-scrollbar">
-[Client: Vue 3 PWA] ──► [Ctrl+K Quick Capture / Tanya AI RAG]
-        │                     │
-        ▼                     ▼
-[Golang Telemetry Worker]  [Python FastAPI + Google ADK]
-(Goroutine Worker Pool)    (Hybrid Search: BM25 + Vector)
-        │                     │
-        ▼                     ▼
-  [Web Push / Alert]       [Supabase PostgreSQL + pgvector + RLS]
+[Client: Vue 3 / External Claude Desktop] ──► [Anthropic MCP Server SSE :8000/mcp/sse]
+                    │                                             │
+                    ▼                                             ▼
+       [Go Telemetry Worker :8085]                 [Google ADK Agent Orchestrator]
+       (Goroutines Pool &lt; 2.5ms)                    (CRAG + HyDE Query Expansion)
+                    │                                             │
+                    ▼                                             ▼
+        [Isolation Forest ML Radar]                [RAPTOR GMM Cluster Tree + Reranker]
+                    │                                             │
+                    ▼                                             ▼
+        [Circadian Alert / Webhook]               [PostgreSQL + pgvector HNSW 768-D]
           </div>
         </div>
       </div>
 
       <!-- Footer -->
       <div class="px-6 py-3.5 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-        <span>Kandidat: Frans Alwan Purba (M.Cs in AI Student, UGM)</span>
+        <span>Kandidat: Frans Alwan Purba (M.Cs in AI Student, Universitas Gadjah Mada)</span>
         <button
           @click="closeModal"
           class="rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 font-bold transition-colors cursor-pointer"
@@ -130,4 +159,3 @@ defineExpose({
     </div>
   </div>
 </template>
-

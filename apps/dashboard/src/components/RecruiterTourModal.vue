@@ -2,14 +2,14 @@
 import { ref } from 'vue'
 
 const emit = defineEmits<{
-  (e: 'navigate-tab', tab: 'overview' | 'health' | 'coursework' | 'research' | 'agentops'): void
+  (e: 'navigate-tab', tab: string): void
   (e: 'open-rag', query?: string): void
   (e: 'open-tech-specs'): void
 }>()
 
 const isOpen = ref(false)
 const currentStep = ref(1)
-const totalSteps = 4
+const totalSteps = 5
 
 function openTour() {
   currentStep.value = 1
@@ -59,7 +59,7 @@ defineExpose({
           </span>
           <div>
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">
-              Recruiter &amp; Tech Lead Tour (60 Detik)
+              AI Engineer Portfolio Tour (60 Detik)
             </h3>
             <span class="text-[11px] text-slate-500">Langkah {{ currentStep }} dari {{ totalSteps }}</span>
           </div>
@@ -88,24 +88,24 @@ defineExpose({
         </div>
       </div>
 
-      <!-- STEP 1: Polyglot Distributed Architecture -->
+      <!-- STEP 1: Anthropic MCP Standard & Polyglot Go Engine -->
       <div v-if="currentStep === 1" class="space-y-4">
         <div class="flex items-center gap-3">
-          <div class="h-12 w-12 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-800 flex items-center justify-center text-2xl font-bold shrink-0">
-            ⚡
+          <div class="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 flex items-center justify-center text-2xl font-bold shrink-0">
+            🔌
           </div>
           <div>
-            <h4 class="text-base font-bold text-slate-900">1. Arsitektur Polyglot (Go + Python)</h4>
-            <p class="text-xs text-slate-500">Menggabungkan konkurensi tinggi Golang dengan kepintaran AI Python.</p>
+            <h4 class="text-base font-bold text-slate-900">1. Anthropic Model Context Protocol (MCP)</h4>
+            <p class="text-xs text-slate-500">Standar industri ekosistem tool AI terbuka &amp; konkurensi Golang.</p>
           </div>
         </div>
 
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
           <p>
-            • <strong>Golang Worker Engine (:8085):</strong> Worker pool mandiri dengan Goroutines untuk mengevaluasi peringatan jam malam, deteksi sleep debt 7 hari, dan monitoring SLA bimbingan tesis (>14 hari) secara non-blocking.
+            • <strong>MCP Server SSE Endpoint (<code>/mcp/sse</code>):</strong> Mengekspos 8 tool schemas berstandar industri sehingga Claude Desktop dan IDE Cursor dapat langsung memanggil kapabilitas Second Brain kita via JSON-RPC 2.0.
           </p>
           <p>
-            • <strong>FastAPI Backend (:8000):</strong> Mengelola orkestrasi model AI Google Gemini, webhook GitHub, dan perutean domain akademik.
+            • <strong>Go Concurrency Telemetry (:8085):</strong> Worker pool mandiri dengan Goroutines untuk komputasi sirkadian deterministik &lt; 2ms tanpa membebani Python runner.
           </p>
         </div>
 
@@ -113,48 +113,48 @@ defineExpose({
           <button
             type="button"
             @click="emit('navigate-tab', 'agentops'); closeTour();"
-            class="rounded-xl border border-cyan-300 bg-cyan-50 px-3.5 py-2 text-xs font-bold text-cyan-900 hover:bg-cyan-100 transition-colors cursor-pointer"
+            class="rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition-colors cursor-pointer"
           >
-            Buka Tab Agent Ops ↗
+            Buka Tab MCP &amp; Telemetry ↗
           </button>
           <button
             type="button"
             @click="nextStep"
             class="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-black transition-colors cursor-pointer shadow-xs"
           >
-            Lanjut: Hybrid RAG ➔
+            Lanjut: Next-Gen RAG ➔
           </button>
         </div>
       </div>
 
-      <!-- STEP 2: Hybrid Vector RAG (pgvector 768-D) -->
+      <!-- STEP 2: Next-Gen RAG (CRAG + RAPTOR Tree) -->
       <div v-else-if="currentStep === 2" class="space-y-4">
         <div class="flex items-center gap-3">
           <div class="h-12 w-12 rounded-2xl bg-purple-50 border border-purple-200 text-purple-800 flex items-center justify-center text-2xl font-bold shrink-0">
             🧠
           </div>
           <div>
-            <h4 class="text-base font-bold text-slate-900">2. Hybrid Vector RAG (pgvector 768-D)</h4>
-            <p class="text-xs text-slate-500">Pencarian semantik catatan riset bebas halusinasi berbasis bukti empiris.</p>
+            <h4 class="text-base font-bold text-slate-900">2. Next-Gen RAG &amp; RAPTOR Tree</h4>
+            <p class="text-xs text-slate-500">Corrective RAG, GMM Hierarchical Clustering, &amp; Cross-Encoder.</p>
           </div>
         </div>
 
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
           <p>
-            • <strong>PostgreSQL + pgvector:</strong> Indeks <em>Hierarchical Navigable Small World (HNSW)</em> dengan representasi vektor 768 dimensi untuk latensi pencarian kosinus &lt; 15ms.
+            • <strong>RAPTOR Hierarchical Summaries:</strong> Dokumen dikelompokkan dengan Gaussian Mixture Models (GMM) dan dirangkum secara rekursif menjadi pohon pengetahuan tingkat tinggi.
           </p>
           <p>
-            • <strong>Reciprocal Rank Fusion (RRF):</strong> Formula fusi pencarian eksak kata kunci dan kemiripan semantik untuk presisi sitasi tertinggi.
+            • <strong>Self-Correction (CRAG) &amp; HyDE:</strong> Jika confidence tinggi (>0.75) langsung diteruskan; jika ambigu (0.4-0.75) memicu ekspansi kueri hipotesis (HyDE); jika &lt;0.4 menolak halusinasi (OOD Refusal 100%).
           </p>
         </div>
 
         <div class="flex items-center justify-between pt-1">
           <button
             type="button"
-            @click="emit('open-rag', 'apa itu Reciprocal Rank Fusion'); closeTour();"
+            @click="emit('navigate-tab', 'rag'); closeTour();"
             class="rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-colors cursor-pointer"
           >
-            Coba Tanya AI (RAG) ↗
+            Uji Coba Tab Next-Gen RAG ↗
           </button>
           <div class="flex gap-2">
             <button
@@ -169,40 +169,88 @@ defineExpose({
               @click="nextStep"
               class="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-black transition-colors cursor-pointer shadow-xs"
             >
-              Lanjut: Git Pipeline ➔
+              Lanjut: VLM &amp; ML Radar ➔
             </button>
           </div>
         </div>
       </div>
 
-      <!-- STEP 3: Academic Git Pipeline & LaTeX Engine -->
+      <!-- STEP 3: Multimodal VLM & Classical ML Radar -->
       <div v-else-if="currentStep === 3" class="space-y-4">
         <div class="flex items-center gap-3">
-          <div class="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 flex items-center justify-center text-2xl font-bold shrink-0">
-            🔬
+          <div class="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-center text-2xl font-bold shrink-0">
+            📸
           </div>
           <div>
-            <h4 class="text-base font-bold text-slate-900">3. Git Pipeline &amp; LaTeX Exporter</h4>
-            <p class="text-xs text-slate-500">Integrasi dua arah dengan repositori skripsi dan tugas kuliah.</p>
+            <h4 class="text-base font-bold text-slate-900">3. Multimodal VLM &amp; Classical ML Hybrid</h4>
+            <p class="text-xs text-slate-500">Gemini 2.0 Flash VLM dipadukan dengan Isolation Forest &lt; 2ms.</p>
           </div>
         </div>
 
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
           <p>
-            • <strong>3 Repositori Terintegrasi:</strong> <code>materi-kuliah</code> (auto-done task), <code>thesis-manuscripts</code> (Bab 1–5 &amp; bimbingan), dan <code>thesis-experiments</code> (metrik model AI).
+            • <strong>Multimodal Document AI:</strong> Mengekstrak kurva loss CatBoost, catatan kuliah tulisan tangan, dan diagram arsitektur menjadi JSON terstruktur dan otomatis diindeks ke pgvector 768-D.
           </p>
           <p>
-            • <strong>Generator Tabel LaTeX IEEE 1-Klik:</strong> Ekspor metrik akurasi, F1, dan loss langsung ke format tabel Overleaf untuk Bab 4 naskah skripsi.
+            • <strong>Classical ML Anomaly Radar:</strong> Menghitung anomali burnout secara instan (&lt; 2ms, zero token cost) dan hanya memicu intervensi empatik otonom LLM ketika skor &lt; -0.15.
           </p>
         </div>
 
         <div class="flex items-center justify-between pt-1">
           <button
             type="button"
-            @click="emit('navigate-tab', 'research'); closeTour();"
-            class="rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100 transition-colors cursor-pointer"
+            @click="emit('navigate-tab', 'mlradar'); closeTour();"
+            class="rounded-xl border border-blue-300 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-900 hover:bg-blue-100 transition-colors cursor-pointer"
           >
-            Buka Tab Riset ↗
+            Buka Tab ML Radar ↗
+          </button>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              @click="prevStep"
+              class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              Kembali
+            </button>
+            <button
+              type="button"
+              @click="nextStep"
+              class="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-black transition-colors cursor-pointer shadow-xs"
+            >
+              Lanjut: Evals &amp; CI/CD ➔
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: AI Quality Flywheel & Production Evals -->
+      <div v-else-if="currentStep === 4" class="space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center text-2xl font-bold shrink-0">
+            🏆
+          </div>
+          <div>
+            <h4 class="text-base font-bold text-slate-900">4. AI Quality Flywheel &amp; LLM Judge</h4>
+            <p class="text-xs text-slate-500">Skor Kualitas Komposit 81.8/100 &amp; Golden Dataset CI/CD Gate.</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
+          <p>
+            • <strong>Metrik RAG Triad Terukur:</strong> Context Recall 86.0%, Faithfulness (Groundedness) 85.0%, Answer Relevancy 78.5%, dan OOD Refusal 100%.
+          </p>
+          <p>
+            • <strong>Automated GitHub Actions:</strong> Setiap commit ke repository diuji secara ketat via <code>.github/workflows/ai_eval.yml</code> untuk mencegah regresi akurasi sebelum deployment.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            @click="emit('navigate-tab', 'evals'); closeTour();"
+            class="rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
+          >
+            Inspeksi Golden Dataset ↗
           </button>
           <div class="flex gap-2">
             <button
@@ -223,28 +271,30 @@ defineExpose({
         </div>
       </div>
 
-      <!-- STEP 4: Frans Alwan Purba Profile & Contact -->
-      <div v-else-if="currentStep === 4" class="space-y-4">
+      <!-- STEP 5: Frans Alwan Purba Profile & Contact -->
+      <div v-else-if="currentStep === 5" class="space-y-4">
         <div class="flex items-center gap-3">
-          <div class="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center text-2xl font-bold shrink-0">
+          <div class="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-2xl font-bold shrink-0 shadow-xs">
             👨‍💻
           </div>
           <div>
             <h4 class="text-base font-bold text-slate-900">Frans Alwan Purba</h4>
-            <p class="text-xs text-slate-500">Software Engineer (Golang &amp; Vue.js) • Magister Ilmu Komputer UGM (AI)</p>
+            <p class="text-xs text-slate-500">AI Engineer &amp; Distributed Systems • Magister Ilmu Komputer UGM</p>
           </div>
         </div>
 
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs text-slate-700 leading-relaxed">
           <p>
-            Memiliki pengalaman 1.5+ tahun dalam rekayasa backend performa tinggi (Golang, PostgreSQL, Docker) serta modern frontend (Vue 3, TypeScript, Pinia, Tailwind CSS).
+            Berfokus pada arsitektur agen AI produksi (Google ADK, Anthropic MCP, Advanced RAG/CRAG, VLM), hybrid Machine Learning (Isolation Forest, CatBoost), serta backend berkecepatan tinggi (Golang, FastAPI, PostgreSQL pgvector).
           </p>
           <div class="pt-2 flex flex-wrap gap-1.5 font-medium">
-            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Golang</span>
-            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Python</span>
-            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Vue 3 / TypeScript</span>
-            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">PostgreSQL / pgvector</span>
-            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Docker</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">AI Engineering</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Anthropic MCP</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Google ADK</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Golang 1.22</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Python / FastAPI</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">pgvector HNSW</span>
+            <span class="rounded bg-slate-200/80 px-2 py-0.5 text-[10px] text-slate-800">Vue 3 / Vite</span>
           </div>
         </div>
 
@@ -277,4 +327,3 @@ defineExpose({
     </div>
   </div>
 </template>
-

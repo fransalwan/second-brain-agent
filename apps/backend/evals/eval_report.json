@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-10-26T13:17:31.253060+00:00",
+  "timestamp": "2026-10-26T14:00:14.864802+00:00",
   "total_test_cases": 20,
   "in_distribution_cases": 17,
   "out_of_distribution_cases": 3,
-  "duration_seconds": 0.7,
+  "duration_seconds": 0.72,
   "composite_quality_index": 81.8,
   "metrics_summary": {
     "faithfulness": 0.85,
@@ -63,7 +63,7 @@
         "context_recall": 1.0,
         "context_precision": 0.833
       },
-      "latency_ms": 80.44
+      "latency_ms": 78.67
     },
     {
       "id": "eval-002",
@@ -78,7 +78,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 33.64
+      "latency_ms": 30.59
     },
     {
       "id": "eval-003",
@@ -93,7 +93,7 @@
         "context_recall": 1.0,
         "context_precision": 0.833
       },
-      "latency_ms": 30.01
+      "latency_ms": 28.79
     },
     {
       "id": "eval-004",
@@ -108,7 +108,7 @@
         "context_recall": 1.0,
         "context_precision": 0.917
       },
-      "latency_ms": 27.58
+      "latency_ms": 33.14
     },
     {
       "id": "eval-005",
@@ -123,7 +123,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 22.95
+      "latency_ms": 21.82
     },
     {
       "id": "eval-006",
@@ -138,7 +138,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 31.99
+      "latency_ms": 28.6
     },
     {
       "id": "eval-007",
@@ -153,7 +153,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 21.13
+      "latency_ms": 21.67
     },
     {
       "id": "eval-008",
@@ -168,7 +168,7 @@
         "context_recall": 0.6,
         "context_precision": 0.65
       },
-      "latency_ms": 28.21
+      "latency_ms": 30.66
     },
     {
       "id": "eval-009",
@@ -183,7 +183,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 19.98
+      "latency_ms": 22.72
     },
     {
       "id": "eval-010",
@@ -198,7 +198,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 29.36
+      "latency_ms": 28.45
     },
     {
       "id": "eval-011",
@@ -213,7 +213,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 22.14
+      "latency_ms": 20.83
     },
     {
       "id": "eval-012",
@@ -228,7 +228,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 28.79
+      "latency_ms": 31.08
     },
     {
       "id": "eval-013",
@@ -243,7 +243,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 20.58
+      "latency_ms": 22.27
     },
     {
       "id": "eval-014",
@@ -258,7 +258,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 22.24
+      "latency_ms": 22.05
     },
     {
       "id": "eval-015",
@@ -273,7 +273,7 @@
         "context_recall": 1.0,
         "context_precision": 0.7
       },
-      "latency_ms": 27.26
+      "latency_ms": 28.79
     },
     {
       "id": "eval-016",
@@ -288,7 +288,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 20.64
+      "latency_ms": 24.72
     },
     {
       "id": "eval-017",
@@ -303,7 +303,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 20.36
+      "latency_ms": 22.12
     },
     {
       "id": "eval-018",
@@ -318,7 +318,7 @@
         "context_recall": 1.0,
         "context_precision": 1.0
       },
-      "latency_ms": 20.65
+      "latency_ms": 24.59
     },
     {
       "id": "eval-019",
@@ -333,7 +333,7 @@
         "context_recall": 1.0,
         "context_precision": 0.7
       },
-      "latency_ms": 21.61
+      "latency_ms": 24.38
     },
     {
       "id": "eval-020",
@@ -348,7 +348,7 @@
         "context_recall": 0.6,
         "context_precision": 0.5
       },
-      "latency_ms": 20.78
+      "latency_ms": 25.52
     }
   ]
 }
