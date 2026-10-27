@@ -20,3 +20,4 @@ Kami memisahkan (*decoupling*) siklus hidup RAPTOR menjadi dua tahapan independe
 ## Konsekuensi & Evaluasi
 * **Latensi Kueri Terjaga:** Penelusuran hierarkis pohon pengetahuan selesai dalam waktu **$< 20\text{ms}$**.
 * **Makro vs Mikro Konteks:** Memungkinkan agen menjawab pertanyaan abstrak tingkat tinggi (*"Apa peta jalan riset tesis ini?"*) sekaligus pertanyaan detail teknis (*"Berapa learning rate model CatBoost?"*) dengan presisi tinggi.
+

@@ -15,6 +15,7 @@ import PrivacyModal from '../components/PrivacyModal.vue'
 import BrainRagModal from '../components/BrainRagModal.vue'
 import TechSpecsModal from '../components/TechSpecsModal.vue'
 import RecruiterTourModal from '../components/RecruiterTourModal.vue'
+import CommandPaletteModal from '../components/CommandPaletteModal.vue'
 
 const router = useRouter()
 const quickCaptureRef = ref<InstanceType<typeof QuickCaptureModal> | null>(null)
@@ -23,6 +24,7 @@ const brainRagModalRef = ref<InstanceType<typeof BrainRagModal> | null>(null)
 const techSpecsModalRef = ref<InstanceType<typeof TechSpecsModal> | null>(null)
 const recruiterTourRef = ref<InstanceType<typeof RecruiterTourModal> | null>(null)
 const isDemoMode = ref(false)
+const showCommandPalette = ref(false)
 
 function handleOpenRecruiterTour() {
   recruiterTourRef.value?.openTour()
@@ -885,12 +887,21 @@ watch(notes, () => {
   }
 })
 
+function handleGlobalKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    showCommandPalette.value = !showCommandPalette.value
+  }
+}
+
 onUnmounted(() => {
   stopSimulation()
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 onMounted(() => {
   fetchData()
+  window.addEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -931,9 +942,9 @@ onMounted(() => {
         <!-- Center Omnibar Pill (Raycast / Linear style) -->
         <button
           type="button"
-          @click="handleOpenQuickCapture"
+          @click="showCommandPalette = true"
           class="hidden md:flex items-center gap-2 h-8.5 px-3 rounded-lg border border-slate-200/90 bg-slate-50/80 hover:bg-slate-100 hover:border-slate-300 text-slate-400 hover:text-slate-600 transition-all text-xs cursor-pointer shadow-2xs group"
-          title="Buka Command Palette & Quick Capture (Ctrl+K)"
+          title="Buka Command Palette & Quick Command (Ctrl+K)"
         >
           <span class="text-slate-400 group-hover:text-indigo-600 transition-colors">🔍</span>
           <span class="text-slate-600 font-medium">Quick Command & RAG...</span>
@@ -1797,6 +1808,74 @@ onMounted(() => {
       @navigate-tab="handleTabNavigate"
       @open-rag="(q) => handleOpenBrainRag(q)"
       @open-tech-specs="handleOpenTechSpecs"
+    />
+
+    <!-- Sticky Recruiter Quick Cockpit (Entry-Level 1-Click Interactive Showcase) -->
+    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-950/90 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl px-3.5 py-2 shadow-2xl flex items-center gap-2.5 text-xs max-w-[95vw] overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-black text-purple-300 text-[11px] uppercase tracking-wider hidden sm:inline">⚡ Recruiter Cockpit:</span>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          @click="handleTabNavigate('evals')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'evals' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          🛡️ OOD Guardrail
+        </button>
+        <button
+          type="button"
+          @click="handleTabNavigate('research')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'research' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          🔬 Tesis S2 (IDCS)
+        </button>
+        <button
+          type="button"
+          @click="handleTabNavigate('mlradar')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'mlradar' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          📊 Radar &lt;2ms
+        </button>
+        <button
+          type="button"
+          @click="handleTabNavigate('vlm')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'vlm' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          📸 VLM Gemini 2.0
+        </button>
+        <button
+          type="button"
+          @click="handleTabNavigate('agentops')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'agentops' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          🔌 MCP SSE
+        </button>
+      </div>
+      <button
+        type="button"
+        @click="showCommandPalette = true"
+        class="ml-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white px-2 py-1 text-[10px] font-mono shrink-0 cursor-pointer border border-slate-700"
+        title="Buka Command Palette (Ctrl+K)"
+      >
+        Ctrl+K
+      </button>
+    </div>
+
+    <!-- Global Command Palette Modal (Raycast / Linear style) -->
+    <CommandPaletteModal
+      :is-open="showCommandPalette"
+      @close="showCommandPalette = false"
+      @navigate-tab="handleTabNavigate"
+      @open-tech-specs="handleOpenTechSpecs"
+      @open-brain-rag="() => handleOpenBrainRag()"
+      @open-quick-capture="handleOpenQuickCapture"
     />
   </div>
 </template>

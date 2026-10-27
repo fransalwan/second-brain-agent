@@ -32,3 +32,4 @@ Vektor input kontinu $\mathbf{x} \in \mathbb{R}^5$:
 * **RAM Footprint:** $< 1.2\text{ MB}$ saat model dimuat.
 * **Token Cost:** **\$0.00** pada operasi rutin harian.
 * **Throughput:** $> 2.500$ evaluasi per detik pada single CPU core.
+

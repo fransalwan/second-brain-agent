@@ -39,3 +39,4 @@ flowchart TD
 ## Konsekuensi & Evaluasi
 * **Hasil Pengujian CI/CD:** OOD Refusal Rate mencapai **100.0% (1.000)** pada Golden Dataset.
 * **Faithfulness Index:** Mencapai **85.0%**, melampaui batas minimum industri (80.0%).
+

@@ -44,3 +44,4 @@
 ## ⚠️ Batasan & Kondisi Kegagalan (Limitations)
 1. **Skenario Rasio Ekstrem ($> 98/2$):** Pada rasio di atas 98:1, kelangkaan data minoritas (sparsity) mulai mendominasi variansi explainer, sehingga membutuhkan paradigma lanjutan (*density-aware cost weighting*).
 2. **Domain Spesifik:** Matriks biaya disimulasikan berdasarkan parameter kredit komersial standar; adaptasi ke domain medis atau deteksi fraud memerlukan kalibrasi ulang matriks biaya instance-dependent.
+

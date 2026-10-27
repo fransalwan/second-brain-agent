@@ -147,10 +147,42 @@ Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
 | **Ringkasan AI** | 🏠 `Executive` | Bento Grid 2.0 dengan AI Showcase Grid (Fase 1–5), live status klaster Go :8085 + FastAPI :8000 + pgvector, dan controller sesi deep work. |
 | **Next-Gen RAG** | 🧠 `CRAG` | Interactive CRAG tester (preset query CatBoost, HNSW, HyDE kafein, & OOD martabak), RAPTOR GMM cluster tree, dan Cross-Encoder table. |
 | **Multimodal VLM** | 📸 `Gemini 2.0` | Dropzone gambar & 3 preset 1-klik untuk kurva loss CatBoost, catatan kuliah tulisan tangan, dan diagram arsitektur multi-agent. |
-| **ML Radar** | 📊 `<2ms` | 5 slider interaktif fitur sirkadian, gauge skor anomali real-time (-1.0 s.d. +1.0), batas kritis -0.150, dan kartu intervensi empatik otonom LLM. |
-| **AI Quality Flywheel** | 🏆 `81.8 Score` | 5 kartu metrik benchmark RAG Triad dan tabel interaktif 20 kasus uji Golden Dataset dengan drawer inspeksi prompt, ground truth, dan kritik juri LLM. |
-| **Riset & Tesis** | 🔬 `IDCS XAI` | Arsitektur 3 Tahap Tesis S2 UGM (Noise Floor, Dual-Arm Regularisasi & Cost-Shuffle), No-Lose Decision Matrix, logbook bimbingan dospem, dan **generator tabel LaTeX IEEE 1-klik**. |
+| **ML Radar** | 📊 `<2ms` | 5 slider fitur sirkadian, **SVG Radial Gauge interaktif beranimasi pegas**, batas kritis -0.150, dan kartu intervensi otonom LLM. |
+| **AI Quality Flywheel** | 🏆 `81.8 Score` | 5 metrik benchmark RAG Triad, **Live Spot-Check (1.2 Detik)**, dan drawer **AI Execution Trace Latency Waterfall** (Embedding -> HNSW -> Rerank -> LLM). |
+| **Riset & Tesis** | 🔬 `IDCS XAI` | Arsitektur 3 Tahap Tesis S2 UGM, **Simulator Permutasi Cepat (B=50, 140ms)**, No-Lose Decision Matrix, log bimbingan dospem, dan ekspor LaTeX IEEE. |
 | **MCP & Telemetry** | 🔌 `SSE Std` | Katalog 8 skema tool MCP, live JSON-RPC 2.0 simulator, audit logs worker Go, dan pipeline webhook 3 repositori akademik. |
+
+---
+
+## ⚡ UI/UX 3.0: Ergonomi Developer & Recruiter Cockpit
+
+Aplikasi mengadopsi standar pengalaman pengguna (*developer ergonomics*) setara produk modern seperti **Linear, Raycast, dan Vercel**:
+
+* **⌨️ Global Command Palette (`Ctrl + K` / `Cmd + K`):**
+  * Akses cepat tanpa mouse ke seluruh fungsi platform: uji guardrail OOD, uji riset CatBoost, buka metodologi tesis S2, kalkulasi anomali sirkadian, hingga draft pesan WhatsApp ke dosen pembimbing.
+* **🚀 Sticky Recruiter Cockpit (Bilah Pintas Mengambang):**
+  * Pinned pill bar di bagian bawah layar yang memungkinkan interviewer menguji 5 skenario utama dalam 1-klik (`🛡️ OOD Guardrail`, `🔬 IDCS Tesis S2`, `📊 Radar <2ms`, `📸 VLM Gemini 2.0`, `🔌 MCP SSE`).
+* **⏱️ AI Execution Trace & Latency Waterfall:**
+  * Transparansi total pada setiap evaluasi: rincian latensi Embedding ($38\text{ms}$) $\rightarrow$ HNSW Search ($12\text{ms}$) $\rightarrow$ Cross-Encoder ($44\text{ms}$) $\rightarrow$ LLM Synthesis ($820\text{ms}$), serta akuntansi konsumsi token dan estimasi biaya per kueri.
+* **🎯 SVG Radial Gauge Beranimasi:**
+  * Visualisasi jarum analog dinamis pada Radar Sirkadian yang bertransisi halus saat slider parameter digeser.
+
+---
+
+## 📚 Dokumentasi Arsitektur & Transparansi Ilmiah (`docs/`)
+
+Untuk membuktikan kedewasaan rekayasa perangkat lunak, sistem dilengkapi dokumentasi berstandar industri:
+
+* **📁 Architectural Decision Records ([`docs/ADR/`](docs/ADR/)):**
+  * [`ADR-001`](docs/ADR/ADR-001-why-mcp-over-custom-api.md): Standardisasi Anthropic Model Context Protocol (MCP SSE) untuk interoperabilitas multi-agent terbuka.
+  * [`ADR-002`](docs/ADR/ADR-002-isolation-forest-vs-deep-learning-radar.md): Pemilihan Classical Unsupervised ML (Isolation Forest sub-2ms) dibanding LLM prompting rutin (menghemat $> 99.8\%$ biaya token).
+  * [`ADR-003`](docs/ADR/ADR-003-crag-three-tier-confidence-routing.md): Formulasi ambang batas Corrective RAG (CRAG) tiga tingkat: Correct $> 0.70$, Ambiguous $0.35 - 0.70$, dan OOD Refusal $< 0.35$.
+  * [`ADR-004`](docs/ADR/ADR-004-raptor-indexing-vs-retrieval-decoupling.md): Pemisahan (*decoupling*) pengelompokan rekursif RAPTOR di latar belakang dari penelusuran pohon kueri sub-20ms.
+* **📄 Model Cards Berstandar NeurIPS / HuggingFace ([`docs/MODEL_CARDS/`](docs/MODEL_CARDS/)):**
+  * [`MODEL_CARD_IDCS_CSBOOST.md`](docs/MODEL_CARDS/MODEL_CARD_IDCS_CSBOOST.md): Spesifikasi model tesis S2 UGM pada dataset HMEQ ($N=5.960$), parameter rezim ketat, metrik $CoV$ & $SRA_{10}$, serta mitigasi entanglement.
+  * [`MODEL_CARD_ISOLATION_FOREST_RADAR.md`](docs/MODEL_CARDS/MODEL_CARD_ISOLATION_FOREST_RADAR.md): Spesifikasi vektor 5-dimensi radar anomali sirkadian berlatensi 0.8ms – 1.4ms.
+* **🧪 Panduan Replikasi Tolok Ukur ([`docs/BENCHMARKS/`](docs/BENCHMARKS/)):**
+  * [`EVAL_REPRODUCIBILITY_GUIDE.md`](docs/BENCHMARKS/EVAL_REPRODUCIBILITY_GUIDE.md): Panduan satu-perintah untuk mereplikasi skor komposit **81.8 / 100** dan metrik RAG Triad.
 
 ---
 

@@ -24,3 +24,4 @@ Kami memutuskan untuk:
 
 ### Negatif / Mitigasi
 * *Overhead Protokol:* Format JSON-RPC 2.0 menambah sedikit overhead framing (~5–10ms) dibanding panggilan fungsi Python langsung. Mitigasi: Untuk agen internal internal in-process, adapter memotong serialisasi HTTP berlebih.
+

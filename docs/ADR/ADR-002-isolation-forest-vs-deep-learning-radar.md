@@ -31,3 +31,4 @@ Kami memutuskan untuk mengimplementasikan **arsitektur hibrida (Classical ML + C
 ## Konsekuensi & Evaluasi
 * **Efisiensi Biaya:** Menghemat $> 99.8\%$ biaya token dibanding membiarkan LLM memantau telemetri setiap menit.
 * **Kecepatan Demo:** Memberikan respons instan pada gauge dashboard saat slider fitur sirkadian digeser pengguna.
+

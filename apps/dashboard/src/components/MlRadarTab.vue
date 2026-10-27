@@ -50,6 +50,12 @@ const anomalyScore = computed(() => {
   return Math.round(clamped * 1000) / 1000
 })
 
+const gaugeAngle = computed(() => {
+  // -1.0 -> -90deg, 0.0 -> 0deg, +1.0 -> +90deg
+  const normalized = (anomalyScore.value + 1) / 2
+  return (normalized * 180) - 90
+})
+
 const isAnomalyDetected = computed(() => {
   return anomalyScore.value < -0.15
 })
@@ -301,33 +307,74 @@ function applyPreset(scenario: 'optimal' | 'mild_crunch' | 'critical_burnout') {
             </span>
           </div>
 
-          <div class="text-center py-3">
-            <div class="text-4xl font-extrabold font-mono tracking-tight" :class="anomalyScore < -0.15 ? 'text-rose-600' : (anomalyScore < 0.10 ? 'text-amber-600' : 'text-emerald-600')">
+          <div class="text-center py-2 flex flex-col items-center">
+            <!-- Modern SVG Semi-Circular Gauge -->
+            <div class="relative w-56 h-32 flex items-center justify-center">
+              <svg viewBox="0 0 200 120" class="w-full h-full overflow-visible">
+                <defs>
+                  <!-- Gradient for gauge arc -->
+                  <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#e11d48" />
+                    <stop offset="35%" stop-color="#f43f5e" />
+                    <stop offset="42.5%" stop-color="#f59e0b" />
+                    <stop offset="65%" stop-color="#10b981" />
+                    <stop offset="100%" stop-color="#059669" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Track Background Arc -->
+                <path
+                  d="M 20 100 A 80 80 0 0 1 180 100"
+                  fill="none"
+                  stroke="#e2e8f0"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                />
+
+                <!-- Colored Gradient Arc -->
+                <path
+                  d="M 20 100 A 80 80 0 0 1 180 100"
+                  fill="none"
+                  stroke="url(#gaugeGradient)"
+                  stroke-width="14"
+                  stroke-linecap="round"
+                  stroke-dasharray="251.32"
+                  stroke-dashoffset="0"
+                />
+
+                <!-- Critical Threshold Tick (-0.150 at angle 76.5 deg from left) -->
+                <circle cx="81.3" cy="22.2" r="3.5" fill="#0f172a" />
+                <line x1="81.3" y1="22.2" x2="77" y2="10" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="2,2" />
+
+                <!-- Dynamic Needle with Spring Rotation -->
+                <g :style="{ transform: `rotate(${gaugeAngle}deg)`, transformOrigin: '100px 100px', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }">
+                  <polygon points="98,100 102,100 100.8,30 99.2,30" fill="#0f172a" />
+                  <circle cx="100" cy="100" r="7" fill="#0f172a" />
+                  <circle cx="100" cy="100" r="3" fill="#ffffff" />
+                </g>
+              </svg>
+
+              <!-- Threshold Label Indicator -->
+              <span class="absolute top-0 left-10 text-[9px] font-mono font-bold bg-slate-900 text-white px-1.5 py-0.2 rounded shadow-xs">
+                Ambang Kritis: -0.150
+              </span>
+            </div>
+
+            <!-- Digital Readout Value -->
+            <div
+              class="text-3xl font-black font-mono tracking-tight mt-1 transition-colors duration-300"
+              :class="anomalyScore < -0.15 ? 'text-rose-600 animate-pulse' : (anomalyScore < 0.10 ? 'text-amber-600' : 'text-emerald-600')"
+            >
               {{ anomalyScore > 0 ? '+' : '' }}{{ anomalyScore.toFixed(3) }}
             </div>
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mt-1">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
               Burnout Anomaly Score (-1.000 s.d. +1.000)
             </div>
 
-            <!-- Decision Boundary Indicator -->
-            <div class="mt-4 px-4">
-              <div class="relative h-3 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div
-                  class="absolute top-0 bottom-0 transition-all duration-300"
-                  :style="{
-                    left: '0%',
-                    width: `${((anomalyScore + 1) / 2) * 100}%`,
-                    backgroundColor: anomalyScore < -0.15 ? '#e11d48' : (anomalyScore < 0.10 ? '#d97706' : '#059669')
-                  }"
-                ></div>
-                <!-- Threshold Line at -0.150 -> ((-0.15 + 1) / 2) * 100 = 42.5% -->
-                <div class="absolute top-0 bottom-0 w-1 bg-slate-900" style="left: 42.5%;"></div>
-              </div>
-              <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
-                <span>-1.0 (Ekstrem)</span>
-                <span class="font-bold text-slate-900">Batas Anomali (-0.150)</span>
-                <span>+1.0 (Optimal)</span>
-              </div>
+            <div class="flex items-center justify-between w-full px-6 text-[10px] text-slate-400 mt-2 font-mono">
+              <span class="text-rose-600 font-bold">-1.0 (Ekstrem)</span>
+              <span class="text-slate-500 font-medium">0.0 (Netral)</span>
+              <span class="text-emerald-600 font-bold">+1.0 (Optimal)</span>
             </div>
           </div>
 

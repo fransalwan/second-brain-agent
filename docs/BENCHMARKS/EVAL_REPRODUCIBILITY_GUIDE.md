@@ -46,3 +46,4 @@ Sistem akan menampilkan:
 ## 🧪 Validasi CI/CD Otomatis di GitHub Actions
 Setiap *pull request* atau *commit* pada branch `main` yang menyentuh direktori `apps/backend/app/rag.py` atau `apps/backend/app/agent.py` secara otomatis memicu alur kerja [`.github/workflows/ai_eval.yml`](file:///C:/Users/Admin/Desktop/portfolio-opensource/on%20queue/second-brain-agent/.github/workflows/ai_eval.yml).
 Jika skor komposit turun di bawah ambang batas **75.0 / 100**, pipeline CI/CD akan memblokir *merge* untuk mencegah degradasi performa model (*regression block*).
+
