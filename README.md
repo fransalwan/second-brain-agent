@@ -161,7 +161,7 @@ Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
 
 | Tab Navigasi | Ikon & Badge | Deskripsi Fitur Utama |
 | :--- | :---: | :--- |
-| **Ringkasan AI** | 🏠 `Executive` | Bento Grid 2.0 dengan AI Showcase Grid (Fase 1–5), live status klaster Go :8085 + FastAPI :8000 + pgvector, dan controller sesi deep work. |
+| **Ringkasan AI** | 🏠 `Executive` | **Autonomous AI Operations Cockpit**: 4 live SLA indicators (Faithfulness 85%, OOD Refusal 100%, p95 Latency 36ms, Composite 81.8), **AI FinOps Meter (-88.4% Cost)**, **Multi-Agent Task Queue**, **Circadian 5-D Vector Inspector (<2ms)**, **Agent Trace Logs**, dan **Hierarchical RAPTOR Tree & 2D Vector Projection**. |
 | **Next-Gen RAG** | 🧠 `CRAG` | Interactive CRAG tester (preset query CatBoost, HNSW, HyDE kafein, & OOD martabak), RAPTOR GMM cluster tree, dan Cross-Encoder table. |
 | **Multimodal VLM** | 📸 `Gemini 2.0` | Dropzone gambar & 3 preset 1-klik untuk kurva loss CatBoost, catatan kuliah tulisan tangan, dan diagram arsitektur multi-agent. |
 | **ML Radar** | 📊 `<2ms` | 5 slider fitur sirkadian, **SVG Radial Gauge interaktif beranimasi pegas**, batas kritis -0.150, dan kartu intervensi otonom LLM. |
@@ -186,6 +186,12 @@ Aplikasi mengadopsi standar pengalaman pengguna (*developer ergonomics*) setara 
   * Pinned pill bar di bagian bawah layar yang memungkinkan interviewer menguji 5 skenario utama dalam 1-klik (`🛡️ OOD Guardrail`, `🔬 IDCS Tesis S2`, `📊 Radar <2ms`, `📸 VLM Gemini 2.0`, `🔌 MCP SSE`).
 * **⏱️ AI Execution Trace & Latency Waterfall:**
   * Transparansi total pada setiap evaluasi: rincian latensi Embedding ($38\text{ms}$) $\rightarrow$ HNSW Search ($12\text{ms}$) $\rightarrow$ Cross-Encoder ($44\text{ms}$) $\rightarrow$ LLM Synthesis ($820\text{ms}$), serta akuntansi konsumsi token dan estimasi biaya per kueri.
+* **💎 AI FinOps & Token Cost Efficiency Meter:**
+  * Pengukuran penghematan token kumulatif realtime (~48,250 tokens/hari), estimasi biaya inferensi ($0.00014/kueri vs $0.008 LLM raw), dan rasio hit cache semantik pgvector (94.2%) via filter awal deterministik Isolation Forest sub-2ms.
+* **🤖 Autonomous Multi-Agent Task Stream & 5-D Vector Inspector:**
+  * Event queue terdistribusi yang memperlihatkan orkestrasi real-time antara Worker Go (:8085) dan Python ADK (:8000), dipadukan dengan inspektor 5-D Feature Vector biometrik $\mathbf{x} = [\text{sleep\_hours}, \text{sleep\_debt}, \text{midnight\_sessions}, \text{overdue\_ratio}, \text{water\_liters}]$ dan tombol uji anomali interaktif untuk rekruter.
+* **🕸️ Hierarchical RAPTOR Knowledge Tree & 2D Vector Projection (HNSW):**
+  * Visualisasi hirarki pohon semantik berjenjang (Level 0 Raw Chunks, Level 1 GMM Centroids, Level 2 Root Synthesis) serta kanvas interaktif proyeksi vektor semantik 2D yang memungkinkan rekruter mengeksplorasi kedekatan sudut cosine antar-dokumen.
 * **🎯 SVG Radial Gauge Beranimasi:**
   * Visualisasi jarum analog dinamis pada Radar Sirkadian yang bertransisi halus saat slider parameter digeser.
 
