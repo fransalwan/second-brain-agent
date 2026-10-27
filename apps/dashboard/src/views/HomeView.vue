@@ -27,6 +27,13 @@ const recruiterTourRef = ref<InstanceType<typeof RecruiterTourModal> | null>(nul
 const isDemoMode = ref(false)
 const userRole = ref<UserRole>(getUserRole())
 const showCommandPalette = ref(false)
+const showMobileDrawer = ref(false)
+const showDesktopMenu = ref(false)
+
+function handleMobileNav(tab: string) {
+  handleTabNavigate(tab)
+  showMobileDrawer.value = false
+}
 
 const ownerUnlockInput = ref('')
 const ownerUnlockError = ref('')
@@ -930,85 +937,93 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+function handleDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement | null
+  if (target && !target.closest('.desktop-menu-container')) {
+    showDesktopMenu.value = false
+  }
+}
+
 onUnmounted(() => {
   stopSimulation()
   window.removeEventListener('keydown', handleGlobalKeydown)
+  window.removeEventListener('click', handleDocumentClick)
 })
 
 onMounted(() => {
   fetchData()
   window.addEventListener('keydown', handleGlobalKeydown)
+  window.addEventListener('click', handleDocumentClick)
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 text-gray-900 pb-16">
-    <!-- Header Navbar (Clean SaaS Design) -->
-    <header class="border-b border-slate-200/80 bg-white sticky top-0 z-20 shadow-2xs backdrop-blur-md">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2.5 sm:px-6">
-        <!-- Brand & User Profile -->
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-lg font-bold shadow-xs shrink-0">
+  <div class="min-h-screen bg-gray-50 text-gray-900 pb-24 md:pb-16 relative">
+    <!-- Header Navbar (Responsive, Clean SaaS Architecture) -->
+    <header class="border-b border-slate-200/90 bg-white/95 sticky top-0 z-30 shadow-2xs backdrop-blur-md">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-3.5 sm:px-6 h-14">
+        
+        <!-- Left: Brand & Compact Identity -->
+        <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div class="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-base sm:text-lg font-bold shadow-xs shrink-0">
             🧠
           </div>
           <div>
-            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <h1 class="text-sm sm:text-base font-bold tracking-tight text-slate-900">Second Brain</h1>
-              <span class="rounded-full bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 whitespace-nowrap">
-                AI Agent
-              </span>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <span class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900">Second Brain</span>
+              
+              <!-- Subtle Role Badge -->
               <span
                 v-if="userRole === 'owner'"
-                class="rounded-full bg-purple-100 border border-purple-300 px-2 py-0.5 text-[10px] font-bold text-purple-800 whitespace-nowrap flex items-center gap-1 shadow-2xs"
+                class="rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-800 flex items-center gap-1"
+                title="Akses Administratif Pemilik"
               >
-                <span>👑 Pemilik (Full Access)</span>
+                <span>👑</span>
+                <span class="hidden sm:inline">Pemilik</span>
               </span>
               <span
                 v-else
-                class="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700 whitespace-nowrap flex items-center gap-1 shadow-2xs"
+                class="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700 flex items-center gap-1"
+                title="Mode Evaluasi Rekruter &amp; Hiring Manager"
               >
-                <span>👔 Mode Rekruter</span>
+                <span>👔</span>
+                <span class="hidden sm:inline">Mode Rekruter</span>
               </span>
-              <button
-                v-if="userRole === 'recruiter'"
-                type="button"
-                @click="handleOpenRecruiterTour"
-                class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap flex items-center gap-1 hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
-                title="Buka Tour Interaktif 60 Detik untuk Recruiter & Tech Lead"
-              >
-                <span>✨ Demo (Tour 60s)</span>
-              </button>
             </div>
-            <p class="text-[11px] text-slate-500 flex items-center gap-1.5 truncate max-w-[170px] sm:max-w-xs mt-0.5">
-              <span class="font-medium text-slate-700 truncate">{{ profile?.full_name?.replace(' (Demo Mode)', '') || 'Mahasiswa' }}</span>
-              <span class="text-slate-300">•</span>
-              <span class="truncate text-slate-400">{{ userEmail }}</span>
+            <p class="text-[10px] text-slate-400 hidden sm:block truncate max-w-[200px]">
+              Frans Alwan Purba · S2 AI UGM
             </p>
           </div>
         </div>
 
-        <!-- Center Omnibar Pill (Raycast / Linear style) -->
+        <!-- Center: Omnibar Command Palette Trigger (Desktop only) -->
         <button
           type="button"
           @click="showCommandPalette = true"
-          class="hidden md:flex items-center gap-2 h-8.5 px-3 rounded-lg border border-slate-200/90 bg-slate-50/80 hover:bg-slate-100 hover:border-slate-300 text-slate-400 hover:text-slate-600 transition-all text-xs cursor-pointer shadow-2xs group"
-          title="Buka Command Palette & Quick Command (Ctrl+K)"
+          class="hidden md:flex items-center justify-between w-64 lg:w-72 xl:w-80 h-9 px-3 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-slate-100 hover:border-slate-300 text-slate-400 hover:text-slate-600 transition-all text-xs cursor-pointer shadow-2xs group"
+          title="Buka Command Palette &amp; Pencarian Cepat (Ctrl+K)"
         >
-          <span class="text-slate-400 group-hover:text-indigo-600 transition-colors">🔍</span>
-          <span class="text-slate-600 font-medium">Quick Command & RAG...</span>
-          <kbd class="ml-1 rounded bg-white px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-500 border border-slate-200 shadow-2xs">Ctrl+K</kbd>
+          <span class="flex items-center gap-2 truncate">
+            <span class="text-slate-400 group-hover:text-indigo-600 transition-colors">🔍</span>
+            <span class="text-slate-500 font-medium truncate">Quick Command &amp; RAG...</span>
+          </span>
+          <kbd class="ml-1.5 rounded-md bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-500 border border-slate-200 shadow-2xs shrink-0">Ctrl+K</kbd>
         </button>
 
-        <!-- Right Controls: Aligned & Clean Grouping -->
-        <div class="flex items-center gap-2">
-          <!-- Schedule Pill (Compact & Clean) -->
-          <div v-if="profile" class="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 h-8.5 whitespace-nowrap">
-            <span>☀️ {{ profile.brief_time?.slice(0, 5) || '07:00' }}</span>
-            <span class="text-slate-300">|</span>
-            <span>🌙 {{ profile.night_cutoff_time?.slice(0, 5) || '23:00' }}</span>
-          </div>
+        <!-- Right (Desktop Action Buttons) -->
+        <div class="hidden md:flex items-center gap-2">
+          <!-- Recruiter Tour Button -->
+          <button
+            v-if="userRole === 'recruiter'"
+            type="button"
+            @click="handleOpenRecruiterTour"
+            class="h-8.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 text-xs font-bold text-amber-800 flex items-center gap-1 hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+            title="Walkthrough Interaktif 60 Detik untuk Recruiter"
+          >
+            <span>✨ Tour 60s</span>
+          </button>
 
-          <!-- Notification Center In-App -->
+          <!-- In-App Notification Center -->
           <NotificationCenter
             v-if="currentUserId"
             :user-id="currentUserId"
@@ -1020,58 +1035,143 @@ onMounted(() => {
             @navigate-tab="handleTabNavigate"
           />
 
-          <!-- Tech Specs Modal Button -->
-          <button
-            type="button"
-            @click="handleOpenTechSpecs"
-            class="h-8.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition-all shadow-2xs whitespace-nowrap cursor-pointer"
-            title="Lihat Arsitektur Polyglot & Tech Specs"
-          >
-            <span>🛠️</span>
-            <span class="hidden sm:inline">Tech Specs</span>
-          </button>
-
-          <!-- Tanya AI (pgvector RAG) Primary Button -->
+          <!-- Tanya AI Primary Button -->
           <button
             type="button"
             @click="handleOpenBrainRag"
             class="h-8.5 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-3 text-xs font-bold text-white hover:from-purple-500 hover:to-indigo-500 transition-all shadow-xs shadow-purple-600/20 whitespace-nowrap cursor-pointer"
-            title="Tanya AI & Semantic Search (pgvector)"
+            title="Tanya AI &amp; Semantic Search (pgvector)"
           >
             <span>🧠</span>
-            <span class="hidden sm:inline">Tanya AI</span>
+            <span>Tanya AI</span>
           </button>
 
-          <!-- AI Governance & Logout Clean Control Group -->
-          <div class="flex items-center border-l border-slate-200 pl-2 ml-1 gap-1.5">
+          <!-- AI Governance Button -->
+          <button
+            type="button"
+            @click="handleOpenPrivacy('governance')"
+            class="h-8.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition-all shadow-2xs whitespace-nowrap cursor-pointer shrink-0"
+            title="Pusat Tata Kelola AI, Keamanan &amp; Model Cards (OWASP LLM Defense)"
+          >
+            <span>🛡️</span>
+            <span class="hidden xl:inline">AI Governance</span>
+          </button>
+
+          <!-- Desktop Settings & User Menu Dropdown -->
+          <div class="relative desktop-menu-container">
             <button
               type="button"
-              @click="handleOpenPrivacy('governance')"
-              class="h-8.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition-all shadow-2xs whitespace-nowrap cursor-pointer shrink-0"
-              title="Pusat Tata Kelola AI, Keamanan & Model Cards (OWASP LLM Defense)"
+              @click.stop="showDesktopMenu = !showDesktopMenu"
+              class="h-8.5 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+              title="Menu Tambahan &amp; Opsi Akun"
             >
-              <span>🛡️</span>
-              <span class="hidden xl:inline">AI Governance</span>
+              <span>⚙️</span>
+              <span class="text-[10px] text-slate-400">▼</span>
             </button>
 
-            <button
-              @click="handleLogout"
-              :disabled="loggingOut"
-              class="h-8.5 inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+            <!-- Dropdown Menu Box -->
+            <div
+              v-if="showDesktopMenu"
+              class="absolute right-0 mt-1.5 w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 text-xs animate-in fade-in zoom-in-95 duration-150"
             >
-              {{ userRole === 'recruiter' ? 'Keluar Demo' : (loggingOut ? 'Keluar...' : 'Logout') }}
-            </button>
+              <div class="px-2.5 py-2 border-b border-slate-100 text-[11px] text-slate-500">
+                <div class="font-bold text-slate-800 truncate">{{ profile?.full_name || 'Pengguna' }}</div>
+                <div class="text-[10px] text-slate-400 truncate">{{ userEmail }}</div>
+              </div>
+
+              <div class="py-1 space-y-0.5">
+                <button
+                  type="button"
+                  @click="handleOpenTechSpecs(); showDesktopMenu = false"
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-slate-700 font-medium text-left cursor-pointer transition-colors"
+                >
+                  <span>🛠️</span>
+                  <span>Tech Specs &amp; Arsitektur</span>
+                </button>
+                <button
+                  type="button"
+                  @click="handleOpenPrivacy('adrs'); showDesktopMenu = false"
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-slate-700 font-medium text-left cursor-pointer transition-colors"
+                >
+                  <span>📁</span>
+                  <span>Architectural Decision Records</span>
+                </button>
+                <div v-if="profile" class="px-2.5 py-1.5 text-[11px] text-slate-500 flex items-center justify-between bg-slate-50 rounded-lg">
+                  <span>Ritme Sirkadian:</span>
+                  <span class="font-mono font-semibold text-slate-700">☀️ {{ profile.brief_time?.slice(0, 5) }} | 🌙 {{ profile.night_cutoff_time?.slice(0, 5) }}</span>
+                </div>
+              </div>
+
+              <div class="pt-1 border-t border-slate-100">
+                <button
+                  type="button"
+                  @click="handleLogout"
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 font-semibold text-left cursor-pointer transition-colors"
+                >
+                  <span>🚪</span>
+                  <span>{{ userRole === 'recruiter' ? 'Keluar Mode Demo' : 'Keluar (Logout)' }}</span>
+                </button>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- Mobile Header Controls (Right side, Compact) -->
+        <div class="flex md:hidden items-center gap-1.5">
+          <!-- Search / Command Palette Icon -->
+          <button
+            type="button"
+            @click="showCommandPalette = true"
+            class="h-8.5 w-8.5 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-2xs cursor-pointer"
+            title="Pencarian Cepat (Ctrl+K)"
+          >
+            <span>🔍</span>
+          </button>
+
+          <!-- Tanya AI Compact Button -->
+          <button
+            type="button"
+            @click="handleOpenBrainRag"
+            class="h-8.5 px-2.5 flex items-center gap-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold shadow-2xs shadow-purple-600/20 cursor-pointer"
+            title="Tanya AI"
+          >
+            <span>🧠</span>
+            <span class="text-[11px]">AI</span>
+          </button>
+
+          <!-- In-App Notification Center -->
+          <NotificationCenter
+            v-if="currentUserId"
+            :user-id="currentUserId"
+            :tasks="tasks"
+            :habits="habits"
+            :habit-logs="habitLogs"
+            :profile="profile"
+            :active-timer="activeTimer"
+            @navigate-tab="handleTabNavigate"
+          />
+
+          <!-- Mobile Hamburger Toggle -->
+          <button
+            type="button"
+            @click="showMobileDrawer = !showMobileDrawer"
+            class="h-8.5 w-8.5 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer text-sm font-bold"
+            :class="showMobileDrawer ? 'bg-slate-100 border-slate-300' : ''"
+            title="Buka Menu"
+          >
+            <span v-if="!showMobileDrawer">☰</span>
+            <span v-else>✕</span>
+          </button>
         </div>
       </div>
 
-      <!-- Navigation Tabs Bar -->
-      <div class="border-t border-gray-100 bg-white">
-        <div class="mx-auto flex max-w-6xl items-center gap-1.5 px-4 sm:px-6 overflow-x-auto no-scrollbar py-1">
+      <!-- Desktop Secondary Navigation Tabs Bar (Clean, Centered, Scrollable with Gradient Fade) -->
+      <div class="hidden md:block border-t border-slate-100 bg-white relative">
+        <div class="mx-auto flex max-w-7xl items-center gap-1.5 px-4 sm:px-6 overflow-x-auto no-scrollbar py-1">
           <button
             @click="activeTab = 'overview'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'overview' ? 'border-slate-900 text-slate-900 bg-slate-50/50 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'overview' ? 'border-slate-900 text-slate-900 bg-slate-50/60 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🏠</span>
             <span>Ringkasan AI</span>
@@ -1079,8 +1179,8 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'rag'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'rag' ? 'border-purple-600 text-purple-700 bg-purple-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'rag' ? 'border-purple-600 text-purple-700 bg-purple-50/40 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🧠</span>
             <span>Next-Gen RAG</span>
@@ -1089,8 +1189,8 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'vlm'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'vlm' ? 'border-blue-600 text-blue-700 bg-blue-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'vlm' ? 'border-blue-600 text-blue-700 bg-blue-50/40 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>📸</span>
             <span>Multimodal VLM</span>
@@ -1099,8 +1199,8 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'mlradar'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'mlradar' ? 'border-cyan-600 text-cyan-700 bg-cyan-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'mlradar' ? 'border-cyan-600 text-cyan-700 bg-cyan-50/40 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>📊</span>
             <span>ML Radar</span>
@@ -1109,8 +1209,8 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'evals'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'evals' ? 'border-emerald-600 text-emerald-700 bg-emerald-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'evals' ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🏆</span>
             <span>AI Quality Flywheel</span>
@@ -1119,8 +1219,8 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'research'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
-            :class="activeTab === 'research' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
+            :class="activeTab === 'research' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/40 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🔬</span>
             <span>Riset &amp; Thesis</span>
@@ -1130,7 +1230,7 @@ onMounted(() => {
 
           <button
             @click="activeTab = 'agentops'"
-            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer"
+            class="flex items-center gap-1.5 border-b-2 py-2 px-3 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0"
             :class="activeTab === 'agentops' ? 'border-slate-800 text-slate-900 bg-slate-100 rounded-t-lg' : 'border-transparent text-slate-500 hover:text-slate-900'"
           >
             <span>🔌</span>
@@ -1138,8 +1238,261 @@ onMounted(() => {
             <span class="rounded-full bg-slate-200 px-1.5 py-0.2 text-[9px] font-bold text-slate-800">SSE</span>
           </button>
         </div>
+        <!-- Right side gradient fade for overflow indication -->
+        <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent"></div>
       </div>
     </header>
+
+    <!-- Mobile Slide-Out Navigation Drawer (Modern Native App Experience) -->
+    <div v-if="showMobileDrawer" class="md:hidden fixed inset-0 z-50 flex">
+      <!-- Backdrop -->
+      <div
+        class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
+        @click="showMobileDrawer = false"
+      ></div>
+
+      <!-- Slide-over Drawer Panel -->
+      <div class="relative ml-auto w-full max-w-xs bg-white h-full shadow-2xl flex flex-col justify-between p-5 overflow-y-auto animate-in slide-in-from-right duration-200 z-10">
+        <div class="space-y-5">
+          <!-- Drawer Top Header -->
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-lg font-bold">
+                🧠
+              </div>
+              <div>
+                <div class="font-black text-sm text-slate-900">Second Brain</div>
+                <div class="text-[10px] text-slate-400">AI Engineering OS</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="showMobileDrawer = false"
+              class="h-8 w-8 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-900 flex items-center justify-center font-bold text-sm cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- User Identity Card in Drawer -->
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800 truncate">
+                {{ profile?.full_name || 'Pengguna' }}
+              </span>
+              <span
+                v-if="userRole === 'owner'"
+                class="rounded-full bg-purple-100 text-purple-800 px-2 py-0.5 text-[9px] font-bold"
+              >
+                👑 Pemilik
+              </span>
+              <span
+                v-else
+                class="rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-[9px] font-bold"
+              >
+                👔 Rekruter
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 truncate">{{ userEmail }}</p>
+
+            <button
+              v-if="userRole === 'recruiter'"
+              type="button"
+              @click="handleOpenRecruiterTour(); showMobileDrawer = false"
+              class="w-full mt-2 py-1.5 px-2.5 rounded-xl bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <span>✨</span>
+              <span>Buka Demo Tour (60 Detik)</span>
+            </button>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              @click="handleOpenBrainRag(); showMobileDrawer = false"
+              class="p-2.5 rounded-xl bg-purple-50 text-purple-900 border border-purple-200/70 font-bold text-xs flex items-center gap-2 cursor-pointer"
+            >
+              <span>🧠</span>
+              <span>Tanya AI</span>
+            </button>
+            <button
+              type="button"
+              @click="showCommandPalette = true; showMobileDrawer = false"
+              class="p-2.5 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs flex items-center gap-2 cursor-pointer"
+            >
+              <span>🔍</span>
+              <span>Cmd Palette</span>
+            </button>
+          </div>
+
+          <!-- Navigation Links List -->
+          <div class="space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2">Modul AI Engineering:</span>
+            
+            <button
+              type="button"
+              @click="handleMobileNav('overview')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'overview' ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>🏠</span><span>Ringkasan AI</span></span>
+              <span class="text-[10px] opacity-70">Showcase</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('rag')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'rag' ? 'bg-purple-600 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>🧠</span><span>Next-Gen RAG</span></span>
+              <span class="text-[9px] rounded px-1.5 py-0.2" :class="activeTab === 'rag' ? 'bg-purple-700 text-white' : 'bg-purple-100 text-purple-800'">CRAG</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('vlm')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'vlm' ? 'bg-blue-600 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>📸</span><span>Multimodal VLM</span></span>
+              <span class="text-[9px] rounded px-1.5 py-0.2" :class="activeTab === 'vlm' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-800'">Gemini 2.0</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('mlradar')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'mlradar' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>📊</span><span>Classical ML Radar</span></span>
+              <span class="text-[9px] rounded px-1.5 py-0.2" :class="activeTab === 'mlradar' ? 'bg-cyan-700 text-white' : 'bg-cyan-100 text-cyan-800'">&lt;2ms</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('evals')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'evals' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>🏆</span><span>AI Quality Flywheel</span></span>
+              <span class="text-[9px] rounded px-1.5 py-0.2" :class="activeTab === 'evals' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'">81.8</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('research')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'research' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>🔬</span><span>Riset &amp; Thesis S2</span></span>
+              <span v-if="userRole === 'recruiter'" class="text-[9px] rounded bg-rose-100 text-rose-700 px-1.5 py-0.2 font-bold">🔒 Privat</span>
+              <span v-else class="text-[9px] rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.2 font-bold">IDCS</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleMobileNav('agentops')"
+              class="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              :class="activeTab === 'agentops' ? 'bg-slate-900 text-white font-bold' : 'text-slate-700 hover:bg-slate-100'"
+            >
+              <span class="flex items-center gap-2"><span>🔌</span><span>MCP &amp; Telemetry</span></span>
+              <span class="text-[9px] rounded bg-slate-200 text-slate-800 px-1.5 py-0.2 font-bold">SSE</span>
+            </button>
+          </div>
+
+          <!-- Governance & Architecture Settings -->
+          <div class="pt-2 border-t border-slate-100 space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2">Keamanan &amp; Spesifikasi:</span>
+
+            <button
+              type="button"
+              @click="handleOpenPrivacy('governance'); showMobileDrawer = false"
+              class="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            >
+              <span>🛡️</span>
+              <span>Pusat Tata Kelola AI (OWASP Defense)</span>
+            </button>
+
+            <button
+              type="button"
+              @click="handleOpenTechSpecs(); showMobileDrawer = false"
+              class="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            >
+              <span>🛠️</span>
+              <span>Spesifikasi Polyglot &amp; Diagram</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Drawer Footer: Logout -->
+        <div class="pt-4 border-t border-slate-200">
+          <button
+            type="button"
+            @click="handleLogout"
+            :disabled="loggingOut"
+            class="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors cursor-pointer"
+          >
+            <span>🚪</span>
+            <span>{{ userRole === 'recruiter' ? 'Keluar Mode Demo' : (loggingOut ? 'Keluar...' : 'Logout') }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Native Bottom Navigation Dock (Fixed at bottom on < md) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-2 py-1 flex items-center justify-around shadow-lg">
+      <button
+        type="button"
+        @click="activeTab = 'overview'"
+        class="flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all cursor-pointer"
+        :class="activeTab === 'overview' ? 'text-indigo-600 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'"
+      >
+        <span class="text-lg">🏠</span>
+        <span class="text-[10px]">Ringkasan</span>
+      </button>
+
+      <button
+        type="button"
+        @click="activeTab = 'rag'"
+        class="flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all cursor-pointer"
+        :class="activeTab === 'rag' ? 'text-purple-600 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'"
+      >
+        <span class="text-lg">🧠</span>
+        <span class="text-[10px]">CRAG</span>
+      </button>
+
+      <button
+        type="button"
+        @click="activeTab = 'mlradar'"
+        class="flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all cursor-pointer"
+        :class="activeTab === 'mlradar' ? 'text-cyan-600 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'"
+      >
+        <span class="text-lg">📊</span>
+        <span class="text-[10px]">Radar</span>
+      </button>
+
+      <button
+        type="button"
+        @click="activeTab = 'evals'"
+        class="flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all cursor-pointer"
+        :class="activeTab === 'evals' ? 'text-emerald-600 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'"
+      >
+        <span class="text-lg">🏆</span>
+        <span class="text-[10px]">Evals</span>
+      </button>
+
+      <button
+        type="button"
+        @click="showMobileDrawer = true"
+        class="flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-all cursor-pointer"
+        :class="showMobileDrawer ? 'text-slate-900 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-medium'"
+      >
+        <span class="text-lg">☰</span>
+        <span class="text-[10px]">Menu</span>
+      </button>
+    </nav>
 
     <main class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 space-y-6">
       <!-- Tab 1: Next-Gen RAG & RAPTOR -->
@@ -1975,8 +2328,8 @@ onMounted(() => {
       @open-tech-specs="handleOpenTechSpecs"
     />
 
-    <!-- Sticky Recruiter Quick Cockpit (Entry-Level 1-Click Interactive Showcase) -->
-    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-950/90 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl px-3.5 py-2 shadow-2xl flex items-center gap-2.5 text-xs max-w-[95vw] overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <!-- Sticky Recruiter Quick Cockpit (Desktop-only 1-Click Interactive Showcase) -->
+    <div class="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-20 bg-slate-950/90 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl px-3.5 py-2 shadow-2xl items-center gap-2.5 text-xs max-w-[95vw] overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-bottom-4 duration-200">
       <div class="flex items-center gap-1.5 shrink-0">
         <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
         <span class="font-black text-purple-300 text-[11px] uppercase tracking-wider hidden sm:inline">⚡ Recruiter Cockpit:</span>
