@@ -43,7 +43,7 @@ function handleOpenQuickCapture() {
   quickCaptureRef.value?.openModal()
 }
 
-function handleOpenPrivacy(tab: 'policy' | 'export' | 'delete' = 'policy') {
+function handleOpenPrivacy(tab: 'governance' | 'pii_redactor' | 'adrs' | 'export' = 'governance') {
   privacyModalRef.value?.openModal(tab)
 }
 
@@ -994,15 +994,16 @@ onMounted(() => {
             <span class="hidden sm:inline">Tanya AI</span>
           </button>
 
-          <!-- Privacy & Logout Clean Control Group -->
+          <!-- AI Governance & Logout Clean Control Group -->
           <div class="flex items-center border-l border-slate-200 pl-2 ml-1 gap-1.5">
             <button
               type="button"
-              @click="handleOpenPrivacy('policy')"
-              class="h-8.5 w-8.5 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer shrink-0"
-              title="Pusat Privasi & Kedaulatan Data"
+              @click="handleOpenPrivacy('governance')"
+              class="h-8.5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition-all shadow-2xs whitespace-nowrap cursor-pointer shrink-0"
+              title="Pusat Tata Kelola AI, Keamanan & Model Cards (OWASP LLM Defense)"
             >
               <span>🛡️</span>
+              <span class="hidden xl:inline">AI Governance</span>
             </button>
 
             <button
@@ -1780,7 +1781,7 @@ onMounted(() => {
       @navigate-tab="handleTabNavigate"
       @open-rag="(q) => handleOpenBrainRag(q)"
       @open-tech-specs="handleOpenTechSpecs"
-      @open-privacy="() => handleOpenPrivacy('policy')"
+      @open-privacy="() => handleOpenPrivacy('governance')"
     />
 
     <!-- Privacy & Data Sovereignty Center Modal -->

@@ -34,7 +34,7 @@ function handleOpenTechSpecs() {
   techSpecsModalRef.value?.openModal()
 }
 
-function handleOpenPrivacy(tab: 'policy' | 'export' | 'delete' = 'policy') {
+function handleOpenPrivacy(tab: 'governance' | 'pii_redactor' | 'adrs' | 'export' = 'governance') {
   privacyModalRef.value?.openModal(tab)
 }
 
@@ -254,10 +254,16 @@ async function handleRegister() {
 
         <!-- Hero Headline -->
         <div class="mt-8 lg:mt-10 space-y-3">
-          <div class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-300">
-            <span>🚀 Production AI Architecture</span>
-            <span class="text-indigo-400/50">|</span>
-            <span class="text-purple-300 font-mono">Fase 1 s.d. 5 Completed</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-300">
+              <span>🚀 Production AI Architecture</span>
+              <span class="text-indigo-400/50">|</span>
+              <span class="text-purple-300 font-mono">Fase 1 s.d. 5 + UI/UX 3.0</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 text-xs font-semibold text-purple-300">
+              <span>🏛️</span>
+              <span>Tesis S2 AI • FMIPA UGM</span>
+            </span>
           </div>
 
           <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
@@ -268,7 +274,7 @@ async function handleRegister() {
           </h1>
 
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
-            Sistem orkestrasi agen AI produksi berkinerja tinggi: Menghubungkan ekosistem tool terbuka (Anthropic Model Context Protocol SSE), Corrective RAG (CRAG) dengan pengelompokan hirarkis RAPTOR (GMM), Multimodal Document AI (Gemini 2.0 Flash VLM), Classical ML Anomaly Radar (<span class="text-cyan-300 font-mono font-semibold">&lt; 2ms</span>), dan automated evaluation flywheel.
+            Sistem orkestrasi agen AI produksi berkinerja tinggi: Menghubungkan ekosistem tool terbuka (Anthropic Model Context Protocol SSE), Corrective RAG (CRAG) dengan pengelompokan hirarkis RAPTOR (GMM), Multimodal Document AI (Gemini 2.0 Flash VLM), Classical ML Anomaly Radar (<span class="text-cyan-300 font-mono font-semibold">&lt; 2ms</span>), evaluasi RAG Triad otomatis, serta riset tesis S2 Explainable AI terverifikasi.
           </p>
         </div>
 
@@ -354,6 +360,27 @@ async function handleRegister() {
                 </div>
                 <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
                   Evaluasi LLM-as-a-Judge otomatis terhadap 20 Golden Dataset uji akademik pada metrik RAG Triad: Context Recall 86.0%, Faithfulness 85.0%, dan OOD Refusal 100% via GitHub Actions CI/CD gate.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tesis S2 & Explainable AI Research Engine (FMIPA UGM) -->
+          <div class="sm:col-span-2 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/30 to-indigo-950/20 p-3.5 backdrop-blur-xs hover:border-purple-500/50 transition-all">
+            <div class="flex items-start gap-3">
+              <span class="text-lg p-2 rounded-xl bg-purple-500/20 text-purple-300 shrink-0">🔬</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <div class="flex items-center gap-1.5">
+                    <h2 class="text-xs font-bold text-purple-300">Riset Tesis S2: IDCS Explainable AI &amp; Uji Kausalitas</h2>
+                    <span class="rounded bg-purple-500/30 text-purple-200 text-[9px] font-bold px-1.5 py-0.2">FMIPA UGM</span>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-medium">
+                    Dospem: Afiahayati, Ph.D &amp; Prof. Sri Hartati
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  Replikasi HMEQ 32 konfigurasi ($L=25$ bootstrap), intervensi dual-arm (regularisasi bobot non-degenerat &amp; counterfactual cost-shuffle 5 seeds), No-Lose Decision Matrix, simulator permutasi cepat 140ms, dan ekspor tabel LaTeX IEEE.
                 </p>
               </div>
             </div>
@@ -637,10 +664,10 @@ async function handleRegister() {
           </p>
           <button
             type="button"
-            @click="handleOpenPrivacy('policy')"
+            @click="handleOpenPrivacy('governance')"
             class="text-indigo-300 hover:text-indigo-200 underline font-medium cursor-pointer"
           >
-            🛡️ Kedaulatan Data &amp; Privasi (Zero Trackers / Zero Ads) ↗
+            🛡️ Pusat Tata Kelola AI, Keamanan &amp; Model Cards (OWASP LLM Defense) ↗
           </button>
         </div>
       </div>
