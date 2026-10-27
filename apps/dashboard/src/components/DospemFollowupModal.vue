@@ -12,13 +12,13 @@ const copied = ref(false)
 
 // State form dospem
 const form = ref({
-  dospemName: '',
+  dospemName: 'Afiahayati, S.Kom., M.Cs., Ph.D',
   dospemPhone: '',
-  studentName: '',
-  studentNim: '',
-  studentMajor: '',
-  thesisTitle: '',
-  topicConsult: '',
+  studentName: 'Frans Alwan Purba',
+  studentNim: '25/563545/PPA/07116',
+  studentMajor: 'Magister Kecerdasan Artifisial, FMIPA UGM',
+  thesisTitle: 'Stabilisasi Penjelasan Model Instance-Dependent Cost-Sensitive Menggunakan Regularisasi dan Uji Permutasi Biaya Terstratifikasi',
+  topicConsult: 'Revisi Bab 4 Metodologi (Eksperimen IDCS HMEQ & Permutasi Biaya)',
   preferredTime: '',
   templateType: 'request_schedule' as 'request_schedule' | 'submit_draft' | 'gentle_followup' | 'exam_approval',
 })
@@ -31,12 +31,12 @@ function loadSavedProfile() {
     const raw = localStorage.getItem(STORAGE_KEY.value)
     if (raw) {
       const data = JSON.parse(raw)
-      form.value.dospemName = data.dospemName || ''
+      form.value.dospemName = data.dospemName || 'Afiahayati, S.Kom., M.Cs., Ph.D'
       form.value.dospemPhone = data.dospemPhone || ''
-      form.value.studentName = data.studentName || ''
-      form.value.studentNim = data.studentNim || ''
-      form.value.studentMajor = data.studentMajor || ''
-      form.value.thesisTitle = data.thesisTitle || ''
+      form.value.studentName = data.studentName || 'Frans Alwan Purba'
+      form.value.studentNim = data.studentNim || '25/563545/PPA/07116'
+      form.value.studentMajor = data.studentMajor || 'Magister Kecerdasan Artifisial, FMIPA UGM'
+      form.value.thesisTitle = data.thesisTitle || 'Stabilisasi Penjelasan Model Instance-Dependent Cost-Sensitive Menggunakan Regularisasi dan Uji Permutasi Biaya Terstratifikasi'
     }
   } catch (e) {
     console.error('Failed to load dospem profile', e)
