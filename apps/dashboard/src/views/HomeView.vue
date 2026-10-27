@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { getUserRole, setRoleOwner, clearAuthRole, OWNER_PASSKEY, type UserRole } from '../lib/authRole'
 import RagExplorerTab from '../components/RagExplorerTab.vue'
 import MultimodalVlmTab from '../components/MultimodalVlmTab.vue'
 import MlRadarTab from '../components/MlRadarTab.vue'
@@ -24,7 +25,37 @@ const brainRagModalRef = ref<InstanceType<typeof BrainRagModal> | null>(null)
 const techSpecsModalRef = ref<InstanceType<typeof TechSpecsModal> | null>(null)
 const recruiterTourRef = ref<InstanceType<typeof RecruiterTourModal> | null>(null)
 const isDemoMode = ref(false)
+const userRole = ref<UserRole>(getUserRole())
 const showCommandPalette = ref(false)
+
+const ownerUnlockInput = ref('')
+const ownerUnlockError = ref('')
+
+function handleUnlockAsOwner() {
+  ownerUnlockError.value = ''
+  if (!ownerUnlockInput.value) {
+    ownerUnlockError.value = 'Password atau Master Passkey Pemilik wajib diisi.'
+    return
+  }
+  if (ownerUnlockInput.value.trim() === OWNER_PASSKEY) {
+    setRoleOwner()
+    userRole.value = 'owner'
+    isDemoMode.value = false
+    userEmail.value = 'fransalwanpurba@mail.ugm.ac.id'
+    currentUserId.value = 'owner-frans-ugm'
+    profile.value = {
+      id: 'owner-frans-ugm',
+      email: 'fransalwanpurba@mail.ugm.ac.id',
+      full_name: 'Frans Alwan Purba (Pemilik)',
+      telegram_chat_id: 6745429419,
+      brief_time: '07:00:00',
+      night_cutoff_time: '23:00:00',
+    }
+    ownerUnlockInput.value = ''
+  } else {
+    ownerUnlockError.value = 'Passkey Pemilik salah. Akses riset tetap terproteksi.'
+  }
+}
 
 function handleOpenRecruiterTour() {
   recruiterTourRef.value?.openTour()
@@ -405,31 +436,36 @@ async function fetchData() {
   loading.value = true
   errorMsg.value = null
 
-  isDemoMode.value = localStorage.getItem('secondbrain_demo_mode') === 'true'
+  userRole.value = getUserRole()
+  isDemoMode.value = userRole.value === 'recruiter'
 
-  if (isDemoMode.value) {
-    userEmail.value = 'fransalwanpurba@mail.ugm.ac.id'
-    currentUserId.value = 'demo-ugm-student-id'
+  if (userRole.value === 'owner' || isDemoMode.value) {
+    const isOwner = userRole.value === 'owner'
+
+    userEmail.value = isOwner ? 'fransalwanpurba@mail.ugm.ac.id' : 'recruiter@portfolio-eval.ugm.ac.id'
+    currentUserId.value = isOwner ? 'owner-frans-ugm' : 'demo-recruiter-id'
     profile.value = {
-      id: 'demo-ugm-student-id',
-      email: 'fransalwanpurba@mail.ugm.ac.id',
-      full_name: 'Frans Alwan Purba (Demo Mode)',
-      telegram_chat_id: 6745429419,
+      id: currentUserId.value,
+      email: userEmail.value,
+      full_name: isOwner ? 'Frans Alwan Purba (Pemilik)' : 'Recruiter / Reviewer (Guest Demo)',
+      telegram_chat_id: isOwner ? 6745429419 : null,
       brief_time: '07:00:00',
       night_cutoff_time: '23:00:00',
     }
     profileLoaded.value = true
     areas.value = [
       { id: 1, name: 'Kesehatan & Vitalitas', position: 1 },
-      { id: 2, name: 'Kuliah & Akademik', position: 2 },
-      { id: 3, name: 'Riset & Skripsi', position: 3 },
+      { id: 2, name: 'Kuliah & AI Engineering', position: 2 },
+      { id: 3, name: isOwner ? 'Riset & Skripsi S2' : 'Eksperimen Model AI', position: 3 },
       { id: 4, name: 'Agent Ops & Telemetry', position: 4 },
     ]
     tasks.value = [
       {
         id: 101,
         area_id: 3,
-        title: 'Revisi Bab 3 Metodologi: Evaluasi F1-Score & Reciprocal Rank Fusion',
+        title: isOwner
+          ? 'Revisi Bab 3 Metodologi: Evaluasi F1-Score & Reciprocal Rank Fusion'
+          : 'Verifikasi Evaluasi CRAG Self-Correction & Cross-Encoder Reranker',
         deadline: todayIso,
         is_urgent: true,
         status: 'pending',
@@ -573,7 +609,7 @@ async function fetchData() {
 async function handleLogout() {
   loggingOut.value = true
   try {
-    localStorage.removeItem('secondbrain_demo_mode')
+    clearAuthRole()
     isDemoMode.value = false
     await supabase.auth.signOut()
     router.push({ name: 'login' })
@@ -921,8 +957,20 @@ onMounted(() => {
               <span class="rounded-full bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 whitespace-nowrap">
                 AI Agent
               </span>
+              <span
+                v-if="userRole === 'owner'"
+                class="rounded-full bg-purple-100 border border-purple-300 px-2 py-0.5 text-[10px] font-bold text-purple-800 whitespace-nowrap flex items-center gap-1 shadow-2xs"
+              >
+                <span>👑 Pemilik (Full Access)</span>
+              </span>
+              <span
+                v-else
+                class="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700 whitespace-nowrap flex items-center gap-1 shadow-2xs"
+              >
+                <span>👔 Mode Rekruter</span>
+              </span>
               <button
-                v-if="isDemoMode"
+                v-if="userRole === 'recruiter'"
                 type="button"
                 @click="handleOpenRecruiterTour"
                 class="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800 whitespace-nowrap flex items-center gap-1 hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
@@ -1011,7 +1059,7 @@ onMounted(() => {
               :disabled="loggingOut"
               class="h-8.5 inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
             >
-              {{ isDemoMode ? 'Keluar Demo' : (loggingOut ? 'Keluar...' : 'Logout') }}
+              {{ userRole === 'recruiter' ? 'Keluar Demo' : (loggingOut ? 'Keluar...' : 'Logout') }}
             </button>
           </div>
         </div>
@@ -1076,7 +1124,8 @@ onMounted(() => {
           >
             <span>🔬</span>
             <span>Riset &amp; Thesis</span>
-            <span class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">CatBoost</span>
+            <span v-if="userRole === 'recruiter'" class="rounded-full bg-rose-100 px-1.5 py-0.2 text-[9px] font-bold text-rose-700 flex items-center gap-0.5">🔒 Privat</span>
+            <span v-else class="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-800">IDCS XAI</span>
           </button>
 
           <button
@@ -1119,11 +1168,126 @@ onMounted(() => {
         :user-id="currentUserId"
       />
 
-      <!-- Tab 5: Riset & Eksperimen AI -->
-      <ResearchTab
-        v-else-if="activeTab === 'research' && currentUserId"
-        :user-id="currentUserId"
-      />
+      <!-- Tab 5: Riset & Tesis S2 (Akses Terproteksi Khusus Pemilik) -->
+      <template v-else-if="activeTab === 'research'">
+        <!-- Tampilan Terkunci untuk Rekruter / Mode Demo -->
+        <div v-if="userRole === 'recruiter'" class="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-10 shadow-xs max-w-3xl mx-auto space-y-6">
+          <div class="text-center space-y-3">
+            <div class="inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-50 border border-rose-200 text-rose-600 text-3xl shadow-sm">
+              🔒
+            </div>
+            
+            <div class="space-y-1">
+              <div class="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-0.5 text-xs font-bold text-rose-700">
+                <span>Area Terproteksi</span>
+                <span>•</span>
+                <span>Riset &amp; Tesis Pribadi Mahasiswa</span>
+              </div>
+              <h2 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                Akses Dibatasi: Naskah Tesis S2 (FMIPA UGM)
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
+                Modul ini memuat naskah aktif tesis <em>Instance-Dependent Cost-Sensitive Explainable AI</em>, notulensi konsultasi dosen pembimbing (Afiahayati Ph.D &amp; Prof. Sri Hartati), draf proposal internal, dan token repositori privat Frans Alwan Purba.
+              </p>
+            </div>
+          </div>
+
+          <!-- Penjelasan RBAC & Portofolio Rekruter -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3 text-xs text-slate-700">
+            <div class="flex items-center gap-2 text-slate-900 font-bold">
+              <span>🛡️</span>
+              <span>Kebijakan Privasi Portofolio:</span>
+            </div>
+            <p class="leading-relaxed">
+              Sesuai desain keamanan sistem, <strong>Akun Demo Rekruter</strong> hanya diberikan akses evaluasi ke modul-modul rekayasa AI produksi tanpa mengekspos naskah riset akademik personal pemilik.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                @click="activeTab = 'rag'"
+                class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-purple-300 hover:bg-purple-50/40 text-left transition-all cursor-pointer"
+              >
+                <span class="text-purple-600 font-bold text-base">🧠</span>
+                <div>
+                  <div class="font-bold text-slate-800 text-[11px]">Next-Gen CRAG</div>
+                  <div class="text-[10px] text-slate-500">RAPTOR GMM &amp; Reranker ↗</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                @click="activeTab = 'vlm'"
+                class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 text-left transition-all cursor-pointer"
+              >
+                <span class="text-blue-600 font-bold text-base">📸</span>
+                <div>
+                  <div class="font-bold text-slate-800 text-[11px]">Multimodal VLM</div>
+                  <div class="text-[10px] text-slate-500">Gemini 2.0 Flash Visual AI ↗</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                @click="activeTab = 'mlradar'"
+                class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/40 text-left transition-all cursor-pointer"
+              >
+                <span class="text-cyan-600 font-bold text-base">📊</span>
+                <div>
+                  <div class="font-bold text-slate-800 text-[11px]">Classical ML Radar</div>
+                  <div class="text-[10px] text-slate-500">Isolation Forest &lt; 2ms ↗</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                @click="activeTab = 'evals'"
+                class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40 text-left transition-all cursor-pointer"
+              >
+                <span class="text-emerald-600 font-bold text-base">🏆</span>
+                <div>
+                  <div class="font-bold text-slate-800 text-[11px]">AI Quality Flywheel</div>
+                  <div class="text-[10px] text-slate-500">Benchmark 81.8 &amp; RAG Triad ↗</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Actions & Inline Owner Unlock -->
+          <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              type="button"
+              @click="activeTab = 'overview'"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-black transition-colors cursor-pointer shadow-xs"
+            >
+              <span>🏠</span>
+              <span>Kembali ke Ringkasan AI</span>
+            </button>
+
+            <!-- Inline Master Key Unlock (Untuk Frans jika ingin buka akses langsung di tab ini) -->
+            <div class="w-full sm:w-auto flex items-center gap-2">
+              <input
+                v-model="ownerUnlockInput"
+                type="password"
+                placeholder="Master passkey pemilik..."
+                @keydown.enter="handleUnlockAsOwner"
+                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-purple-500 focus:outline-none w-full sm:w-44"
+              />
+              <button
+                type="button"
+                @click="handleUnlockAsOwner"
+                class="inline-flex items-center gap-1 rounded-xl bg-purple-600 px-3 py-2 text-xs font-bold text-white hover:bg-purple-700 transition-colors cursor-pointer shrink-0 shadow-xs"
+              >
+                <span>🔑</span>
+                <span>Buka</span>
+              </button>
+            </div>
+          </div>
+          <p v-if="ownerUnlockError" class="text-[11px] text-rose-600 font-medium text-right">{{ ownerUnlockError }}</p>
+        </div>
+
+        <!-- Tampilan Akses Penuh untuk Pemilik (Frans Alwan Purba) -->
+        <ResearchTab
+          v-else-if="currentUserId"
+          :user-id="currentUserId"
+        />
+      </template>
 
       <!-- Tab 6: MCP Server & Telemetry -->
       <AgentOpsTab
@@ -1827,12 +1991,22 @@ onMounted(() => {
           🛡️ OOD Guardrail
         </button>
         <button
+          v-if="userRole === 'owner'"
           type="button"
           @click="handleTabNavigate('research')"
           class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
           :class="activeTab === 'research' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
         >
           🔬 Tesis S2 (IDCS)
+        </button>
+        <button
+          v-else
+          type="button"
+          @click="handleTabNavigate('rag')"
+          class="rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer"
+          :class="activeTab === 'rag' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'"
+        >
+          🧠 Next-Gen CRAG
         </button>
         <button
           type="button"
@@ -1872,6 +2046,7 @@ onMounted(() => {
     <!-- Global Command Palette Modal (Raycast / Linear style) -->
     <CommandPaletteModal
       :is-open="showCommandPalette"
+      :user-role="userRole"
       @close="showCommandPalette = false"
       @navigate-tab="handleTabNavigate"
       @open-tech-specs="handleOpenTechSpecs"

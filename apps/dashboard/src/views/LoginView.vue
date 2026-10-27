@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { setRoleRecruiter, setRoleOwner, OWNER_PASSKEY, OWNER_EMAIL } from '../lib/authRole'
 import PrivacyModal from '../components/PrivacyModal.vue'
 import TechSpecsModal from '../components/TechSpecsModal.vue'
 
@@ -9,14 +10,12 @@ const router = useRouter()
 const privacyModalRef = ref<InstanceType<typeof PrivacyModal> | null>(null)
 const techSpecsModalRef = ref<InstanceType<typeof TechSpecsModal> | null>(null)
 
-const authMode = ref<'login' | 'register'>('login')
-const loginMethod = ref<'password' | 'magic_link'>('password')
+// Mode Akses: 'recruiter' (Akses Cepat Demo) vs 'owner' (Akses Pemilik Frans)
+const portalMode = ref<'recruiter' | 'owner'>('recruiter')
 
-// Form Fields
-const fullName = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
+// Form Pemilik
+const ownerEmail = ref(OWNER_EMAIL)
+const ownerKey = ref('')
 const showPassword = ref(false)
 
 // UI State
@@ -38,176 +37,65 @@ function handleOpenPrivacy(tab: 'governance' | 'pii_redactor' | 'adrs' | 'export
   privacyModalRef.value?.openModal(tab)
 }
 
+// 1-Click Recruiter Instant Access
 async function handleGuestDemo() {
   resetAlerts()
   loadingDemo.value = true
   try {
-    localStorage.setItem('secondbrain_demo_mode', 'true')
+    setRoleRecruiter()
     await router.push({ name: 'home' })
   } catch {
-    // Fallback hard navigation jika router transition terhambat
     window.location.href = '/'
   } finally {
     loadingDemo.value = false
   }
 }
 
-function switchMode(mode: 'login' | 'register') {
-  authMode.value = mode
+function switchPortal(mode: 'recruiter' | 'owner') {
+  portalMode.value = mode
   resetAlerts()
 }
 
-function switchLoginMethod(method: 'password' | 'magic_link') {
-  loginMethod.value = method
+// Owner Login (Frans Alwan Purba)
+async function handleOwnerLogin() {
   resetAlerts()
-}
+  if (!ownerKey.value) {
+    errorMessage.value = 'Password atau Master Passkey Pemilik wajib diisi.'
+    return
+  }
 
-function translateError(errText: string): string {
-  const lower = errText.toLowerCase()
-  if (lower.includes('invalid login credentials') || lower.includes('invalid grant')) {
-    return 'Email atau password salah. Silakan periksa kembali atau gunakan Mode Demo Instan.'
-  }
-  if (lower.includes('user already registered') || lower.includes('already exists')) {
-    return 'Email ini sudah terdaftar. Silakan langsung masuk.'
-  }
-  if (lower.includes('password should be at least 6 characters')) {
-    return 'Password harus memiliki panjang minimal 6 karakter.'
-  }
-  if (lower.includes('rate limit')) {
-    return 'Terlalu banyak percobaan. Harap tunggu beberapa saat lalu coba lagi.'
-  }
-  if (lower.includes('email not confirmed')) {
-    return 'Email kamu belum dikonfirmasi. Periksa kotak masuk atau spam untuk tautan verifikasi.'
-  }
-  return errText || 'Terjadi kendala saat memproses autentikasi.'
-}
-
-async function handleLogin() {
-  if (!email.value) return
-  resetAlerts()
   loading.value = true
 
   try {
-    if (loginMethod.value === 'password') {
-      if (!password.value) {
-        errorMessage.value = 'Password wajib diisi.'
-        loading.value = false
+    const inputKey = ownerKey.value.trim()
+    const inputEmail = ownerEmail.value.trim().toLowerCase()
+
+    // 1. Validasi via Master Passkey Riset (Zero-latency offline fallback)
+    if (inputKey === OWNER_PASSKEY) {
+      setRoleOwner()
+      await router.push({ name: 'home' })
+      return
+    }
+
+    // 2. Validasi via Supabase Auth jika ada kredensial terdaftar
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: inputEmail,
+        password: inputKey,
+      })
+
+      if (!error && data?.session) {
+        setRoleOwner()
+        await router.push({ name: 'home' })
         return
       }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.value.trim(),
-        password: password.value,
-      })
-
-      if (error) {
-        errorMessage.value = translateError(error.message)
-      } else if (data.session) {
-        localStorage.removeItem('secondbrain_demo_mode')
-        router.push({ name: 'home' })
-      }
-    } else {
-      // Magic Link
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.value.trim(),
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
-      })
-
-      if (error) {
-        errorMessage.value = translateError(error.message)
-      } else {
-        message.value =
-          'Tautan masuk ajaib (Magic Link) telah dikirim ke email kamu! Silakan buka email dan klik tautan untuk masuk.'
-      }
+    } catch {
+      // Abaikan Supabase error, lanjutkan ke pengecekan passkey
     }
+
+    errorMessage.value = 'Password atau Master Passkey Pemilik salah. Akses ditolak.'
   } catch {
-    errorMessage.value = 'Terjadi kesalahan tidak terduga. Silakan coba lagi.'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleRegister() {
-  resetAlerts()
-
-  if (!fullName.value.trim()) {
-    errorMessage.value = 'Nama lengkap wajib diisi.'
-    return
-  }
-  if (!email.value.trim()) {
-    errorMessage.value = 'Email wajib diisi.'
-    return
-  }
-  if (password.value.length < 6) {
-    errorMessage.value = 'Password minimal 6 karakter.'
-    return
-  }
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = 'Konfirmasi password tidak cocok.'
-    return
-  }
-
-  loading.value = true
-
-  try {
-    const trimmedEmail = email.value.trim()
-    const trimmedName = fullName.value.trim()
-
-    const { data, error } = await supabase.auth.signUp({
-      email: trimmedEmail,
-      password: password.value,
-      options: {
-        data: {
-          full_name: trimmedName,
-        },
-      },
-    })
-
-    if (error) {
-      errorMessage.value = translateError(error.message)
-      return
-    }
-
-    if (data.session?.user) {
-      try {
-        await supabase.from('profiles').upsert({
-          id: data.session.user.id,
-          full_name: trimmedName,
-        })
-      } catch {
-        // Ignored
-      }
-      localStorage.removeItem('secondbrain_demo_mode')
-      router.push({ name: 'home' })
-      return
-    }
-
-    const { data: loginData } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password: password.value,
-    })
-
-    if (loginData?.session?.user) {
-      try {
-        await supabase.from('profiles').upsert({
-          id: loginData.session.user.id,
-          full_name: trimmedName,
-        })
-      } catch {
-        // Ignored
-      }
-      localStorage.removeItem('secondbrain_demo_mode')
-      router.push({ name: 'home' })
-      return
-    }
-
-    message.value = 'Akun berhasil dibuat! Silakan langsung masuk dengan email dan password kamu.'
-    authMode.value = 'login'
-    loginMethod.value = 'password'
-  } catch {
-    errorMessage.value = 'Gagal melakukan pendaftaran akun. Silakan coba lagi.'
+    errorMessage.value = 'Terjadi kendala saat autentikasi. Silakan periksa kredensial Anda.'
   } finally {
     loading.value = false
   }
@@ -252,8 +140,19 @@ async function handleRegister() {
           </div>
         </div>
 
+        <!-- Scope & Audience Badge -->
+        <div class="mt-7 p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
+          <span class="text-base shrink-0">🛡️</span>
+          <div>
+            <strong class="font-bold text-amber-100">Closed Portfolio &amp; Private Research Environment:</strong>
+            <p class="text-[11px] text-amber-200/90 mt-0.5 leading-relaxed">
+              Platform ini dikhususkan secara eksklusif untuk <strong>Evaluasi Rekruter Teknis (Mode Demo)</strong> dan <strong>Riset Tesis Pemilik (Frans Alwan Purba)</strong>. Registrasi akun publik ditutup.
+            </p>
+          </div>
+        </div>
+
         <!-- Hero Headline -->
-        <div class="mt-8 lg:mt-10 space-y-3">
+        <div class="mt-7 space-y-3">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-300">
               <span>🚀 Production AI Architecture</span>
@@ -262,7 +161,7 @@ async function handleRegister() {
             </span>
             <span class="inline-flex items-center gap-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 text-xs font-semibold text-purple-300">
               <span>🏛️</span>
-              <span>Tesis S2 AI • FMIPA UGM</span>
+              <span>FMIPA UGM</span>
             </span>
           </div>
 
@@ -274,11 +173,11 @@ async function handleRegister() {
           </h1>
 
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
-            Sistem orkestrasi agen AI produksi berkinerja tinggi: Menghubungkan ekosistem tool terbuka (Anthropic Model Context Protocol SSE), Corrective RAG (CRAG) dengan pengelompokan hirarkis RAPTOR (GMM), Multimodal Document AI (Gemini 2.0 Flash VLM), Classical ML Anomaly Radar (<span class="text-cyan-300 font-mono font-semibold">&lt; 2ms</span>), evaluasi RAG Triad otomatis, serta riset tesis S2 Explainable AI terverifikasi.
+            Menghubungkan ekosistem tool terbuka (Anthropic Model Context Protocol SSE), Corrective RAG (CRAG) dengan pengelompokan hirarkis RAPTOR (GMM), Multimodal Document AI (Gemini 2.0 Flash VLM), Classical ML Anomaly Radar (<span class="text-cyan-300 font-mono font-semibold">&lt; 2ms</span>), evaluasi RAG Triad otomatis (81.8/100), serta riset tesis S2 Explainable AI terverifikasi.
           </p>
         </div>
 
-        <!-- 5 Core AI Engineering Systems (Fase 1 - 5) Grid -->
+        <!-- 5 Core AI Engineering Systems Grid -->
         <div class="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl">
           <!-- Fase 1: Anthropic MCP -->
           <div class="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-3.5 backdrop-blur-xs hover:border-indigo-500/40 hover:bg-indigo-950/30 transition-all">
@@ -344,7 +243,7 @@ async function handleRegister() {
             </div>
           </div>
 
-          <!-- Fase 5: AI Quality Flywheel (Span 2 cols on tablet+) -->
+          <!-- Fase 5: AI Quality Flywheel -->
           <div class="sm:col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-3.5 backdrop-blur-xs hover:border-emerald-500/40 hover:bg-emerald-950/30 transition-all">
             <div class="flex items-start gap-3">
               <span class="text-lg p-2 rounded-xl bg-emerald-500/20 text-emerald-300 shrink-0">🏆</span>
@@ -359,7 +258,7 @@ async function handleRegister() {
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  Evaluasi LLM-as-a-Judge otomatis terhadap 20 Golden Dataset uji akademik pada metrik RAG Triad: Context Recall 86.0%, Faithfulness 85.0%, dan OOD Refusal 100% via GitHub Actions CI/CD gate.
+                  Evaluasi LLM-as-a-Judge otomatis terhadap 20 Golden Dataset uji akademik pada metrik RAG Triad: Context Recall 86.0%, Faithfulness 85.0%, dan OOD Refusal 100% via CI/CD gate.
                 </p>
               </div>
             </div>
@@ -373,14 +272,14 @@ async function handleRegister() {
                 <div class="flex items-center justify-between flex-wrap gap-2">
                   <div class="flex items-center gap-1.5">
                     <h2 class="text-xs font-bold text-purple-300">Riset Tesis S2: IDCS Explainable AI &amp; Uji Kausalitas</h2>
-                    <span class="rounded bg-purple-500/30 text-purple-200 text-[9px] font-bold px-1.5 py-0.2">FMIPA UGM</span>
+                    <span class="rounded bg-rose-500/30 text-rose-200 text-[9px] font-bold px-1.5 py-0.2 border border-rose-500/40">🔒 Area Privat Pemilik</span>
                   </div>
                   <span class="text-[10px] text-slate-400 font-medium">
                     Dospem: Afiahayati, Ph.D &amp; Prof. Sri Hartati
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                  Replikasi HMEQ 32 konfigurasi ($L=25$ bootstrap), intervensi dual-arm (regularisasi bobot non-degenerat &amp; counterfactual cost-shuffle 5 seeds), No-Lose Decision Matrix, simulator permutasi cepat 140ms, dan ekspor tabel LaTeX IEEE.
+                  Naskah riset aktif, log bimbingan dospem, dan token repositori privat dilindungi kontrol akses berbasis peran (RBAC). Hanya dapat diakses oleh pemilik.
                 </p>
               </div>
             </div>
@@ -411,12 +310,12 @@ async function handleRegister() {
 
       <!-- Footer Metadata -->
       <div class="mt-8 pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500 border-t border-slate-800/80">
-        <span class="font-mono text-[11px]">System Status: Production v2.5 (117/117 Tests Passed)</span>
-        <span class="text-slate-400">Yogyakarta, Indonesia · Ready for Technical Interview</span>
+        <span class="font-mono text-[11px]">System Status: Production v2.5 (Pure Portfolio · Zero Public Signup)</span>
+        <span class="text-slate-400">Yogyakarta, Indonesia · Master of AI Candidate UGM</span>
       </div>
     </div>
 
-    <!-- SISI KANAN: Auth Card & Recruiter Instant Access -->
+    <!-- SISI KANAN: Dedicated Dual-Portal (Recruiter Demo vs Private Owner) -->
     <div class="order-1 lg:order-2 w-full lg:w-[480px] xl:w-[520px] flex items-center justify-center p-4 sm:p-8 lg:p-10 bg-slate-950/90 backdrop-blur-xl border-b lg:border-b-0 lg:border-l border-slate-800/80 relative z-20">
       <div class="w-full max-w-md space-y-5 rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 sm:p-8 shadow-2xl shadow-indigo-950/60">
         
@@ -436,76 +335,32 @@ async function handleRegister() {
           </div>
         </div>
 
-        <!-- 1-Click Recruiter Demo Button (PROMINENT & HIGHEST VALUE) -->
-        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-950/90 via-purple-950/70 to-slate-900 border border-indigo-500/40 shadow-xl shadow-indigo-950/60 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
-              <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Akses Cepat Recruiter &amp; Reviewer
-            </span>
-            <span class="rounded bg-indigo-500/20 px-2 py-0.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/30 font-bold">
-              Instant Access
-            </span>
+        <!-- Portal Role Selector Tabs -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span class="font-semibold text-slate-300 uppercase tracking-wider text-[11px]">Pilih Jalur Akses Masuk:</span>
           </div>
 
-          <button
-            type="button"
-            @click="handleGuestDemo"
-            :disabled="loadingDemo"
-            class="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 px-4 py-3 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-purple-600/30 hover:from-indigo-400 hover:to-pink-500 hover:shadow-purple-600/50 transition-all cursor-pointer disabled:opacity-60"
-          >
-            <span v-if="!loadingDemo" class="text-sm">⚡</span>
-            <span v-else class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-            <span>{{ loadingDemo ? 'Mempersiapkan Lingkungan Demo...' : 'Masuk Mode Demo Instan (1-Click) ➔' }}</span>
-          </button>
-          
-          <!-- Key Demo Features Chips -->
-          <div class="grid grid-cols-2 gap-1.5 pt-1 text-[10px] text-slate-300">
-            <div class="flex items-center gap-1 rounded-lg bg-slate-900/80 px-2 py-1 border border-slate-800">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span>Tanpa login / signup</span>
-            </div>
-            <div class="flex items-center gap-1 rounded-lg bg-slate-900/80 px-2 py-1 border border-slate-800">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span>20 Golden Dataset</span>
-            </div>
-            <div class="flex items-center gap-1 rounded-lg bg-slate-900/80 px-2 py-1 border border-slate-800">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span>Next-Gen CRAG Reranker</span>
-            </div>
-            <div class="flex items-center gap-1 rounded-lg bg-slate-900/80 px-2 py-1 border border-slate-800">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span>Tour Interaktif 60s</span>
-            </div>
+          <div class="flex items-center rounded-2xl bg-slate-950 p-1.5 text-xs font-semibold border border-slate-800 gap-1.5">
+            <button
+              type="button"
+              @click="switchPortal('recruiter')"
+              class="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl transition-all cursor-pointer text-xs"
+              :class="portalMode === 'recruiter' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30 font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+            >
+              <span>👔</span>
+              <span>Demo Rekruter</span>
+            </button>
+            <button
+              type="button"
+              @click="switchPortal('owner')"
+              class="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl transition-all cursor-pointer text-xs"
+              :class="portalMode === 'owner' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-600/30 font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+            >
+              <span>👑</span>
+              <span>Pemilik (Frans)</span>
+            </button>
           </div>
-        </div>
-
-        <!-- Divider -->
-        <div class="relative flex items-center justify-center">
-          <div class="border-t border-slate-800 w-full"></div>
-          <span class="bg-slate-900 px-3 text-[11px] font-medium text-slate-500 uppercase tracking-wider shrink-0">
-            atau masuk dengan akun pengembang
-          </span>
-        </div>
-
-        <!-- Mode Switcher: Masuk vs Daftar Baru -->
-        <div class="flex items-center rounded-xl bg-slate-950 p-1 text-xs font-semibold border border-slate-800">
-          <button
-            type="button"
-            @click="switchMode('login')"
-            class="flex-1 min-h-[40px] flex items-center justify-center py-2 rounded-lg transition-all cursor-pointer"
-            :class="authMode === 'login' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-400 hover:text-white'"
-          >
-            Masuk (Sign In)
-          </button>
-          <button
-            type="button"
-            @click="switchMode('register')"
-            class="flex-1 min-h-[40px] flex items-center justify-center py-2 rounded-lg transition-all cursor-pointer"
-            :class="authMode === 'register' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-400 hover:text-white'"
-          >
-            Daftar Baru (Sign Up)
-          </button>
         </div>
 
         <!-- Alerts -->
@@ -525,143 +380,143 @@ async function handleRegister() {
           <p class="leading-relaxed">{{ errorMessage }}</p>
         </div>
 
-        <!-- FORM: MASUK (SIGN IN) -->
-        <div v-if="authMode === 'login'" class="space-y-4">
-          <!-- Toggle Password vs Magic Link -->
-          <div class="flex items-center justify-between text-[11px] text-slate-400">
-            <span>Metode Autentikasi:</span>
-            <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                @click="switchLoginMethod('password')"
-                class="px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs"
-                :class="loginMethod === 'password' ? 'bg-slate-800 text-indigo-300 font-bold border border-slate-700' : 'text-slate-500 hover:text-slate-300'"
-              >
-                Password
-              </button>
-              <button
-                type="button"
-                @click="switchLoginMethod('magic_link')"
-                class="px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs"
-                :class="loginMethod === 'magic_link' ? 'bg-slate-800 text-indigo-300 font-bold border border-slate-700' : 'text-slate-500 hover:text-slate-300'"
-              >
-                Magic Link
-              </button>
+        <!-- ============================================== -->
+        <!-- PORTAL 1: REKRUTER & TECH LEAD INSTANT ACCESS  -->
+        <!-- ============================================== -->
+        <div v-if="portalMode === 'recruiter'" class="space-y-4">
+          <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-950/90 via-purple-950/70 to-slate-900 border border-indigo-500/40 shadow-xl shadow-indigo-950/60 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Akses Evaluasi Cepat
+              </span>
+              <span class="rounded bg-indigo-500/20 px-2 py-0.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/30 font-bold">
+                Zero Setup
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Didesain khusus untuk <strong>Tech Lead, Engineering Manager, dan Recruiter</strong>. Masuk ke dashboard interaktif secara instan tanpa perlu registrasi atau kredensial.
+            </p>
+
+            <button
+              type="button"
+              @click="handleGuestDemo"
+              :disabled="loadingDemo"
+              class="w-full min-h-[50px] flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 px-4 py-3 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-purple-600/30 hover:from-indigo-400 hover:to-pink-500 hover:shadow-purple-600/50 transition-all cursor-pointer disabled:opacity-60"
+            >
+              <span v-if="!loadingDemo" class="text-base">🚀</span>
+              <span v-else class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+              <span>{{ loadingDemo ? 'Mempersiapkan Lingkungan Demo...' : 'Masuk sebagai Rekruter (Instant Access) ➔' }}</span>
+            </button>
+            
+            <!-- Recruiter Access Matrix -->
+            <div class="space-y-2 pt-2 border-t border-slate-800/80 text-[11px]">
+              <div class="flex items-start gap-1.5 text-emerald-300">
+                <span class="font-bold">✓</span>
+                <span><strong>Akses Penuh:</strong> Next-Gen CRAG, Gemini 2.0 VLM, Classical ML Radar (&lt;2ms), Quality Flywheel 81.8, dan Anthropic MCP SSE.</span>
+              </div>
+              <div class="flex items-start gap-1.5 text-amber-300">
+                <span class="font-bold">🔒</span>
+                <span><strong>Akses Terproteksi:</strong> Naskah Tesis S2 UGM, Notulensi Dosen Pembimbing, dan Catatan Riset Privat Pemilik dikunci demi privasi akademik.</span>
+              </div>
             </div>
           </div>
 
-          <form @submit.prevent="handleLogin" class="space-y-3.5">
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
-              <input
-                v-model="email"
-                type="email"
-                required
-                autocomplete="email"
-                placeholder="nama@email.com atau email institusi"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
+          <div class="rounded-xl bg-slate-950 p-3 border border-slate-800/90 text-[11px] text-slate-400 space-y-1">
+            <p class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <span>💡</span>
+              <span>Tips untuk Evaluator:</span>
+            </p>
+            <p class="leading-relaxed">
+              Setelah masuk, tekan <kbd class="rounded bg-slate-800 px-1 py-0.5 font-mono text-slate-300 border border-slate-700">Ctrl + K</kbd> untuk membuka Command Palette, atau klik pill <strong>✨ Demo (Tour 60s)</strong> di navbar atas untuk walkthrough terpandu.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- PORTAL 2: PEMILIK & PENELITI S2 (FRANS ALWAN) -->
+        <!-- ============================================== -->
+        <div v-else class="space-y-4">
+          <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-950/90 via-slate-900 to-slate-950 border border-purple-500/40 shadow-xl shadow-purple-950/60 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-purple-300">
+                <span>👑</span>
+                Portal Privat Pemilik
+              </span>
+              <span class="rounded bg-purple-500/20 px-2 py-0.5 text-[10px] font-mono text-purple-300 border border-purple-500/30 font-bold">
+                Full Clearance
+              </span>
             </div>
 
-            <div v-if="loginMethod === 'password'">
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-xs font-semibold text-slate-300">Password</label>
-                <button
-                  type="button"
-                  @click="showPassword = !showPassword"
-                  class="text-xs text-indigo-400 hover:underline cursor-pointer"
-                >
-                  {{ showPassword ? 'Sembunyikan' : 'Lihat' }}
-                </button>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Akses administratif penuh untuk <strong>Frans Alwan Purba</strong>: Mengelola naskah Tesis S2 FMIPA UGM (Bab 1–5), log bimbingan dospem, simulator permutasi kausal, serta ekspor LaTeX.
+            </p>
+
+            <form @submit.prevent="handleOwnerLogin" class="space-y-3 pt-1">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Email Pemilik</label>
+                <input
+                  v-model="ownerEmail"
+                  type="email"
+                  required
+                  autocomplete="username"
+                  class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors font-mono"
+                />
               </div>
-              <input
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                required
-                autocomplete="current-password"
-                placeholder="••••••••"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
-            </div>
 
-            <button
-              type="submit"
-              :disabled="loading"
-              class="w-full min-h-[46px] mt-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span v-if="loading" class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-              <span>{{ loading ? 'Memverifikasi...' : (loginMethod === 'password' ? 'Masuk ke Dashboard ➔' : 'Kirim Tautan Magic Link ➔') }}</span>
-            </button>
-          </form>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-semibold text-slate-300">Password / Master Passkey</label>
+                  <button
+                    type="button"
+                    @click="showPassword = !showPassword"
+                    class="text-xs text-purple-400 hover:underline cursor-pointer"
+                  >
+                    {{ showPassword ? 'Sembunyikan' : 'Lihat' }}
+                  </button>
+                </div>
+                <input
+                  v-model="ownerKey"
+                  :type="showPassword ? 'text' : 'password'"
+                  required
+                  autocomplete="current-password"
+                  placeholder="Masukkan password atau passkey riset..."
+                  class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                :disabled="loading"
+                class="w-full min-h-[48px] mt-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-purple-600/30 hover:from-purple-500 hover:to-pink-500 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span v-if="loading" class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                <span v-else>🔐</span>
+                <span>{{ loading ? 'Memverifikasi Otoritas...' : 'Masuk sebagai Pemilik (Akses Penuh) ➔' }}</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="rounded-xl bg-slate-950 p-3 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+            <p class="font-semibold text-purple-300 flex items-center gap-1.5">
+              <span>🛡️</span>
+              <span>Hak Akses Terbuka untuk Pemilik:</span>
+            </p>
+            <p class="leading-relaxed">
+              Membuka modul <strong>Riset &amp; Tesis (IDCS XAI)</strong>, log konsultasi Bu Afiahayati Ph.D &amp; Prof. Sri Hartati, WhatsApp auto-drafting, serta fitur quick capture catatan &amp; habits pribadi.
+            </p>
+          </div>
         </div>
 
-        <!-- FORM: DAFTAR BARU (SIGN UP) -->
-        <div v-else class="space-y-3.5">
-          <form @submit.prevent="handleRegister" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap</label>
-              <input
-                v-model="fullName"
-                type="text"
-                required
-                placeholder="Contoh: Frans Alwan Purba"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
-              <input
-                v-model="email"
-                type="email"
-                required
-                autocomplete="email"
-                placeholder="nama@email.com"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Password (Minimal 6 Karakter)</label>
-              <input
-                v-model="password"
-                type="password"
-                required
-                autocomplete="new-password"
-                placeholder="••••••••"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Konfirmasi Password</label>
-              <input
-                v-model="confirmPassword"
-                type="password"
-                required
-                autocomplete="new-password"
-                placeholder="••••••••"
-                class="w-full min-h-[44px] rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm sm:text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              :disabled="loading"
-              class="w-full min-h-[46px] mt-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span v-if="loading" class="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-              <span>{{ loading ? 'Mendaftarkan Akun...' : 'Buat Akun Baru ➔' }}</span>
-            </button>
-          </form>
+        <!-- Closed Portfolio Security Notice -->
+        <div class="rounded-xl bg-slate-950/60 p-3 border border-slate-800/80 text-[11px] text-slate-400 text-center">
+          <span>⚠️ Registrasi umum dinonaktifkan. Seluruh data dilindungi </span>
+          <span class="text-indigo-400 font-semibold">PostgreSQL RLS &amp; OWASP Top 10 for LLMs</span>.
         </div>
 
-        <!-- Footer Trust & Privacy Link -->
-        <div class="pt-2 text-center text-[11px] text-slate-400 space-y-1 border-t border-slate-800/80">
-          <p>
-            <span>Data dilindungi secara terisolasi via </span>
-            <span class="text-indigo-400 font-semibold">PostgreSQL Row-Level Security</span>
-          </p>
+        <!-- Footer AI Governance & Model Cards Modal Trigger -->
+        <div class="pt-2 text-center text-[11px] text-slate-400 border-t border-slate-800/80">
           <button
             type="button"
             @click="handleOpenPrivacy('governance')"

@@ -17,6 +17,11 @@
 > **Autonomous AI Engineering Operating System & Distributed Multi-Agent Platform**  
 > *Engineered by **Frans Alwan Purba** · Master of Computer Science in AI Candidate, Universitas Gadjah Mada.*
 
+> 🔒 **Closed Portfolio & Dual-Role Access Control (RBAC):**  
+> Aplikasi ini dirancang murni sebagai portofolio rekayasa AI dan lingkungan riset privat (registrasi publik ditutup):  
+> • **👔 Mode Rekruter / Reviewer (1-Click Instant Access):** Tanpa login atau registrasi, evaluator dapat langsung menguji seluruh kapabilitas produksi (Next-Gen CRAG & RAPTOR, Gemini 2.0 Flash VLM, Classical ML Radar sub-2ms, AI Quality Flywheel 81.8/100, Anthropic MCP Server SSE, dan AI Governance Cockpit). Area naskah tesis & riset pribadi dikunci demi integritas akademik.  
+> • **👑 Mode Pemilik (Frans Alwan Purba):** Akses terotentikasi penuh ke naskah Tesis S2 UGM (Bab 1–5), notulensi bimbingan dospem privat (Afiahayati Ph.D & Prof. Sri Hartati), draf proposal internal, dan token repository.
+
 **Second Brain** adalah platform orkestrasi agen AI produksi berkinerja tinggi yang dirancang untuk mengatasi beban kognitif mahasiswa magister dan software engineer. Sistem ini menggabungkan protokol industri terbuka (**Anthropic Model Context Protocol SSE**), **Corrective RAG (CRAG)** dengan pengelompokan hirarkis **RAPTOR (GMM)**, Computer Vision (**Gemini 2.0 Flash VLM**), deteksi anomali **Classical Machine Learning (< 2ms)**, serta background telemetry berkonkurensi tinggi (**Golang 1.22**).
 
 🌐 **Live Demo Aplikasi (Gratis & Zero Setup):**  
@@ -206,19 +211,28 @@ Untuk membuktikan kedewasaan rekayasa perangkat lunak, sistem dilengkapi dokumen
 
 ---
 
-## ⚡ Mode Demo Instan & Recruiter Walkthrough Tour (60 Detik)
+## 🔐 Akses Berbasis Peran (RBAC) & Mode Demo Rekruter
 
-Untuk mempermudah Tech Lead, Engineering Manager, dan Recruiter menguji kapabilitas sistem tanpa proses registrasi:
+Aplikasi mengimplementasikan pemisahan hak akses ketat antara **Mode Evaluasi Rekruter** dan **Mode Riset Pribadi Pemilik**:
 
-* **⚡ 1-Click Instant Recruiter Preview:**
-  * Tombol akses cepat di halaman login yang langsung memuat lingkungan simulasi dengan data akademik realistis Frans Alwan Purba (analisis metrik CatBoost, Tubes Machine Learning, hidrasi harian, dan ringkasan AI).
-* **✨ Guided Tour Interaktif (60 Detik):**
-  * Klik pill `✨ Demo (Tour 60s)` di navbar atas untuk membuka walkthrough interaktif 5 langkah:
-    1. **Arsitektur Polyglot & Anthropic MCP**: Hubungan FastAPI SSE `:8000` dan worker Go `:8085`.
-    2. **Next-Gen RAG & RAPTOR Tree**: Pengelompokan GMM, CRAG routing, dan Cross-Encoder.
-    3. **Multimodal VLM & Classical ML Radar**: Gemini 2.0 VLM dan Isolation Forest < 2ms.
-    4. **AI Quality Flywheel & Evals**: RAG Triad, skor komposit 81.8/100, dan Golden Dataset.
-    5. **Profil Rekayasa Frans Alwan Purba**: Informasi riset magister AI di UGM dan link kontak.
+* **👔 Portal Rekruter / Hiring Team (1-Click Instant Demo):**
+  * Evaluator dapat masuk langsung dari halaman autentikasi tanpa membuat akun baru atau memasukkan kata sandi.
+  * **Modul Terbuka Penuh**: Next-Gen CRAG (RAPTOR GMM, HyDE, Cross-Encoder), Multimodal Document AI (Gemini 2.0 Flash VLM), Classical ML Radar (<2ms), AI Quality Flywheel (81.8/100 Composite Score), Anthropic MCP SSE Server, Go Concurrency Telemetry, Command Palette (`Ctrl+K`), dan Walkthrough Tour (60s).
+  * **Modul Terproteksi**: Tab Riset & Tesis secara otomatis menampilkan layar proteksi (*Protected Research Vault*), menjaga naskah tesis aktif dan notulensi bimbingan dosen pembimbing agar tetap privat bagi Frans Alwan Purba.
+* **👑 Portal Pemilik (Frans Alwan Purba):**
+  * Akses terotentikasi via Supabase / Master Passkey Riset yang membuka seluruh naskah Tesis S2 FMIPA UGM (Bab 1–5), log bimbingan Afiahayati Ph.D & Prof. Sri Hartati, simulator permutasi kausal cepat, generator pesan WhatsApp pembimbing, dan ekspor tabel LaTeX IEEE.
+* **🚫 Registrasi Akun Publik Ditutup:**
+  * Tidak ada formulir pendaftaran terbuka untuk umum, mengukuhkan status aplikasi sebagai *pure portfolio* dan lingkungan riset eksklusif.
+
+---
+
+## 🚀 Deployment Otomatis (CI/CD)
+
+Platform web dashboard dideploy secara otomatis menggunakan arsitektur jamstack berkecepatan tinggi:
+
+* **Production URL:** [https://second-brain-agent.netlify.app/](https://second-brain-agent.netlify.app/)
+* **Continuous Deployment Gate:** Setiap `git push origin main` secara otomatis memicu proses build verifikasi TypeScript (`vue-tsc -b`) dan Vite bundler melalui konfigurasi [`netlify.toml`](netlify.toml).
+* **High-Speed CDN:** Aset terdistribusi global dengan header caching optimal, SPA routing fallback (`/* -> /index.html 200`), dan kesiapan offline PWA Service Worker.
 
 ---
 

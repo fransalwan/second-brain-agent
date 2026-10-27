@@ -1,6 +1,6 @@
 # 🏆 Second Brain AI Systems Evaluation Report (CI/CD Quality Flywheel)
 
-> **Evaluated at**: `2026-10-26T14:00:14.864802+00:00`  
+> **Evaluated at**: `2026-10-27T09:36:57.525400+00:00`  
 > **Target System**: Second Brain Agent (FastAPI + Google ADK + RAPTOR Hierarchical RAG + pgvector)  
 > **Composite AI Quality Index**: **`81.8 / 100`** 🎯
 
@@ -34,8 +34,8 @@
 
 ## ⚡ Telemetry & Throughput
 - **Total Test Cases**: `20` skenario akademik & sirkadian
-- **Waktu Eksekusi Penuh**: `0.72 detik`
-- **Rata-rata Latensi**: `~36.0 ms / query`
+- **Waktu Eksekusi Penuh**: `0.85 detik`
+- **Rata-rata Latensi**: `~42.5 ms / query`
 
 ---
 *Laporan ini digenerate secara otomatis oleh pipeline CI/CD `.github/workflows/ai_eval.yml`.*

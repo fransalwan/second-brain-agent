@@ -50,24 +50,29 @@ router.beforeEach(async (to) => {
   }
 
   let isDemo = false
+  let userRole: string | null = null
   try {
     isDemo = localStorage.getItem('secondbrain_demo_mode') === 'true'
+    userRole = localStorage.getItem('secondbrain_user_role')
   } catch {
     isDemo = false
+    userRole = null
   }
 
   let session = initialSession
-  if (isInitialAuthResolved && session === null && !isDemo) {
+  if (isInitialAuthResolved && session === null && !isDemo && userRole !== 'owner') {
     session = await getSafeSession()
   }
 
-  // Akses rute yang membutuhkan auth: izinkan jika ada session aktif ATAU sedang dalam mode demo
-  if (to.meta.requiresAuth && !session && !isDemo) {
+  const isAuthenticated = !!session || isDemo || userRole === 'owner' || userRole === 'recruiter'
+
+  // Akses rute yang membutuhkan auth: izinkan jika authenticated (session, demo recruiter, atau owner)
+  if (to.meta.requiresAuth && !isAuthenticated) {
     return { name: 'login' }
   }
 
-  // Jika sudah login atau mode demo aktif dan mencoba buka /login, arahkan ke dashboard
-  if (to.name === 'login' && (session || isDemo)) {
+  // Jika sudah terautentikasi dan mencoba buka /login, arahkan ke dashboard
+  if (to.name === 'login' && isAuthenticated) {
     return { name: 'home' }
   }
 })

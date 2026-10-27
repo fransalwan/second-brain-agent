@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
-const props = defineProps<{
-  isOpen: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    isOpen: boolean
+    userRole?: 'owner' | 'recruiter'
+  }>(),
+  {
+    userRole: 'recruiter',
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -157,9 +163,15 @@ const allCommands: CommandItem[] = [
 ]
 
 const filteredCommands = computed(() => {
+  let commands = allCommands
+  // Sembunyikan modul riset & skripsi pribadi jika pengguna adalah akun rekruter/demo
+  if (props.userRole === 'recruiter') {
+    commands = commands.filter((cmd) => cmd.category !== '🔬 Tesis & Riset S2')
+  }
+
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return allCommands
-  return allCommands.filter(
+  if (!q) return commands
+  return commands.filter(
     (cmd) =>
       cmd.title.toLowerCase().includes(q) ||
       cmd.category.toLowerCase().includes(q) ||
