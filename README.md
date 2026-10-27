@@ -120,6 +120,24 @@ flowchart TD
 
 ---
 
+## 🔬 Tesis S2 & Explainable AI Research Engine: Instance-Dependent Cost-Sensitive (IDCS)
+
+Modul riset akademik yang diselaraskan langsung dengan proposal tesis S2 Magister Kecerdasan Artifisial FMIPA Universitas Gadjah Mada (2026/2027):
+
+* **Peneliti:** Frans Alwan Purba (NIM: `25/563545/PPA/07116`)
+* **Dosen Pembimbing:**
+  * **Pembimbing I:** Afiahayati, S.Kom., M.Cs., Ph.D (NIP. 197904262005012001)
+  * **Pembimbing II:** Prof. Dra. Sri Hartati, M.Sc., Ph.D (NIP. 195701141985032001)
+* **Judul Penelitian:** *Stabilisasi Penjelasan Model Instance-Dependent Cost-Sensitive Menggunakan Regularisasi dan Uji Permutasi Biaya Terstratifikasi*
+* **Problem & Gap SOTA:** Model IDCS mengoptimasi Average Expected Cost (AEC) di sektor kredit finansial, tetapi penjelasan lokalnya (SHAP & LIME) mengalami lonjakan variansi CoV 3× lipat saat class imbalance > 95/5 (Ballegeer et al., 2025 EJOR). Hipotesis *entanglement* bobot biaya dibuktikan dan dimitigasi melalui desain eksperimen 3 tahap:
+  1. **Tahap 1 (Lantai Derau):** Replikasi dataset HMEQ ($N=5,960$) pada 32 konfigurasi ($L=25$ bootstrap) untuk mengisolasi variansi acak kernel explainer (*noise floor*).
+  2. **Tahap 2 (Intervensi Dual-Arm):** Lengan 1 menguji kekuatan regularisasi bobot non-degenerat ($\sigma > 0.01$); Lengan 2 menguji manipulasi counterfactual permutasi biaya terstratifikasi (*cost-shuffle* pada 5 random seed).
+  3. **Tahap 3 (Uji Hipotesis & Trade-off):** Paired Wilcoxon Signed-Rank, Sign-Flip Permutation Test ($B=2,000$ iterasi), koreksi Benjamini-Hochberg FDR, serta analisis trade-off finansial (*Savings* vs *relAEC*).
+* **No-Lose Research Decision Matrix:** Menjamin kontribusi ilmiah bernilai tinggi pada Skenario A (Regularisasi Efektif), Skenario B (Bukti Kausal Entanglement), maupun Skenario C (Interaksi Data Sparsity).
+* **Ekspor Tabel LaTeX IEEE:** Satu klik menyalin kode tabel format IEEE / Tesis UGM langsung ke clipboard.
+
+---
+
 ## 🎛️ Struktur Navigasi Dashboard Web Baru
 
 Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
@@ -131,7 +149,7 @@ Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
 | **Multimodal VLM** | 📸 `Gemini 2.0` | Dropzone gambar & 3 preset 1-klik untuk kurva loss CatBoost, catatan kuliah tulisan tangan, dan diagram arsitektur multi-agent. |
 | **ML Radar** | 📊 `<2ms` | 5 slider interaktif fitur sirkadian, gauge skor anomali real-time (-1.0 s.d. +1.0), batas kritis -0.150, dan kartu intervensi empatik otonom LLM. |
 | **AI Quality Flywheel** | 🏆 `81.8 Score` | 5 kartu metrik benchmark RAG Triad dan tabel interaktif 20 kasus uji Golden Dataset dengan drawer inspeksi prompt, ground truth, dan kritik juri LLM. |
-| **Riset & Thesis** | 🔬 `CatBoost` | Telemetri 500-epoch CatBoost, confusion matrix, milestone 5 Bab skripsi, dan **generator tabel LaTeX IEEE 1-klik** untuk Overleaf. |
+| **Riset & Tesis** | 🔬 `IDCS XAI` | Arsitektur 3 Tahap Tesis S2 UGM (Noise Floor, Dual-Arm Regularisasi & Cost-Shuffle), No-Lose Decision Matrix, logbook bimbingan dospem, dan **generator tabel LaTeX IEEE 1-klik**. |
 | **MCP & Telemetry** | 🔌 `SSE Std` | Katalog 8 skema tool MCP, live JSON-RPC 2.0 simulator, audit logs worker Go, dan pipeline webhook 3 repositori akademik. |
 
 ---
