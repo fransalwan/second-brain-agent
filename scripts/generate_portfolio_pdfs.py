@@ -145,24 +145,12 @@ def build_pdf_fundamentals(filename):
         spaceAfter=3
     )
 
-    code_style = ParagraphStyle(
-        'CodeStyle',
-        parent=styles['Normal'],
-        fontName='Courier',
-        fontSize=7.5,
-        leading=10.5,
-        textColor=colors.HexColor("#0f172a"),
-        backColor=colors.HexColor("#f1f5f9"),
-        borderPadding=5,
-        spaceAfter=5
-    )
-
     story = []
 
     # Title & Header
     story.append(Paragraph("SECOND BRAIN: AUTONOMOUS AI ENGINEERING PLATFORM", title_style))
     story.append(Paragraph("Comprehensive Engineering Fundamentals, Architecture Blueprint & AI Systems Guide", subtitle_style))
-    story.append(Paragraph("<b>Author:</b> Frans Alwan Purba &nbsp;|&nbsp; <b>Degree:</b> Master of Computer Science in AI Candidate, Universitas Gadjah Mada &nbsp;|&nbsp; <b>Stack:</b> Google ADK · Anthropic MCP · FastAPI · Go 1.22 · pgvector", meta_style))
+    story.append(Paragraph("<b>Author:</b> Frans Alwan Purba (NIM: 25/563545/PPA/07116) &nbsp;|&nbsp; <b>Degree:</b> Master of AI Candidate, Universitas Gadjah Mada &nbsp;|&nbsp; <b>Supervisors:</b> Afiahayati, Ph.D & Prof. Sri Hartati &nbsp;|&nbsp; <b>Stack:</b> Google ADK · Anthropic MCP · FastAPI · Go 1.22 · pgvector", meta_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=c_secondary, spaceBefore=0, spaceAfter=8))
 
     # Section 1
@@ -172,7 +160,7 @@ def build_pdf_fundamentals(filename):
         body_style
     ))
     story.append(Paragraph(
-        "<b>Second Brain</b> is architected as an <i>autonomous, event-driven AI Engineering Operating System & Distributed Multi-Agent Platform</i>. It standardizes agent tool interfaces via Anthropic's Model Context Protocol (MCP), eliminates semantic hallucinations using Corrective RAG (CRAG) + RAPTOR hierarchical tree summarization, extracts visual artifacts via Gemini 2.0 Flash VLM, calculates deterministic circadian burnout risks in &lt;2ms via Classical ML (Isolation Forest), and audits agent outputs with an automated LLM-as-a-Judge CI/CD Quality Flywheel (81.8/100 Composite Score).",
+        "<b>Second Brain</b> is architected as an <i>autonomous, event-driven AI Engineering Operating System & Distributed Multi-Agent Platform</i>. It standardizes agent tool interfaces via Anthropic's Model Context Protocol (MCP), eliminates semantic hallucinations using Corrective RAG (CRAG) + RAPTOR hierarchical tree summarization, extracts visual artifacts via Gemini 2.0 Flash VLM, calculates deterministic circadian burnout risks in &lt;2ms via Classical ML (Isolation Forest), audits agent outputs with an automated LLM-as-a-Judge CI/CD Quality Flywheel (81.8/100 Composite Score), enforces a 5-layer OWASP LLM Defense Matrix, and anchors S2 thesis research on Instance-Dependent Cost-Sensitive Explainable AI.",
         body_style
     ))
 
@@ -202,9 +190,9 @@ def build_pdf_fundamentals(filename):
             Paragraph("Unified relational storage with 768-dimensional vector embeddings, HNSW graph indexing (m=16, ef_construction=64), and Row-Level Security (RLS).", bullet_style)
         ],
         [
-            Paragraph("<b>Interactive Frontend</b>", bullet_style),
-            Paragraph("Vue 3 + TypeScript + Vite", bullet_style),
-            Paragraph("Reactive Bento Grid 2.0, Raycast-style Omnibar (Ctrl+K), sub-millisecond client-side routing, and 100% PWA offline capability.", bullet_style)
+            Paragraph("<b>Developer Cockpit Frontend</b>", bullet_style),
+            Paragraph("Vue 3 + Vite + Tailwind 3.0", bullet_style),
+            Paragraph("Raycast-style Command Palette (Ctrl+K), Recruiter Quick Cockpit, animated SVG Radial Gauge, sub-second routing, and 100% PWA offline capability.", bullet_style)
         ]
     ]
     t = Table(table_data, colWidths=[1.3*inch, 1.4*inch, 4.3*inch])
@@ -266,14 +254,15 @@ def build_pdf_fundamentals(filename):
     ))
     story.append(Paragraph(
         "• <b>Isolation Forest in &lt; 2ms:</b> Evaluates a 5-D feature vector (<code>sleep_hours</code>, <code>sleep_debt</code>, <code>midnight_sessions</code>, <code>overdue_tasks_ratio</code>, <code>water_intake</code>) in-memory with zero token spend.<br/>"
-        "• <b>Conditional Autonomous LLM Intervention:</b> When the Anomaly Score drops below the critical decision boundary (&lt; -0.150), the system conditionally triggers Gemini 2.0 Flash to synthesize an empathetic, contextual energy recovery plan.",
+        "• <b>Conditional Autonomous LLM Intervention:</b> When the Anomaly Score drops below the critical decision boundary (&lt; -0.150), the system conditionally triggers Gemini 2.0 Flash to synthesize an empathetic, contextual energy recovery plan.<br/>"
+        "• <b>Animated SVG Radial Gauge:</b> Visualizes analog deflection with spring-physics needle rotation and real-time threshold alert.",
         bullet_style
     ))
 
     # Section 7: Quality Flywheel & Evals
     story.append(Paragraph("7. Production Evals & CI/CD Observability (Quality Flywheel)", h1_style))
     story.append(Paragraph(
-        "Every code commit is continuously audited against a 20-case curated Golden Dataset across 7 academic domains using <b>LLM-as-a-Judge RAG Triad</b> scoring:",
+        "Every code commit is continuously audited against a 20-case curated Golden Dataset across 7 academic domains using <b>LLM-as-a-Judge RAG Triad</b> scoring with sub-1.2s live spot-check capability:",
         body_style
     ))
     
@@ -295,10 +284,34 @@ def build_pdf_fundamentals(filename):
     story.append(t_eval)
     story.append(Spacer(1, 6))
 
-    # Section 8: Security & Testing
-    story.append(Paragraph("8. Data Sovereignty & 117 Passing Automated Tests", h1_style))
+    # Section 8: S2 Master's Thesis & IDCS Explainable AI
+    story.append(Paragraph("8. S2 Master's Thesis: Instance-Dependent Cost-Sensitive Explainable AI (FMIPA UGM)", h1_style))
     story.append(Paragraph(
-        "All user data is partitioned at the database kernel level with PostgreSQL Row-Level Security (<code>auth.uid() = user_id</code>), ensuring zero cross-tenant leakage. The entire repository is covered by <b>117 passing automated unit tests</b> (pytest) with 0 errors.",
+        "<b>Title:</b> <i>Stabilisasi Penjelasan Model Instance-Dependent Cost-Sensitive Menggunakan Regularisasi dan Uji Permutasi Biaya Terstratifikasi</i><br/>"
+        "<b>Candidate:</b> Frans Alwan Purba (NIM: 25/563545/PPA/07116) · <b>Supervisors:</b> Afiahayati, S.Kom., M.Cs., Ph.D & Prof. Dra. Sri Hartati, M.Sc., Ph.D.<br/>"
+        "<b>Problem & Novelty:</b> Ballegeer et al. (2025, EJOR) showed that optimizing models for Average Expected Cost (AEC) destabilizes local SHAP/LIME explanations (CoV > 0.25). Our work addresses this via a rigorous 3-stage methodology:<br/>"
+        "• <b>Stage 1:</b> Negative control noise floor estimation across 32 HMEQ configurations (N=5,960, L=25 bootstrap).<br/>"
+        "• <b>Stage 2 (Dual-Arm):</b> Arm 1 applies model weight regularization with a non-degeneracy filter (&sigma; > 0.01); Arm 2 performs stratified counterfactual cost-permutation (cost-shuffle across 5 seeds).<br/>"
+        "• <b>Stage 3:</b> Sign-Flip permutation testing (B=2,000 + Benjamini-Hochberg FDR) and No-Lose Decision Matrix covering Scenarios A, B, and C with fast 140ms permutation simulation.",
+        body_style
+    ))
+
+    # Section 9: 5-Layer AI Governance & Security
+    story.append(Paragraph("9. 5-Layer AI Governance & OWASP LLM Defense Matrix", h1_style))
+    story.append(Paragraph(
+        "The system incorporates an end-to-end defense-in-depth security model compliant with the <b>OWASP Top 10 for Large Language Models</b>:<br/>"
+        "• <b>Layer 1 (LLM01 Prompt Injection):</b> Enforces strict XML delimiters (<code>&lt;user_query&gt;</code>) and pre-flight heuristic pattern scanning to block instruction overrides.<br/>"
+        "• <b>Layer 2 (LLM04 Model DoS):</b> Token-bucket rate limiting via FastAPI (max 20 RAG/min, max 5 VLM/min) preventing Denial of Wallet.<br/>"
+        "• <b>Layer 3 (LLM02 Sensitive Data Exposure):</b> Presidio-style regex PII auto-masking (&lt; 2ms) redacting phone numbers (+62/08xx), student NIM, emails, and API keys.<br/>"
+        "• <b>Layer 4 (LLM06 Excessive Agency):</b> Strict separation of read-only vs protected write tools in MCP tool routing.<br/>"
+        "• <b>Layer 5 (Auditability):</b> Append-Only PostgreSQL Row-Level Security audit logs preventing historical tampering.",
+        body_style
+    ))
+
+    # Section 10: UI/UX 3.0 & Architectural Decision Records
+    story.append(Paragraph("10. UI/UX 3.0 Engineering & Architectural Decision Records (ADRs)", h1_style))
+    story.append(Paragraph(
+        "Designed to Raycast/Linear developer ergonomics standards: <b>Global Command Palette (Ctrl+K)</b> for instant power-user actions, <b>Sticky Recruiter Quick Cockpit</b> for 1-click scenario showcase, <b>AI Execution Trace Waterfall</b> with sub-millisecond latency accounting, and formal documentation: 4 Architectural Decision Records (<code>ADR-001</code> to <code>ADR-004</code>), 2 Model Cards, and an automated Eval Reproducibility Guide.",
         body_style
     ))
 
@@ -390,13 +403,13 @@ def build_pdf_cheatsheet(filename):
 
     # Title
     story.append(Paragraph("SECOND BRAIN: LIVE DEMO CHEATSHEET & INTERVIEW DEFENSE", title_style))
-    story.append(Paragraph("3-Minute Recruiter Walkthrough Script & High-Stakes AI Engineering Q&A Guide", subtitle_style))
+    story.append(Paragraph("3-Minute Recruiter Walkthrough Script, UI/UX 3.0 Cockpit & AI Engineering Q&A", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=c_secondary, spaceBefore=0, spaceAfter=8))
 
     # Part 1: The Pitch
     story.append(Paragraph("PART 1: The 30-Second Elevator Pitch (AI Engineer Edition)", h1_style))
     story.append(Paragraph(
-        "<i>\"Halo, perkenalkan saya Frans Alwan Purba, mahasiswa Magister Ilmu Komputer (Artificial Intelligence) di UGM. Proyek ini adalah <b>Second Brain</b>: platform autonomous AI engineering & distributed multi-agent system. Sistem ini membuktikan arsitektur AI produksi end-to-end: standardisasi Anthropic Model Context Protocol (MCP SSE), Corrective RAG (CRAG) dengan hierarki RAPTOR (GMM), Multimodal Vision AI (Gemini 2.0 VLM), deteksi anomali Classical ML (Isolation Forest &lt;2ms), dan Go Concurrency Telemetry (:8085)—seluruhnya terverifikasi dengan 117 automated unit tests dan skor evaluasi kualitas 81.8/100.\"</i>",
+        "<i>\"Halo, perkenalkan saya Frans Alwan Purba, mahasiswa Magister Kecerdasan Artifisial di Universitas Gadjah Mada (UGM). Proyek ini adalah <b>Second Brain</b>: platform autonomous AI engineering & distributed multi-agent system. Sistem ini membuktikan arsitektur AI produksi end-to-end: standardisasi Anthropic Model Context Protocol (MCP SSE), Corrective RAG (CRAG) dengan hierarki RAPTOR (GMM), Multimodal Vision AI (Gemini 2.0 VLM), deteksi anomali Classical ML (Isolation Forest &lt;2ms), Go Telemetry (:8085), pertahanan keamanan 5-lapis OWASP LLM, dan modul riset tesis S2 Explainable AI—seluruhnya terverifikasi dengan skor evaluasi 81.8/100 dan UI/UX modern Command Palette (Ctrl+K).\"</i>",
         body_style
     ))
 
@@ -410,33 +423,33 @@ def build_pdf_cheatsheet(filename):
         ],
         [
             Paragraph("<b>0:00 - 0:30</b><br/>Halaman Login", body_style),
-            Paragraph("Tunjukkan showcase 5 fase AI di kiri, klik tombol <b>'Masuk Mode Demo Instan (1-Click)'</b>.", body_style),
-            Paragraph("\"Halaman login menyajikan arsitektur 5 fase AI secara transparan. Untuk recruiter, tersedia 1-Click Instant Demo tanpa perlu registrasi yang langsung memuat dataset riset AI terkurasi.\"", body_style)
+            Paragraph("Tunjukkan showcase 5 fase AI & kartu Tesis S2 UGM, lalu klik <b>'Masuk Mode Demo Instan (1-Click)'</b>.", body_style),
+            Paragraph("\"Halaman login menyajikan arsitektur 5 fase AI dan riset tesis S2 UGM secara transparan. Untuk recruiter, tersedia 1-Click Instant Demo tanpa perlu registrasi yang langsung memuat dataset riset terkurasi.\"", body_style)
         ],
         [
-            Paragraph("<b>0:30 - 1:00</b><br/>Ringkasan AI", body_style),
-            Paragraph("Buka tab <b>'Ringkasan AI'</b>. Tunjukkan AI Showcase Grid (Fase 1–5) & Go cluster telemetry.", body_style),
-            Paragraph("\"Ini executive cockpit. Di bagian atas terlihat status klaster terdistribusi: FastAPI :8000 dan Go telemetry daemon :8085 dengan Goroutines pool P95 &lt; 2.5ms.\"", body_style)
+            Paragraph("<b>0:30 - 0:55</b><br/>Command Palette & Recruiter Bar", body_style),
+            Paragraph("Tekan <b>Ctrl+K</b> (Command Palette) lalu tunjukkan <b>Sticky Recruiter Cockpit</b> di bawah layar.", body_style),
+            Paragraph("\"Kami merancang UI/UX 3.0 berstandar Linear/Raycast: Command Palette (Ctrl+K) untuk eksekusi perintah instan dan bilah Recruiter Cockpit di bawah layar untuk memicu skenario demo dalam 1-klik.\"", body_style)
         ],
         [
-            Paragraph("<b>1:00 - 1:40</b><br/>Next-Gen RAG", body_style),
-            Paragraph("Klik tab <b>'Next-Gen RAG'</b>. Klik preset <i>CatBoost Loss</i> lalu preset <i>Resep Martabak (OOD)</i>.", body_style),
-            Paragraph("\"Di sini kita mendemonstrasikan Corrective RAG (CRAG) + RAPTOR Knowledge Tree. Kueri valid langsung menghasilkan grounded answer dengan Cross-Encoder rerank score 0.945; kueri out-of-distribution langsung ditolak guardrail demi 0% halusinasi.\"", body_style)
+            Paragraph("<b>0:55 - 1:35</b><br/>AI Quality Flywheel", body_style),
+            Paragraph("Klik <b>'🛡️ OOD Guardrail'</b> di cockpit. Tunjukkan <b>Live Spot-Check (1.2s)</b> & Latency Waterfall.", body_style),
+            Paragraph("\"Kualitas AI diuji otomatis dengan LLM-as-a-Judge pada 20 Golden Dataset (Skor 81.8/100). Tombol Live Spot-Check mengeksekusi evaluasi tunggal dalam 1.2 detik lengkap dengan transparansi latensi waterfall.\"", body_style)
         ],
         [
-            Paragraph("<b>1:40 - 2:10</b><br/>Multimodal VLM", body_style),
-            Paragraph("Klik tab <b>'Multimodal VLM'</b>. Klik preset <i>Kurva Loss CatBoost (Epoch 350)</i>.", body_style),
-            Paragraph("\"Fitur Multimodal Document AI menggunakan Gemini 2.0 Flash VLM. Menganalisis kurva konvergensi fungsi loss, mengekstrak formula LaTeX, dan langsung mengindeks tensor vektor ke pgvector 768-D secara otomatis.\"", body_style)
+            Paragraph("<b>1:35 - 2:05</b><br/>Tesis S2 & XAI Engine", body_style),
+            Paragraph("Klik <b>'🔬 Tesis S2 (IDCS)'</b>. Klik tombol <b>'Uji Permutasi Cepat (140ms)'</b> & salin tabel LaTeX.", body_style),
+            Paragraph("\"Ini riset tesis S2 saya di FMIPA UGM: stabilisasi penjelasan model IDCS pada HMEQ. Simulator cepat B=50 membuktikan reduksi CoV 34% (p &lt; 0.001) dalam 140ms, dengan ekspor tabel LaTeX IEEE 1-klik.\"", body_style)
         ],
         [
-            Paragraph("<b>2:10 - 2:35</b><br/>ML Radar", body_style),
-            Paragraph("Klik tab <b>'ML Radar'</b>. Geser slider sleep debt ke 12 jam & midnight sessions ke 4 kali.", body_style),
-            Paragraph("\"Ini bukti kedewasaan arsitektur: kami menggunakan Classical ML (Isolation Forest) untuk menghitung anomali sirkadian dalam &lt; 2ms tanpa membakar token LLM. Begitu skor drop &lt; -0.15, agen intervensi empatik LLM otomatis terpicu secara bersyarat.\"", body_style)
+            Paragraph("<b>2:05 - 2:30</b><br/>ML Radar (<2ms)", body_style),
+            Paragraph("Klik <b>'📊 Radar &lt;2ms'</b>. Geser slider sleep debt; perhatikan <b>SVG Radial Gauge</b> berputar.", body_style),
+            Paragraph("\"Bukti kedewasaan arsitektur: kami menggunakan Classical ML (Isolation Forest) sub-2ms dengan nol token cost. Jarum analog beranimasi secara mulus; LLM hanya dipanggil bersyarat saat skor drop &lt; -0.150.\"", body_style)
         ],
         [
-            Paragraph("<b>2:35 - 3:00</b><br/>Evals & MCP", body_style),
-            Paragraph("Klik tab <b>'AI Quality Flywheel'</b> lalu tab <b>'MCP & Telemetry'</b>.", body_style),
-            Paragraph("\"Kualitas sistem diuji dengan LLM-as-a-Judge pada 20 Golden Dataset dengan skor 81.8/100 (Faithfulness 85%, Recall 86%). Dan di tab MCP, 8 tool schemas diekspos via SSE untuk Claude Desktop dan Cursor IDE.\"", body_style)
+            Paragraph("<b>2:30 - 3:00</b><br/>AI Governance & MCP", body_style),
+            Paragraph("Klik <b>[ 🛡️ AI Governance ]</b> di header. Tunjukkan <b>Live PII Redactor</b> dan 8 tools MCP SSE.", body_style),
+            Paragraph("\"Pusat Tata Kelola AI menerapkan pertahanan 5 lapis OWASP LLM: prompt injection delimiter, rate limiting, live PII redactor (&lt;2ms), dan 4 dokumen Architectural Decision Records (ADR).\"", body_style)
         ]
     ]
     t_demo = Table(demo_steps, colWidths=[1.1*inch, 2.1*inch, 3.8*inch])
@@ -450,20 +463,20 @@ def build_pdf_cheatsheet(filename):
     story.append(Spacer(1, 6))
 
     # Part 3: Anticipated Questions & Strong Answers
-    story.append(Paragraph("PART 3: 7 Anticipated Technical Questions & Bulletproof Model Answers", h1_style))
+    story.append(Paragraph("PART 3: 10 Anticipated Technical Questions & Bulletproof Model Answers", h1_style))
     
     qas = [
         ("Q1: Mengapa menggunakan Classical ML (Isolation Forest) dipadukan dengan Generative AI (LLM)?",
          "<b>Jawaban:</b> Menjalankan LLM untuk memantau sinyal telemetri setiap detik sangat mahal biaya token dan memiliki latensi tinggi (&gt;500ms) serta non-deterministik. Isolation Forest mengevaluasi vektor 5-D secara deterministik dalam &lt; 2ms dengan zero token cost. LLM hanya di-trigger ketika anomali terdeteksi (&lt; -0.150) untuk mensintesis rekomendasi pemulihan empatik."),
 
         ("Q2: Bagaimana Corrective RAG (CRAG) dan RAPTOR Tree mencegah halusinasi secara signifikan?",
-         "<b>Jawaban:</b> RAPTOR mengelompokkan dokumen menggunakan Gaussian Mixture Models (GMM) dan merangkumnya menjadi pohon hirarkis bertingkat. CRAG bertindak sebagai evaluator evaluator confidence: kueri ambigu (&lt;0.70) memicu ekspansi HyDE (Hypothetical Document Embeddings), sementara kueri out-of-distribution (&lt;0.35) langsung ditolak guardrail, menghasilkan 100% OOD Refusal."),
+         "<b>Jawaban:</b> RAPTOR mengelompokkan dokumen menggunakan Gaussian Mixture Models (GMM) dan merangkumnya menjadi pohon hirarkis bertingkat. CRAG bertindak sebagai evaluator confidence: kueri ambigu (&lt;0.70) memicu ekspansi HyDE (Hypothetical Document Embeddings), sementara kueri out-of-distribution (&lt;0.35) langsung ditolak guardrail, menghasilkan 100% OOD Refusal."),
 
         ("Q3: Mengapa memilih standardisasi Anthropic Model Context Protocol (MCP)?",
          "<b>Jawaban:</b> Daripada membangun API tools proprietary yang tertutup, standar MCP SSE (/mcp/sse) memungkinkan agen eksternal industri (Claude Desktop, Cursor IDE) mengonsumsi tool Second Brain secara native melalui protokol JSON-RPC 2.0 yang interoperable."),
 
         ("Q4: Bagaimana metodologi Quality Flywheel diuji dan diotomasi?",
-         "<b>Jawaban:</b> Kami menyusun 20 pasangan pertanyaan akademik, ground truth context, dan expected answer di Golden Dataset. Script eval_runner.py menguji RAG Triad (Context Recall 86%, Faithfulness 85%, Answer Relevancy 78.5%) via GitHub Actions CI/CD gate sebelum kode di-deploy ke production."),
+         "<b>Jawaban:</b> Kami menyusun 20 pasangan pertanyaan akademik, ground truth context, dan expected answer di Golden Dataset. Script eval_runner.py menguji RAG Triad (Context Recall 86%, Faithfulness 85%, Answer Relevancy 78.5%) via GitHub Actions CI/CD gate sebelum kode di-deploy ke production. Developer juga dapat menjalankan Live Spot-Check dalam 1.2 detik."),
 
         ("Q5: Bagaimana pembagian kerja polyglot antara Go Worker dan Python FastAPI?",
          "<b>Jawaban:</b> Python FastAPI menangani inferensi AI/ML, VLM, dan tool calling. Golang Worker (:8085) mengelola background telemetry via Goroutines pool dan Channels. Go menghemat memori 10x lipat (~14MB) dan menghilangkan bottleneck GIL Python saat polling telemetri konkurensi."),
@@ -472,7 +485,16 @@ def build_pdf_cheatsheet(filename):
          "<b>Jawaban:</b> Endpoint /api/v1/notes/upload-visual mengirim gambar ke Gemini 2.0 Flash VLM dengan prompt terstruktur. Model membaca konvergensi kurva loss dan OCR tulisan tangan, mengekstrak formula ke format LaTeX, dan mengindeks embedding vektornya ke pgvector 768-D dalam waktu &lt;50ms."),
 
         ("Q7: Bagaimana kedaulatan data dan isolasi multi-tenant dijamin?",
-         "<b>Jawaban:</b> Setiap tabel dilindungi oleh PostgreSQL Row-Level Security (RLS) dengan aturan auth.uid() = user_id di level kernel database. Aplikasi tidak menggunakan tracker pihak ketiga dan zero advertising.")
+         "<b>Jawaban:</b> Setiap tabel dilindungi oleh PostgreSQL Row-Level Security (RLS) dengan aturan auth.uid() = user_id di level kernel database. Aplikasi tidak menggunakan tracker pihak ketiga dan zero advertising."),
+
+        ("Q8: Bagaimana pertahanan keamanan AI (OWASP Top 10 for LLMs) diimplementasikan?",
+         "<b>Jawaban:</b> Kami menerapkan arsitektur pertahanan 5 lapis: (1) XML strict delimiters &lt;user_query&gt; mencegah prompt injection, (2) Token-bucket rate limiting di FastAPI mencegah Denial of Wallet, (3) Live Presidio-style PII auto-masking (&lt;2ms), (4) Prinsip least privilege pada MCP tool execution, dan (5) Append-only PostgreSQL audit trail."),
+
+        ("Q9: Apa kontribusi riset tesis S2 Anda terkait model IDCS (Ballegeer et al. 2025)?",
+         "<b>Jawaban:</b> Kami mengatasi instabilitas penjelasan lokal (SHAP/LIME CoV &gt; 0.25) pada model Instance-Dependent Cost-Sensitive di bawah ketidakseimbangan kelas ekstrem melalui intervensi dual-arm: regularisasi bobot model non-degenerat (&sigma; &gt; 0.01) dan uji counterfactual kausalitas permutasi biaya terstratifikasi pada 32 konfigurasi HMEQ."),
+
+        ("Q10: Mengapa merancang Command Palette (Ctrl+K) dan Recruiter Quick Cockpit?",
+         "<b>Jawaban:</b> Untuk memaksimalkan efisiensi evaluasi teknis. Interviewer dapat memicu skenario kritis (OOD Guardrail, IDCS permutation, Anomaly radar sub-2ms) dalam 1-klik tanpa tersesat di navigasi konvensional, membuktikan pemahaman mendalam tentang developer ergonomics.")
     ]
 
     for q, a in qas:

@@ -10,6 +10,8 @@
 [![Vector DB](https://img.shields.io/badge/Database-PostgreSQL%20pgvector%20(768--D%20HNSW)-3ECF8E.svg)](https://supabase.com)
 [![AI Evaluation](https://img.shields.io/badge/CI%2FCD%20Evals-Composite%20Index%2081.8%2F100-10B981.svg)](apps/backend/evals)
 [![Unit Tests](https://img.shields.io/badge/Unit%20Tests-117%2F117%20Passed%20(100%25)-success.svg)](apps/backend/tests)
+[![AI Governance](https://img.shields.io/badge/Security-OWASP%20LLM%20Top%2010%20%2B%20PII%20Redactor-red.svg)](docs)
+[![Whitepaper & Cheatsheet](https://img.shields.io/badge/Whitepaper-Architecture%20Fundamentals%20%2B%20Cheatsheet%20PDF-blueviolet.svg)](docs)
 [![PWA](https://img.shields.io/badge/PWA-Mobile--First%20Offline%20Ready-6366F1.svg)](apps/dashboard)
 
 > **Autonomous AI Engineering Operating System & Distributed Multi-Agent Platform**  
@@ -65,7 +67,7 @@ flowchart TD
 
 ---
 
-## 🚀 5 Pilar Utama AI Engineering (Core Systems)
+## 🚀 6 Pilar Utama AI Engineering (Core Systems)
 
 ### 🔹 1. Standardisasi Model Context Protocol (Anthropic MCP SSE)
 * **Konektivitas Terbuka**: Server FastAPI mengekspos endpoint transport SSE standar di `/mcp/sse` dan `/mcp/messages/`, serta kompatibilitas mode `stdio` (`mcp_client_config.json`).
@@ -118,6 +120,16 @@ flowchart TD
 | **Out-of-Distribution Refusal (Guardrail)** | `0.90` | **`100.0%` (1.000)** | 🟢 PASSED |
 | **Composite AI Quality Index** | `75.0` | **`81.8 / 100`** | 🏆 EXCELLENT |
 
+### 🔹 6. AI Governance, Security & OWASP Defense Matrix
+* **5-Layer Defense Matrix (OWASP Top 10 for LLMs)**:
+  1. **Prompt Injection Boundary Sanitization**: Input pengguna dibersihkan dan dibungkus strict boundary delimiter XML `<user_query>...</user_query>` sebelum disuntikkan ke context window LLM, memitigasi *systemic prompt hijack*.
+  2. **Adaptive Leaky-Bucket Rate Limiting**: Batas 30 req/min per IP/token untuk memitigasi serangan *Denial-of-Wallet* dan eksploitasi kuota API.
+  3. **High-Speed PII Anonymization (< 2ms)**: Modul deteksi pola ekspresi reguler & Presidio PII Engine yang menyamarkan nomor telepon Indonesia (`08xx`), NIM mahasiswa UGM (`25/563545/PPA/07116`), email institusi, dan Bearer token secara instan di sisi klien/gateway sebelum data dikirim ke LLM eksternal.
+  4. **Least-Privilege Tool Sandboxing**: Eksekusi tool MCP divalidasi ketat terhadap skema JSON-RPC 2.0 tanpa akses shell/filesystem tingkat root.
+  5. **Append-Only PostgreSQL Audit Trail (RLS)**: Seluruh pemanggilan tool, konsumsi token, dan latensi dicatat dalam tabel audit yang diamankan oleh kebijakan *Row Level Security* (RLS).
+* **Live Governance & Model Cards Cockpit (`[ 🛡️ AI Governance ]`)**:
+  Menyediakan simulator interaktif PII Redactor realtime, in-app ADR explorer (`ADR-001` - `ADR-004`), ringkasan Model Cards terstandardisasi, serta fitur ekspor data backup JSON terenkripsi.
+
 ---
 
 ## 🔬 Tesis S2 & Explainable AI Research Engine: Instance-Dependent Cost-Sensitive (IDCS)
@@ -151,6 +163,7 @@ Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
 | **AI Quality Flywheel** | 🏆 `81.8 Score` | 5 metrik benchmark RAG Triad, **Live Spot-Check (1.2 Detik)**, dan drawer **AI Execution Trace Latency Waterfall** (Embedding -> HNSW -> Rerank -> LLM). |
 | **Riset & Tesis** | 🔬 `IDCS XAI` | Arsitektur 3 Tahap Tesis S2 UGM, **Simulator Permutasi Cepat (B=50, 140ms)**, No-Lose Decision Matrix, log bimbingan dospem, dan ekspor LaTeX IEEE. |
 | **MCP & Telemetry** | 🔌 `SSE Std` | Katalog 8 skema tool MCP, live JSON-RPC 2.0 simulator, audit logs worker Go, dan pipeline webhook 3 repositori akademik. |
+| **Tata Kelola AI** | 🛡️ `OWASP L1-5` | Modal AI Governance & Keamanan: Matriks 5 layer OWASP Top 10 for LLMs, **Simulator Redaksi PII Realtime (<2ms)**, in-app ADR reader, dan Model Cards. |
 
 ---
 
@@ -158,6 +171,10 @@ Dashboard kini berfokus penuh pada kapabilitas AI Engineer:
 
 Aplikasi mengadopsi standar pengalaman pengguna (*developer ergonomics*) setara produk modern seperti **Linear, Raycast, dan Vercel**:
 
+* **🔐 Redesigned AI Engineer Login & Identity Experience:**
+  * Halaman autentikasi berorientasi portofolio rekayasa AI: menampilkan kartu proposal riset tesis S2 UGM (IDCS XAI Ballegeer et al., 2025 EJOR), tombol **⚡ 1-Click Instant Recruiter Preview** (masuk tanpa kredensial), dan pintasan instan ke modal Tata Kelola AI & Keamanan.
+* **🛡️ Modal Tata Kelola AI & Keamanan Terpadu (`[ 🛡️ AI Governance ]`):**
+  * Terbuka dari header utama maupun halaman login: menyajikan matriks pertahanan OWASP LLM 5-layer, simulator penyamaran PII interaktif (<2ms) untuk identitas Indonesia (HP, NIM UGM, email, Bearer key), in-app reader untuk seluruh berkas ADR (`ADR-001` - `ADR-004`), dan ekspor data audit JSON.
 * **⌨️ Global Command Palette (`Ctrl + K` / `Cmd + K`):**
   * Akses cepat tanpa mouse ke seluruh fungsi platform: uji guardrail OOD, uji riset CatBoost, buka metodologi tesis S2, kalkulasi anomali sirkadian, hingga draft pesan WhatsApp ke dosen pembimbing.
 * **🚀 Sticky Recruiter Cockpit (Bilah Pintas Mengambang):**
@@ -171,8 +188,11 @@ Aplikasi mengadopsi standar pengalaman pengguna (*developer ergonomics*) setara 
 
 ## 📚 Dokumentasi Arsitektur & Transparansi Ilmiah (`docs/`)
 
-Untuk membuktikan kedewasaan rekayasa perangkat lunak, sistem dilengkapi dokumentasi berstandar industri:
+Untuk membuktikan kedewasaan rekayasa perangkat lunak, sistem dilengkapi dokumentasi berstandar industri dan berkas PDF resmi:
 
+* **📑 Dokumen Portofolio Resmi (PDF Siap Unduh / Cetak):**
+  * 📄 **[`Second_Brain_Engineering_Fundamentals.pdf`](docs/Second_Brain_Engineering_Fundamentals.pdf)**: Whitepaper komprehensif 11 bagian yang mencakup arsitektur polyglot (FastAPI + Go 1.22), Anthropic MCP SSE, Next-Gen CRAG + RAPTOR Tree, Classical ML Radar (<2ms), CI/CD Evals & Quality Flywheel (81.8/100), proposal tesis S2 UGM (IDCS XAI Ballegeer et al., 2025 EJOR), AI Governance & OWASP LLM Defense Matrix, serta UI/UX 3.0 & ringkasan ADRs.
+  * 📋 **[`Second_Brain_Live_Demo_Cheatsheet.pdf`](docs/Second_Brain_Live_Demo_Cheatsheet.pdf)**: Lembar panduan cepat live demo dan technical interview: ringkasan 60-detik elevator pitch, naskah demo 5-langkah dengan kueri input persis dan respons yang diharapkan, penanganan sanggahan teknis recruiter (*objection handling*), serta 10 lembar tanya-jawab konsep AI Engineering tingkat lanjut.
 * **📁 Architectural Decision Records ([`docs/ADR/`](docs/ADR/)):**
   * [`ADR-001`](docs/ADR/ADR-001-why-mcp-over-custom-api.md): Standardisasi Anthropic Model Context Protocol (MCP SSE) untuk interoperabilitas multi-agent terbuka.
   * [`ADR-002`](docs/ADR/ADR-002-isolation-forest-vs-deep-learning-radar.md): Pemilihan Classical Unsupervised ML (Isolation Forest sub-2ms) dibanding LLM prompting rutin (menghemat $> 99.8\%$ biaya token).

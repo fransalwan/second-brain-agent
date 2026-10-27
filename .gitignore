@@ -27,4 +27,4 @@ dist/
 
 # Portfolio Demo & Architecture PDFs (Interview Prep & Cheatsheets)
 *.pdf
-docs/*.pdf
+!docs/*.pdf
